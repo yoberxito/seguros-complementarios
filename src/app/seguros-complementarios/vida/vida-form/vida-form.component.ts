@@ -2,8 +2,37 @@ import { CommonModule } from '@angular/common';
 import { Component } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
+import {
+  VidaApiService,
+  RepresentanteDtoApi,
+  RespuestaPersonaContactoApi,
+  RespuestaConyugeConcubinoApi,
+  DatosAseguradoApi,
+  EmpresaEmpleadorApi,
+  TipoDocumentoCargaLocal,
+  DocumentoCargadoLocalResponse,
+  ValidacionDocumentalCompletaResponseLocal,
+  CierreDocumentalCompletoResponseLocal,
+  RegistrarAvanceExpedienteRequest,
+  RegistrarAceptacionRequest,
+  DocumentoGeneradoDescargadoLocal,
+  GenerarFormulario6012Request,
+  GenerarFormularioDescuentoRequest,
+  TipoDocumentoFormulario6012
+} from '../services/vida-api.service';
 
 type Vista = 'formulario' | 'resumen' | 'exito';
+
+type TipoAviso = 'info' | 'exito' | 'advertencia' | 'error';
+
+type ContextoConsultaPersona = 'titular' | 'conyuge' | 'beneficiario';
+
+interface AvisoFlotante {
+  tipo: TipoAviso;
+  titulo: string;
+  mensaje: string;
+  persistente: boolean;
+}
 
 type PasoFormulario =
   | 'titular'
@@ -41,6 +70,21 @@ interface PersonaDocumento {
   apellidoMaterno: string;
   primerNombre: string;
   segundoNombre: string;
+}
+
+interface PersonaDocumento {
+  tipoDocumento: string;
+  otroTipoDocumento?: string;
+  numeroDocumento: string;
+
+  nombres?: string;
+
+  apellidoPaterno: string;
+  apellidoMaterno: string;
+  primerNombre: string;
+  segundoNombre: string;
+
+  tipoRelacion?: string;
 }
 
 interface Beneficiario extends PersonaDocumento {
@@ -103,7 +147,8 @@ export class VidaFormComponent {
 
 vista: Vista = 'formulario';
 intentoEnviar = false;
-avisoTemporal = '';
+avisoFlotante: AvisoFlotante | null = null;
+temporizadorAviso: ReturnType<typeof setTimeout> | null = null;
 
 pasoActual: PasoFormulario = 'titular';
 
@@ -121,10 +166,10 @@ pasosFormulario: PasoVida[] = [
     descripcion: 'Planilla, decreto, convenio y empleador'
   },
   {
-    codigo: 'conyuge',
-    numero: 3,
-    titulo: 'Cónyuge',
-    descripcion: 'Registro opcional o dato bloqueado desde EsSalud'
+  codigo: 'conyuge',
+  numero: 3,
+  titulo: 'Cónyuge',
+  descripcion: 'Consulta automática desde base institucional'
   },
   {
     codigo: 'beneficiarios',
@@ -173,15 +218,83 @@ aceptaVeracidad = false;
 aceptaAfiliacion = false;
 aceptaNotificacionesDeclaracion = true;
 
+cargandoTipoAsegurado = false;
+tipoAseguradoValidado = false;
+errorTipoAsegurado = '';
+
+aceptaTratamientoDatos = false;
 aceptaTerminosDeclaracion = false;
+
+mostrarAyudaCgbvp = false;
 
 modoRetornoPendiente = false;
 
 archivoFormulario6012: ArchivoDocumentoFirmado = this.crearArchivoVacio();
 archivoAutorizacionDescuento: ArchivoDocumentoFirmado = this.crearArchivoVacio();
+cargandoDocumentosFirmadosBackend = false;
+documentosFirmadosCargadosBackend = false;
+
+
+
+idDocumentoCargadoFormulario6012 = '';
+idDocumentoCargadoAutorizacion = '';
+validandoDocumentosBackend = false;
+documentosValidadosBackend = false;
+
+cerrandoDocumentosBackend = false;
+documentosCerradosBackend = false;
+
+idDocumentoSelladoAutorizacion = '';
+idDocumentoPublicadoAutorizacion = '';
+
+idDocumentoSelladoFormulario6012 = '';
+idDocumentoPublicadoFormulario6012 = '';
+
+resultadoCierreAutorizacion:
+  CierreDocumentalCompletoResponseLocal | null = null;
+
+resultadoCierreFormulario6012:
+  CierreDocumentalCompletoResponseLocal | null = null;
+
+mensajeErrorCierre = '';
+
+autorizacionValidadaBackend = false;
+formulario6012ValidadoBackend = false;
+
+resultadoValidacionAutorizacion:
+  ValidacionDocumentalCompletaResponseLocal | null = null;
+
+resultadoValidacionFormulario6012:
+  ValidacionDocumentalCompletaResponseLocal | null = null;
+
+mensajeRechazoValidacion = '';
 documentosPublicados = false;
 fechaRecepcionDocumentos = '';
 correoEnvioDocumentos = '';
+
+consultandoDocumentoPublicado:
+  TipoDocumentoFirmado | null = null;
+
+preparandoProcesoBackendLocal = false;
+procesoBackendPreparado = false;
+errorPreparacionBackendLocal = '';
+
+generandoFormulario6012Servicio = false;
+
+idDocumentoGeneradoFormulario6012 = '';
+
+blobFormulario6012Generado:
+  Blob | null = null;
+
+urlFormulario6012Generado:
+  string | null = null;
+
+generandoFormularioDescuentoServicio = false;
+
+idDocumentoGeneradoAutorizacion = '';
+
+blobFormularioDescuentoGenerado: Blob | null = null;
+urlFormularioDescuentoGenerado: string | null = null;
 
 formulario6012Sellado = false;
 autorizacionDescuentoSellada = false;
@@ -198,45 +311,462 @@ mesDeclaracion = '';
     Después se reemplaza por una llamada real al servicio de tipos de documento de EsSalud.
 */
 
-tiposDocumento: TipoDocumento[] = [
-    { codigo: 'DNI', descripcion: 'DNI', longitud: 8 },
-    { codigo: 'CE', descripcion: 'C.E.', longitud: 9 },
-    { codigo: 'Otro', descripcion: 'Otro' }
+tiposDocumento: TipoDocumento[] = [];
+
+tiposDocumentoRespaldo: TipoDocumento[] = [
+  { codigo: '01', descripcion: '01-DNI' },
+  { codigo: '04', descripcion: '04-C.E.' },
+  { codigo: '07', descripcion: '07-PASAPORTE' },
+  { codigo: '09', descripcion: '09-CARNE SOLIC REFUGIO' },
+  { codigo: '23', descripcion: '23-PERMISO TEMPORAL PERMANEN' },
+  { codigo: '27', descripcion: '27-C.IDENT-RREE' },
+  { codigo: '28', descripcion: '28-DOC.ID.EXTR.' },
+  { codigo: '29', descripcion: '29-CPP' }
 ];
+
+cargandoTiposDocumento = false;
+errorTiposDocumento = '';
+
+validandoSeguroComplementario = false;
+seguroComplementarioValidado = false;
+titularTieneSeguroComplementario = false;
+mensajeSeguroComplementario = '';
+errorValidacionSeguroComplementario = '';
+
+empresasEmpleador: EmpresaEmpleadorApi[] = [];
+cargandoEmpleador = false;
+errorEmpleador = '';
+
+consultandoInformacionPersona = false;
+
+cargandoDatosTitular = false;
+errorDatosTitular = '';
 
 decretosLegislativos = ['1057', '276', '728'];
 
+cargandoConyuge = false;
+conyugeConsultado = false;
+errorConyuge = '';
+
 form: FormularioVida = this.crearCasoNuevo();
 
-constructor(private sanitizer: DomSanitizer) {
+constructor(
+  private sanitizer: DomSanitizer,
+  private vidaApiService: VidaApiService
+) {
   this.establecerFechaActual();
   this.cargarCasoNuevo();
+}
+
+obtenerDocumentoEmpleadoAutenticado(): { tipoDocumento: string; numeroDocumento: string } {
+  // Temporal: simula el documento entregado por el sistema institucional de empleados.
+  // Luego esto se reemplaza por la integración real.
+  return {
+    tipoDocumento: '01',
+    numeroDocumento: '73380348'
+  };
 }
 
 cargarCasoNuevo(): void {
   this.vista = 'formulario';
   this.intentoEnviar = false;
-  this.avisoTemporal = '';
+  this.cerrarAviso();
 
   this.form = this.crearCasoNuevo();
 
   this.reiniciarFlujoPorPasos();
+  this.cargarTiposDocumentoDesdeServicio();
+  this.cargarTitularDesdeSistemaEmpleado();
   this.scrollArriba();
 }
 
-  crearCasoNuevo(): FormularioVida {
-    return {
+cargarTitularDesdeSistemaEmpleado(): void {
+  const documentoEmpleado = this.obtenerDocumentoEmpleadoAutenticado();
+
+  this.cargandoDatosTitular = true;
+  this.errorDatosTitular = '';
+
+  this.resetearValidacionSeguroComplementario();
+  this.resetearTipoAseguradoTitular();
+  this.limpiarDatosTitularConsultados();
+
+  // Documento temporal entregado por el sistema institucional.
+  // Para la prueba utilizará: DNI 03700150.
+  this.form.titular.tipoDocumento = documentoEmpleado.tipoDocumento;
+  this.form.titular.numeroDocumento = documentoEmpleado.numeroDocumento;
+
+  console.log('Consultando titular y contacto:', documentoEmpleado);
+
+  this.vidaApiService
+    .obtenerInformacionPersonaContacto(
+      documentoEmpleado.tipoDocumento,
+      documentoEmpleado.numeroDocumento
+    )
+    .subscribe({
+      next: (respuesta: RespuestaPersonaContactoApi) => {
+        this.cargandoDatosTitular = false;
+
+        console.log(
+          'Respuesta del servicio de titular y contacto:',
+          respuesta
+        );
+
+        const consultaCorrecta =
+          String(respuesta.codResultado).trim() === '0'
+          && !!respuesta.representanteDto;
+
+        if (!consultaCorrecta) {
+          this.errorDatosTitular =
+            respuesta.mensaje?.trim()
+            || 'No se encontró información del titular para el documento indicado.';
+
+          this.mostrarAviso(
+            this.errorDatosTitular,
+            'error',
+            'Titular no encontrado',
+            true
+          );
+
+          return;
+        }
+
+        const datosTitular = respuesta.representanteDto!;
+
+        // Nombres y apellidos del titular.
+        this.asignarDatosPersonaDesdeServicio(
+          this.form.titular,
+          datosTitular
+        );
+
+        // Correo y celular registrados.
+        this.actualizarContactoTitularDesdeServicio(
+          datosTitular
+        );
+
+        /*
+          TEMPORAL:
+          Estas validaciones permanecen simuladas mientras trabajamos
+          únicamente en la reconexión del servicio de titular y contacto.
+        */
+
+        this.validandoSeguroComplementario = false;
+        this.seguroComplementarioValidado = true;
+        this.titularTieneSeguroComplementario = false;
+        this.mensajeSeguroComplementario =
+          'El titular no cuenta con +Vida Seguro de Accidentes registrado. Puede continuar con la afiliación.';
+        this.errorValidacionSeguroComplementario = '';
+
+        this.cargandoTipoAsegurado = false;
+        this.tipoAseguradoValidado = true;
+        this.errorTipoAsegurado = '';
+        this.form.tipoAsegurado = 'Regular';
+
+        // Se mantienen temporales los datos laborales y el empleador.
+        this.precargarDatosLaboralesSimulados();
+        this.precargarEmpleadorEssalud();
+
+        this.mostrarAviso(
+          'Los datos del titular y de contacto fueron cargados correctamente.',
+          'exito',
+          'Titular encontrado'
+        );
+      },
+
+      error: (error: unknown) => {
+        this.cargandoDatosTitular = false;
+
+        this.errorDatosTitular =
+          'No fue posible consultar los datos del titular y de contacto. Verifique la conexión con la red de EsSalud.';
+
+        this.mostrarAviso(
+          this.errorDatosTitular,
+          'error',
+          'Servicio no disponible',
+          true
+        );
+
+        console.error(
+          'Error consultando titular y contacto:',
+          error
+        );
+      }
+    });
+}
+
+consultarConyugeConcubino(
+  forzarConsulta = false
+): void {
+  if (this.cargandoConyuge) {
+    return;
+  }
+
+  if (
+    this.conyugeConsultado
+    && !forzarConsulta
+  ) {
+    return;
+  }
+
+  const tipoDocumento =
+    this.form.titular.tipoDocumento;
+
+  const numeroDocumento =
+    this.form.titular.numeroDocumento;
+
+  if (
+    this.tipoDocumentoVacio(this.form.titular)
+    || this.numeroDocumentoInvalido(this.form.titular)
+  ) {
+    this.errorConyuge =
+      'No se puede consultar al cónyuge o concubino porque el documento del titular no es válido.';
+
+    this.conyugeConsultado = false;
+    return;
+  }
+
+  this.cargandoConyuge = true;
+  this.conyugeConsultado = false;
+  this.errorConyuge = '';
+
+  this.form.conyuge = null;
+  this.form.conyugeDesdeBase = false;
+
+  console.log(
+    'Consultando cónyuge o concubino:',
+    {
+      tipoDocumento,
+      numeroDocumento
+    }
+  );
+
+  this.vidaApiService
+    .obtenerConyugeConcubino(
+      tipoDocumento,
+      numeroDocumento
+    )
+    .subscribe({
+      next: (
+        respuesta:
+          RespuestaConyugeConcubinoApi
+      ) => {
+        this.cargandoConyuge = false;
+        this.conyugeConsultado = true;
+
+        console.log(
+          'Respuesta del servicio de cónyuge o concubino:',
+          respuesta
+        );
+
+        /*
+         * El servicio actualmente devuelve flagResultado "0"
+         * cuando encuentra a la persona.
+         *
+         * Para evitar depender de una convención distinta a otros
+         * servicios, se toma la existencia de persona como resultado
+         * principal.
+         */
+        if (!respuesta.persona) {
+          this.form.conyuge = null;
+          this.form.conyugeDesdeBase = false;
+          return;
+        }
+
+        const apellidoPaterno =
+          this.normalizarTextoServicio(
+            respuesta.persona.apellidoPaterno
+          );
+
+        const apellidoMaterno =
+          this.normalizarTextoServicio(
+            respuesta.persona.apellidoMaterno
+          );
+
+        const nombres =
+          this.normalizarTextoServicio(
+            respuesta.persona.nombre
+          );
+
+        const tipoRelacion =
+          this.normalizarTextoServicio(
+            respuesta.persona.tipoRelacion
+          );
+
+        if (
+          !apellidoPaterno
+          || !apellidoMaterno
+          || !nombres
+          || !tipoRelacion
+        ) {
+          this.conyugeConsultado = false;
+
+          this.errorConyuge =
+            'El servicio devolvió información incompleta del cónyuge o concubino.';
+
+          return;
+        }
+
+        const partesNombres =
+          nombres
+            .split(/\s+/)
+            .filter(parte => parte !== '');
+
+        this.form.conyuge = {
+          /*
+           * Estos datos permanecerán vacíos hasta que el servicio
+           * institucional los incorpore.
+           */
+          tipoDocumento: '',
+          numeroDocumento: '',
+
+          nombres: [
+            apellidoPaterno,
+            apellidoMaterno,
+            nombres
+          ].join(' '),
+
+          apellidoPaterno,
+          apellidoMaterno,
+
+          primerNombre:
+            partesNombres[0] || '',
+
+          segundoNombre:
+            partesNombres
+              .slice(1)
+              .join(' '),
+
+          tipoRelacion
+        };
+
+        this.form.conyugeDesdeBase = true;
+      },
+
+      error: (error: unknown) => {
+        this.cargandoConyuge = false;
+        this.conyugeConsultado = false;
+
+        this.form.conyuge = null;
+        this.form.conyugeDesdeBase = false;
+
+        this.errorConyuge =
+          'No fue posible consultar la información del cónyuge o concubino. Verifique la conexión con la red de EsSalud.';
+
+        console.error(
+          'Error consultando cónyuge o concubino:',
+          error
+        );
+      }
+    });
+}
+
+precargarEmpleadorEssalud(): void {
+  this.empresasEmpleador = [];
+  this.cargandoEmpleador = false;
+  this.errorEmpleador = '';
+
+  this.form.rucEmpleador = '20131257750';
+  this.form.razonSocial = 'SEGURO SOCIAL DE SALUD';
+  this.form.rucDesdeBase = true;
+  this.form.razonSocialDesdeBase = true;
+}
+
+precargarDatosLaboralesSimulados(): void {
+  this.form.codigoPlanilla = '77777777';
+  this.form.decretoLegislativo = '728';
+  this.form.convenioCGBVP = 'NO';
+}
+
+cargarTiposDocumentoDesdeServicio(): void {
+  this.cargandoTiposDocumento = true;
+  this.errorTiposDocumento = '';
+
+  this.vidaApiService.obtenerTiposDocumentos().subscribe({
+    next: tipos => {
+      this.tiposDocumento = tipos.map(tipo => ({
+        codigo: tipo.idtipodocumento.trim(),
+        descripcion: tipo.descripcion.trim()
+      }));
+
+      this.cargandoTiposDocumento = false;
+      console.log('Tipos de documento cargados:', this.tiposDocumento);
+    },
+    error: () => {
+      this.tiposDocumento = [...this.tiposDocumentoRespaldo];
+      this.errorTiposDocumento = '';
+      this.cargandoTiposDocumento = false;
+
+      this.mostrarAviso(
+        'No se pudo conectar con el catálogo oficial. Se usará una lista temporal de documentos.',
+        'advertencia'
+      );
+    }
+  });
+}
+
+validarSeguroComplementarioTitular(): void {
+  const tipoDocumento = this.form.titular.tipoDocumento;
+  const numeroDocumento = this.form.titular.numeroDocumento;
+
+  this.validandoSeguroComplementario = true;
+  this.seguroComplementarioValidado = false;
+  this.titularTieneSeguroComplementario = false;
+  this.mensajeSeguroComplementario = '';
+  this.errorValidacionSeguroComplementario = '';
+
+  this.vidaApiService.validarSeguroComplementario(tipoDocumento, numeroDocumento).subscribe({
+    next: respuesta => {
+      this.titularTieneSeguroComplementario = respuesta.tieneSeguro;
+      this.seguroComplementarioValidado = true;
+      this.validandoSeguroComplementario = false;
+
+      if (respuesta.tieneSeguro) {
+        this.mensajeSeguroComplementario =
+          `El titular ya cuenta con +Vida Seguro de Accidentes registrado. No corresponde una nueva afiliación${respuesta.nombreSeguro ? ' (' + respuesta.nombreSeguro + ').' : '.'}`;
+      } else {
+        this.mensajeSeguroComplementario =
+          'El titular no cuenta con +Vida Seguro de Accidentes registrado. Puede continuar con la afiliación.';
+
+        this.mostrarAviso(
+          'Validación completada. Puede continuar con la afiliación.',
+          'exito',
+          '+Vida validado'
+        );
+      }
+
+      console.log('Validación seguro complementario:', respuesta);
+    },
+    error: () => {
+      this.seguroComplementarioValidado = false;
+      this.validandoSeguroComplementario = false;
+      this.errorValidacionSeguroComplementario =
+        'No fue posible validar si el titular cuenta con +Vida Seguro de Accidentes. Verifique la conexión o intente nuevamente.';
+
+      this.mostrarAviso(
+        'No fue posible validar +Vida para este documento.',
+        'error',
+        'Validación pendiente',
+        true
+      );
+
+      console.error(this.errorValidacionSeguroComplementario);
+    }
+  });
+}
+
+ crearCasoNuevo(): FormularioVida {
+  return {
+
       esNuevo: true,
       titular: {
-            tipoDocumento: 'DNI',
-            numeroDocumento: '77777777',
-            nombres: 'INGA JAYME DIEGO ARMANDO',
-            apellidoPaterno: 'INGA',
-            apellidoMaterno: 'JAYME',
-            primerNombre: 'DIEGO',
-            segundoNombre: 'ARMANDO'
-          },
-      correoViva: 'diego.usuario@correo.com',
+        tipoDocumento: '01',
+        numeroDocumento: '',
+        nombres: '',
+        apellidoPaterno: '',
+        apellidoMaterno: '',
+        primerNombre: '',
+        segundoNombre: ''
+      },
+      correoViva: '',
 
       celular: '',
       tipoAsegurado: 'Regular',
@@ -247,10 +777,10 @@ cargarCasoNuevo(): void {
 
       notificacionesCorreo: '',
 
-      rucEmpleador: '20131257750',
-      rucDesdeBase: true,
-      razonSocial: 'SEGURO SOCIAL DE SALUD',
-      razonSocialDesdeBase: true,
+      rucEmpleador: '',
+      rucDesdeBase: false,
+      razonSocial: '',
+      razonSocialDesdeBase: false,
 
       conyuge: null,
       conyugeDesdeBase: false,
@@ -294,14 +824,14 @@ cargarCasoNuevo(): void {
     }
 
     if (this.sumaPorcentajes === 100) {
-      return '✅ Porcentaje distribuido correctamente (100%)';
+      return 'Porcentaje distribuido correctamente.';
     }
 
     if (this.sumaPorcentajes < 100) {
-      return `⚠️ Falta asignar ${100 - this.sumaPorcentajes}%`;
+      return `Falta asignar ${100 - this.sumaPorcentajes}%.`;
     }
 
-    return `❌ El porcentaje excede el 100% por ${this.sumaPorcentajes - 100}%`;
+    return `El porcentaje excede el 100% por ${this.sumaPorcentajes - 100}%.`;
   }
 
   agregarConyuge(): void {
@@ -328,7 +858,7 @@ cargarCasoNuevo(): void {
 
 crearBeneficiarioVacio(): Beneficiario {
   return {
-    tipoDocumento: 'DNI',
+    tipoDocumento: '01',
     numeroDocumento: '',
     nombres: '',
     apellidoPaterno: '',
@@ -391,13 +921,8 @@ beneficiariosRegistrados(): Beneficiario[] {
 }
 
   agregarBeneficiario(): void {
-  if (this.form.beneficiarios.length >= 5) {
-    this.mostrarAviso('Solo puede registrar hasta 5 beneficiarios.');
-    return;
-  }
-
   this.form.beneficiarios.push(this.crearBeneficiarioVacio());
-}
+  }
 
   quitarBeneficiario(index: number): void {
   this.form.beneficiarios.splice(index, 1);
@@ -422,9 +947,19 @@ beneficiariosRegistrados(): Beneficiario[] {
   }
 
   limpiarDocumento(persona: PersonaDocumento): void {
-    if (persona.tipoDocumento === 'DNI' || persona.tipoDocumento === 'CE') {
+    if (persona.tipoDocumento === '01') {
       persona.numeroDocumento = this.soloNumeros(persona.numeroDocumento);
+      return;
     }
+
+    if (persona.tipoDocumento === '04') {
+      persona.numeroDocumento = this.soloNumeros(persona.numeroDocumento);
+      return;
+    }
+
+    persona.numeroDocumento = (persona.numeroDocumento || '')
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, '');
   }
 
   limpiarRuc(): void {
@@ -444,10 +979,352 @@ beneficiariosRegistrados(): Beneficiario[] {
     return tipo?.longitud || 20;
   }
 
-  getDescripcionTipoDocumento(codigo: string): string {
-    const tipo = this.tiposDocumento.find(t => t.codigo === codigo);
-    return tipo ? tipo.descripcion : codigo;
+  getDescripcionTipoDocumento(codigo?: string): string {
+    const codigoLimpio = (codigo || '').trim();
+
+    if (!codigoLimpio) {
+      return '';
+    }
+
+    const tipo = [...this.tiposDocumento, ...this.tiposDocumentoRespaldo]
+      .find(item => item.codigo === codigoLimpio);
+
+    return tipo?.descripcion || codigoLimpio;
   }
+
+alCambiarTipoDocumentoTitular(): void {
+  this.alCambiarTipoDocumento(this.form.titular);
+  this.form.titular.numeroDocumento = '';
+  this.limpiarDatosTitularConsultados();
+  this.resetearValidacionSeguroComplementario();
+  this.limpiarDatosEmpleador();
+}
+
+alCambiarDocumentoTitular(): void {
+  this.limpiarDocumento(this.form.titular);
+  this.limpiarDatosTitularConsultados();
+  this.resetearValidacionSeguroComplementario();
+  this.limpiarDatosEmpleador();
+}
+
+limpiarDatosTitularConsultados(): void {
+  this.form.titular.nombres = '';
+  this.form.titular.apellidoPaterno = '';
+  this.form.titular.apellidoMaterno = '';
+  this.form.titular.primerNombre = '';
+  this.form.titular.segundoNombre = '';
+
+  this.form.correoViva = '';
+  this.form.celular = '';
+}
+
+resetearValidacionSeguroComplementario(): void {
+  this.validandoSeguroComplementario = false;
+  this.seguroComplementarioValidado = false;
+  this.titularTieneSeguroComplementario = false;
+  this.mensajeSeguroComplementario = '';
+  this.errorValidacionSeguroComplementario = '';
+}
+
+limpiarDatosEmpleador(): void {
+  this.empresasEmpleador = [];
+  this.errorEmpleador = '';
+
+  this.form.rucEmpleador = '';
+  this.form.razonSocial = '';
+  this.form.rucDesdeBase = false;
+  this.form.razonSocialDesdeBase = false;
+}
+
+obtenerEmpleadorTitularDesdeServicio(): void {
+  if (
+    this.tipoDocumentoVacio(this.form.titular)
+    || this.numeroDocumentoInvalido(this.form.titular)
+  ) {
+    return;
+  }
+
+  this.cargandoEmpleador = true;
+  this.errorEmpleador = '';
+
+  this.vidaApiService
+    .obtenerListaEmpresas(
+      this.form.titular.tipoDocumento,
+      this.form.titular.numeroDocumento
+    )
+    .subscribe({
+      next: (empresas: EmpresaEmpleadorApi[]) => {
+        this.cargandoEmpleador = false;
+        this.empresasEmpleador = empresas || [];
+
+        if (this.empresasEmpleador.length === 0) {
+          this.errorEmpleador =
+            'No se encontró empleador registrado para el titular.';
+
+          this.form.rucDesdeBase = false;
+          this.form.razonSocialDesdeBase = false;
+
+          this.mostrarAviso(
+            'No se encontró empleador registrado para el titular.',
+            'advertencia',
+            'Empleador no encontrado'
+          );
+          return;
+        }
+
+        this.seleccionarEmpleador(this.empresasEmpleador[0]);
+
+        if (this.empresasEmpleador.length === 1) {
+          this.mostrarAviso(
+            'Empleador cargado correctamente.',
+            'exito',
+            'Empleador encontrado'
+          );
+          return;
+        }
+
+        this.mostrarAviso(
+          'Se encontró más de un empleador. Revise la selección en Datos laborales.',
+          'advertencia',
+          'Empleadores encontrados'
+        );
+      },
+      error: () => {
+        this.cargandoEmpleador = false;
+        this.errorEmpleador =
+          'No se pudo consultar el empleador del titular.';
+
+        this.form.rucDesdeBase = false;
+        this.form.razonSocialDesdeBase = false;
+
+        this.mostrarAviso(
+          'No se pudo consultar el empleador del titular.',
+          'advertencia',
+          'Empleador no disponible'
+        );
+      }
+    });
+}
+
+seleccionarEmpleador(empresa: EmpresaEmpleadorApi): void {
+  this.form.rucEmpleador = (empresa.RUC || '').trim();
+  this.form.razonSocial = (empresa.RAZON_SOCIAL || '').trim().toUpperCase();
+
+  this.form.rucDesdeBase = !this.campoVacio(this.form.rucEmpleador);
+  this.form.razonSocialDesdeBase = !this.campoVacio(this.form.razonSocial);
+}
+
+alternarAyudaCgbvp(): void {
+  this.mostrarAyudaCgbvp = !this.mostrarAyudaCgbvp;
+}
+
+cerrarAyudaCgbvp(): void {
+  this.mostrarAyudaCgbvp = false;
+}
+
+resetearTipoAseguradoTitular(): void {
+  this.cargandoTipoAsegurado = false;
+  this.tipoAseguradoValidado = false;
+  this.errorTipoAsegurado = '';
+}
+
+obtenerTipoAseguradoTitularDesdeServicio(): void {
+  if (
+    this.tipoDocumentoVacio(this.form.titular)
+    || this.numeroDocumentoInvalido(this.form.titular)
+  ) {
+    return;
+  }
+
+  this.cargandoTipoAsegurado = true;
+  this.tipoAseguradoValidado = false;
+  this.errorTipoAsegurado = '';
+
+  this.vidaApiService
+    .obtenerDatosAsegurado(
+      this.form.titular.tipoDocumento,
+      this.form.titular.numeroDocumento
+    )
+    .subscribe({
+      next: (respuesta: DatosAseguradoApi) => {
+        this.cargandoTipoAsegurado = false;
+
+        const tipoAsegurado = this.normalizarTipoAseguradoDesdeServicio(
+          respuesta.DGACTAS
+        );
+
+        if (!tipoAsegurado) {
+          this.tipoAseguradoValidado = false;
+          this.errorTipoAsegurado =
+            'No se pudo obtener el tipo de asegurado del titular.';
+          return;
+        }
+
+        this.form.tipoAsegurado = tipoAsegurado;
+        this.tipoAseguradoValidado = true;
+        this.errorTipoAsegurado = '';
+
+        console.log('Tipo de asegurado cargado:', respuesta);
+      },
+      error: () => {
+        this.cargandoTipoAsegurado = false;
+
+        // Fallback temporal mientras se habilita token para el servicio de datos maestros.
+        this.form.tipoAsegurado = 'Regular';
+        this.tipoAseguradoValidado = true;
+        this.errorTipoAsegurado = '';
+
+        this.mostrarAviso(
+          'No se pudo consultar el tipo de asegurado. Se usará Regular temporalmente.',
+          'advertencia',
+          'Tipo de asegurado temporal'
+        );
+
+        console.warn('Tipo de asegurado asignado temporalmente como Regular por falta de token.');
+      }
+    });
+}
+
+normalizarTipoAseguradoDesdeServicio(valor?: string | null): TipoAsegurado | null {
+  const tipo = (valor || '').trim().toUpperCase();
+
+  if (tipo.includes('REGULAR')) {
+    return 'Regular';
+  }
+
+  if (tipo.includes('AGRARIO')) {
+    return 'Agrario';
+  }
+
+  if (tipo.includes('POTESTATIVO')) {
+    return 'Potestativo';
+  }
+
+  return null;
+}
+
+textoTipoAseguradoTitular(): string {
+  if (this.cargandoTipoAsegurado) {
+    return 'Consultando...';
+  }
+
+  if (!this.tipoAseguradoValidado) {
+    return 'Pendiente de carga';
+  }
+
+  return this.form.tipoAsegurado;
+}
+
+compararEmpleadorPorId(
+  empresaA: EmpresaEmpleadorApi | null,
+  empresaB: EmpresaEmpleadorApi | null
+): boolean {
+  return empresaA?.IDE_NUMERICO_ENTIDAD === empresaB?.IDE_NUMERICO_ENTIDAD;
+}
+
+  consultarInformacionPersona(
+  persona: PersonaDocumento,
+  contexto: ContextoConsultaPersona
+): void {
+  if (this.tipoDocumentoVacio(persona) || this.numeroDocumentoInvalido(persona)) {
+    this.mostrarAviso(
+      'Ingrese un tipo y número de documento válido antes de consultar.',
+      'advertencia',
+      'Documento requerido'
+    );
+    return;
+  }
+
+  this.consultandoInformacionPersona = true;
+
+  this.vidaApiService
+    .obtenerInformacionPersonaContacto(persona.tipoDocumento, persona.numeroDocumento)
+    .subscribe({
+      next: (respuesta: RespuestaPersonaContactoApi) => {
+        this.consultandoInformacionPersona = false;
+
+        if (respuesta.codResultado !== '0' || !respuesta.representanteDto) {
+          this.mostrarAviso(
+            respuesta.mensaje || 'No se encontró información para el documento ingresado.',
+            'advertencia',
+            'Sin resultados'
+          );
+          return;
+        }
+
+        this.asignarDatosPersonaDesdeServicio(persona, respuesta.representanteDto);
+
+        if (contexto === 'titular') {
+          this.actualizarContactoTitularDesdeServicio(respuesta.representanteDto);
+          this.validarSeguroComplementarioTitular();
+          this.obtenerEmpleadorTitularDesdeServicio();
+          return;
+        }
+
+        this.mostrarAviso(
+          `Datos de ${this.obtenerEtiquetaContextoPersona(contexto)} cargados correctamente.`,
+          'exito',
+          'Datos encontrados'
+        );
+      },
+      error: () => {
+        this.consultandoInformacionPersona = false;
+
+        this.mostrarAviso(
+          'No se pudo consultar la información de la persona. Verifique conexión a la red de EsSalud.',
+          'error',
+          'Consulta no disponible'
+        );
+      }
+    });
+}
+
+asignarDatosPersonaDesdeServicio(
+  persona: PersonaDocumento,
+  datos: RepresentanteDtoApi
+): void {
+  const apellidoPaterno = this.normalizarTextoServicio(datos.apellidoPaterno);
+  const apellidoMaterno = this.normalizarTextoServicio(datos.apellidoMaterno);
+  const nombres = this.normalizarTextoServicio(datos.nombres);
+
+  const partesNombres = nombres.split(/\s+/).filter(parte => parte !== '');
+
+  persona.apellidoPaterno = apellidoPaterno;
+  persona.apellidoMaterno = apellidoMaterno;
+  persona.primerNombre = partesNombres[0] || '';
+  persona.segundoNombre = partesNombres.slice(1).join(' ');
+  persona.nombres = [
+    apellidoPaterno,
+    apellidoMaterno,
+    persona.primerNombre,
+    persona.segundoNombre
+  ]
+    .filter(parte => parte && parte.trim() !== '')
+    .join(' ');
+}
+
+actualizarContactoTitularDesdeServicio(datos: RepresentanteDtoApi): void {
+  const correo = datos.correo?.trim() || '';
+  const celular = this.soloNumeros(datos.celular || '');
+
+  if (correo) {
+    this.form.correoViva = correo;
+  }
+
+  if (celular) {
+    this.form.celular = celular.slice(0, 9);
+  }
+}
+
+normalizarTextoServicio(valor: string | null): string {
+  return (valor || '').trim().toUpperCase();
+}
+
+obtenerEtiquetaContextoPersona(contexto: ContextoConsultaPersona): string {
+  if (contexto === 'titular') return 'titular';
+  if (contexto === 'conyuge') return 'cónyuge';
+  return 'beneficiario';
+}
 
   nombreCompletoPersona(persona: PersonaDocumento): string {
   const partes = [
@@ -484,9 +1361,33 @@ porcentajeBeneficiarioInvalido(beneficiario: Beneficiario): boolean {
   return false;
 }
 
+obtenerMensajeValidacionBeneficiarios(): string {
+  for (let i = 0; i < this.form.beneficiarios.length; i++) {
+    const beneficiario = this.form.beneficiarios[i];
+
+    if (!this.beneficiarioTieneDatos(beneficiario)) {
+      continue;
+    }
+
+    if (this.porcentajeBeneficiarioInvalido(beneficiario)) {
+      return `El Beneficiario #${i + 1} requiere mínimo 1% en el porcentaje asignado.`;
+    }
+
+    if (this.beneficiarioIncompleto(beneficiario)) {
+      return `Complete los datos obligatorios del Beneficiario #${i + 1}.`;
+    }
+  }
+
+  if (!this.porcentajeCorrecto) {
+    return 'La suma total de porcentajes debe ser igual al 100%.';
+  }
+
+  return 'Revise los datos de beneficiarios antes de continuar.';
+}
+
 mensajePorcentajeInvalido(beneficiario: Beneficiario): string {
   if (this.campoVacio(beneficiario.porcentaje)) {
-    return 'Req.';
+    return 'Requiere mínimo 1%.';
   }
 
   const porcentaje = Number(beneficiario.porcentaje);
@@ -496,7 +1397,7 @@ mensajePorcentajeInvalido(beneficiario: Beneficiario): string {
   }
 
   if (porcentaje < 1) {
-    return 'Debe ser mínimo 1%.';
+    return 'Requiere mínimo 1%.';
   }
 
   if (porcentaje > 100) {
@@ -507,23 +1408,21 @@ mensajePorcentajeInvalido(beneficiario: Beneficiario): string {
 }
 
 mensajeDocumentoInvalido(persona: PersonaDocumento): string {
-  if (this.campoVacio(persona.numeroDocumento)) {
-    return 'Obligatorio.';
+  const numero = persona.numeroDocumento?.trim() || '';
+
+  if (this.campoVacio(numero)) {
+    return 'Este campo es obligatorio.';
   }
 
-  if (persona.tipoDocumento === 'DNI') {
-    return 'Deben ser 8 dígitos.';
+  if (persona.tipoDocumento === '01') {
+    return 'El DNI debe tener exactamente 8 dígitos.';
   }
 
-  if (persona.tipoDocumento === 'CE') {
-    return 'Deben ser 9 dígitos.';
+  if (persona.tipoDocumento === '04') {
+    return 'El C.E. debe tener exactamente 9 dígitos.';
   }
 
-  if (persona.tipoDocumento === 'Otro') {
-    return 'Ingrese el número de documento.';
-  }
-
-  return 'Número de documento inválido.';
+  return 'Ingrese un documento válido. Máximo 15 caracteres.';
 }
 
 
@@ -554,17 +1453,21 @@ mensajeDocumentoInvalido(persona: PersonaDocumento): string {
   }
 
   numeroDocumentoInvalido(persona: PersonaDocumento): boolean {
-    const tipo = persona.tipoDocumento;
     const numero = persona.numeroDocumento?.trim() || '';
 
-    if (this.campoVacio(tipo)) return true;
-    if (this.campoVacio(numero)) return true;
+    if (this.campoVacio(numero)) {
+      return true;
+    }
 
-    if (tipo === 'DNI') return numero.length !== 8;
-    if (tipo === 'CE') return numero.length !== 9;
-    if (tipo === 'Otro') return numero.length === 0;
+    if (persona.tipoDocumento === '01') {
+      return !/^\d{8}$/.test(numero);
+    }
 
-    return false;
+    if (persona.tipoDocumento === '04') {
+      return !/^\d{9}$/.test(numero);
+    }
+
+    return numero.length < 3 || numero.length > 15;
   }
 
   nombresInvalidos(persona: PersonaDocumento): boolean {
@@ -594,22 +1497,28 @@ mensajeDocumentoInvalido(persona: PersonaDocumento): string {
 }
 
   conyugeIncompleto(): boolean {
-  if (!this.form.conyuge) return false;
+    if (!this.form.conyuge) {
+      return false;
+    }
 
-  return this.tipoDocumentoVacio(this.form.conyuge)
-    || this.otroDocumentoInvalido(this.form.conyuge)
-    || this.numeroDocumentoInvalido(this.form.conyuge)
-    || this.nombresSeparadosInvalidos(this.form.conyuge);
-}
+    return this.nombresSeparadosInvalidos(
+      this.form.conyuge
+    )
+      || this.campoVacio(
+        this.form.conyuge.tipoRelacion
+      );
+  }
 
   formularioValido(): boolean {
   if (this.campoVacio(this.form.celular)) return false;
-if (this.correoInvalido()) return false;
-if (this.campoVacio(this.form.codigoPlanilla)) return false;
+  if (this.correoInvalido()) return false;
+  if (this.campoVacio(this.form.codigoPlanilla)) return false;
   if (this.campoVacio(this.form.decretoLegislativo)) return false;
   if (this.campoVacio(this.form.convenioCGBVP)) return false;
 
- if (!this.aceptaTerminosDeclaracion) return false;
+  if (!this.aceptaTerminosDeclaracion) return false;
+
+  if (this.form.esNuevo && !this.aceptaTratamientoDatos) return false;
 
   if (this.rucInvalido()) return false;
   if (this.razonSocialInvalida()) return false;
@@ -626,10 +1535,10 @@ if (this.campoVacio(this.form.codigoPlanilla)) return false;
 
   continuarResumen(): void {
     this.intentoEnviar = true;
-    this.avisoTemporal = '';
+    this.cerrarAviso();
 
     if (!this.formularioValido()) {
-      this.mostrarAviso('Revise los campos observados antes de continuar.');
+      this.mostrarAviso('Revise los campos pendientes antes de continuar.');
       setTimeout(() => {
         const primerError = document.querySelector('.is-invalid, .alerta-porcentaje');
         primerError?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -711,13 +1620,54 @@ archivosFirmados: {
   this.cargarCasoNuevo();
 }
 
-  mostrarAviso(mensaje: string): void {
-    this.avisoTemporal = mensaje;
-
-    setTimeout(() => {
-      this.avisoTemporal = '';
-    }, 3500);
+  mostrarAviso(
+  mensaje: string,
+  tipo: TipoAviso = 'info',
+  titulo = '',
+  persistente = false
+): void {
+  if (this.temporizadorAviso) {
+    clearTimeout(this.temporizadorAviso);
+    this.temporizadorAviso = null;
   }
+
+  this.avisoFlotante = {
+    tipo,
+    titulo: titulo || this.obtenerTituloAviso(tipo),
+    mensaje,
+    persistente
+  };
+
+  if (!persistente) {
+    this.temporizadorAviso = setTimeout(() => {
+      this.avisoFlotante = null;
+      this.temporizadorAviso = null;
+    }, tipo === 'error' ? 6500 : 3800);
+  }
+}
+
+cerrarAviso(): void {
+  if (this.temporizadorAviso) {
+    clearTimeout(this.temporizadorAviso);
+    this.temporizadorAviso = null;
+  }
+
+  this.avisoFlotante = null;
+}
+
+obtenerTituloAviso(tipo: TipoAviso): string {
+  if (tipo === 'exito') return 'Listo';
+  if (tipo === 'advertencia') return 'Importante';
+  if (tipo === 'error') return 'Atención';
+  return 'Información';
+}
+
+obtenerIconoAviso(tipo: TipoAviso): string {
+  if (tipo === 'exito') return '✅';
+  if (tipo === 'advertencia') return '⚠️';
+  if (tipo === 'error') return '⛔';
+  return 'ℹ️';
+}
 
   establecerFechaActual(): void {
     const meses = [
@@ -756,15 +1706,38 @@ crearArchivoVacio(): ArchivoDocumentoFirmado {
 }
 
 reiniciarFlujoPorPasos(): void {
-  this.pasoActual = 'titular';
-  this.seccionesGrabadas = this.crearEstadoSecciones();
+this.pasoActual = 'titular';
+this.seccionesGrabadas = this.crearEstadoSecciones();
 
-  this.documentosGenerados = false;
+this.cargandoConyuge = false;
+this.conyugeConsultado = false;
+this.errorConyuge = '';
+this.documentosGenerados = false;
 this.solicitudBloqueada = false;
 this.codigoSolicitud = '';
 this.fechaGeneracionDocumentos = '';
 
+this.preparandoProcesoBackendLocal = false;
+this.procesoBackendPreparado = false;
+this.errorPreparacionBackendLocal = '';
+this.consultandoDocumentoPublicado = null;
 this.tipoGeneracionDocumentos = null;
+this.idDocumentoGeneradoAutorizacion = '';
+this.idDocumentoGeneradoFormulario6012 = '';
+
+this.cerrandoDocumentosBackend = false;
+this.documentosCerradosBackend = false;
+
+this.idDocumentoSelladoAutorizacion = '';
+this.idDocumentoPublicadoAutorizacion = '';
+
+this.idDocumentoSelladoFormulario6012 = '';
+this.idDocumentoPublicadoFormulario6012 = '';
+
+this.resultadoCierreAutorizacion = null;
+this.resultadoCierreFormulario6012 = null;
+
+this.mensajeErrorCierre = '';
 
 this.autorizacionDescuentoGenerada = false;
 this.formulario6012Generado = false;
@@ -774,16 +1747,38 @@ this.pendienteBeneficiariosPara6012 = false;
 this.mostrarConfirmacionSinBeneficiarios = false;
 this.mostrarInvitacionBeneficiarios = false;
 this.actualizandoBeneficiarios6012 = false;
-  this.aceptaVeracidad = false;
+this.aceptaVeracidad = false;
 this.aceptaAfiliacion = false;
 this.aceptaNotificacionesDeclaracion = true;
 
 this.aceptaTerminosDeclaracion = false;
+this.aceptaTratamientoDatos = false;
 
 this.modoRetornoPendiente = false;
 
 this.archivoFormulario6012 = this.crearArchivoVacio();
 this.archivoAutorizacionDescuento = this.crearArchivoVacio();
+this.cargandoDocumentosFirmadosBackend =
+  false;
+
+this.documentosFirmadosCargadosBackend =
+  false;
+
+this.idDocumentoCargadoFormulario6012 =
+  '';
+
+this.idDocumentoCargadoAutorizacion =
+  '';
+this.validandoDocumentosBackend = false;
+this.documentosValidadosBackend = false;
+
+this.autorizacionValidadaBackend = false;
+this.formulario6012ValidadoBackend = false;
+
+this.resultadoValidacionAutorizacion = null;
+this.resultadoValidacionFormulario6012 = null;
+
+this.mensajeRechazoValidacion = '';
 this.documentosPublicados = false;
 this.fechaRecepcionDocumentos = '';
 this.correoEnvioDocumentos = '';
@@ -805,6 +1800,11 @@ irAPaso(paso: PasoFormulario): void {
 
   this.pasoActual = paso;
   this.intentoEnviar = false;
+
+  if (paso === 'conyuge') {
+    this.consultarConyugeConcubino();
+  }
+
   this.scrollArriba();
 }
 
@@ -836,8 +1836,17 @@ volverPaso(): void {
 
 validarPaso(paso: PasoFormulario): boolean {
   if (paso === 'titular') {
-  return !this.campoVacio(this.form.celular)
-    && !this.correoInvalido();
+    return !this.tipoDocumentoVacio(this.form.titular)
+      && !this.numeroDocumentoInvalido(this.form.titular)
+      && !this.nombresSeparadosInvalidos(this.form.titular)
+      && !this.campoVacio(this.form.celular)
+      && !this.correoInvalido()
+      && this.seguroComplementarioValidado
+      && !this.titularTieneSeguroComplementario
+      && this.campoVacio(this.errorValidacionSeguroComplementario)
+      && this.campoVacio(this.errorDatosTitular)
+      && this.tipoAseguradoValidado
+      && this.campoVacio(this.errorTipoAsegurado);
   }
 
   if (paso === 'trabajo') {
@@ -849,21 +1858,24 @@ validarPaso(paso: PasoFormulario): boolean {
   }
 
   if (paso === 'conyuge') {
-    return !this.conyugeIncompleto();
+    return this.conyugeConsultado
+      && !this.cargandoConyuge
+      && this.campoVacio(this.errorConyuge)
+      && !this.conyugeIncompleto();
   }
 
   if (paso === 'beneficiarios') {
-  const beneficiariosRegistrados = this.beneficiariosRegistrados();
+    const beneficiariosConDatos = this.beneficiariosConDatos();
 
-  if (this.pendienteBeneficiariosPara6012) {
+    if (this.pendienteBeneficiariosPara6012) {
       return this.beneficiariosValidosPara6012();
     }
 
-    if (beneficiariosRegistrados.length === 0) {
+    if (beneficiariosConDatos.length === 0) {
       return true;
     }
 
-    for (const beneficiario of beneficiariosRegistrados) {
+    for (const beneficiario of beneficiariosConDatos) {
       if (this.beneficiarioIncompleto(beneficiario)) {
         return false;
       }
@@ -907,10 +1919,6 @@ confirmarContinuarSinBeneficiarios(): void {
   this.pasoActual = 'declaracion';
   this.intentoEnviar = false;
   this.scrollArriba();
-
-  this.mostrarAviso(
-    'Continuará sin beneficiarios. Solo podrá generar la Autorización de Descuento; el Formulario 6012 podrá generarse posteriormente si registra beneficiarios.'
-  );
 }
 
 cancelarContinuarSinBeneficiarios(): void {
@@ -933,7 +1941,7 @@ grabarSeccion(): void {
 continuarPaso(): void {
   if (
     this.pasoActual === 'beneficiarios'
-    && !this.hayBeneficiariosRegistrados()
+    && !this.hayBeneficiariosIniciados()
     && !this.pendienteBeneficiariosPara6012
   ) {
     this.abrirConfirmacionSinBeneficiarios();
@@ -943,7 +1951,16 @@ continuarPaso(): void {
   this.intentoEnviar = true;
 
   if (!this.validarPaso(this.pasoActual)) {
-    this.mostrarAviso('Revise los campos observados antes de continuar.');
+    if (this.pasoActual === 'beneficiarios') {
+      this.mostrarAviso(
+        this.obtenerMensajeValidacionBeneficiarios(),
+        'advertencia',
+        'Beneficiarios incompletos'
+      );
+      return;
+    }
+
+    this.mostrarAviso('Revise los campos pendientes antes de continuar.');
     return;
   }
 
@@ -957,6 +1974,10 @@ continuarPaso(): void {
   const siguiente = this.obtenerPasoSiguiente();
 
   if (siguiente) {
+    if (siguiente === 'conyuge') {
+      this.consultarConyugeConcubino();
+    }
+
     if (siguiente === 'beneficiarios') {
       this.asegurarBeneficiarioInicial();
     }
@@ -983,16 +2004,22 @@ beneficiariosValidosPara6012(): boolean {
   return this.porcentajeCorrecto;
 }
 
+beneficiariosConDatos(): Beneficiario[] {
+  return this.form.beneficiarios.filter(beneficiario =>
+    this.beneficiarioTieneDatos(beneficiario)
+  );
+}
+
 beneficiariosBloqueados(): boolean {
   return this.solicitudBloqueada && !this.pendienteBeneficiariosPara6012;
 }
 
 textoBotonGenerarDocumentos(): string {
   if (!this.hayBeneficiariosRegistrados()) {
-    return 'Generar solo Autorización de Descuento';
+    return 'Generar autorización';
   }
 
-  return 'Generar documentos de afiliación';
+  return 'Generar documentos';
 }
 
 tituloDescargaDocumentos(): string {
@@ -1055,8 +2082,650 @@ alCambiarAutorizacionNotificaciones(): void {
   }
 }
 
+obtenerTipoDocumentoFormulario6012(codigoTipoDocumento: string): TipoDocumentoFormulario6012 {
+  if (codigoTipoDocumento === '01') {
+    return 'DNI';
+  }
+
+  if (codigoTipoDocumento === '04') {
+    return 'CE';
+  }
+
+  return 'OTRO';
+}
+
+obtenerOtroDocumentoFormulario6012(codigoTipoDocumento: string): string | null {
+  const tipoDocumento = this.obtenerTipoDocumentoFormulario6012(codigoTipoDocumento);
+
+  if (tipoDocumento !== 'OTRO') {
+    return null;
+  }
+
+  return this.getDescripcionTipoDocumento(codigoTipoDocumento);
+}
+
+obtenerConvenioCgbvpFormulario6012(): 'SI' | 'NO' {
+  return this.form.convenioCGBVP === 'SI' ? 'SI' : 'NO';
+}
+
+generarFormulario6012DesdeServicio(
+  callbackExito?: () => void
+): void {
+  if (!this.beneficiariosValidosPara6012()) {
+    this.mostrarAviso(
+      'Para generar el Formulario 6012 debe registrar beneficiarios válidos y distribuir el 100%.',
+      'advertencia',
+      'Formulario 6012'
+    );
+
+    return;
+  }
+
+  const payload =
+    this.construirPayloadFormulario6012();
+
+  this.generandoFormulario6012Servicio = true;
+
+  console.log(
+    'Payload Formulario 6012 local:',
+    payload
+  );
+
+  this.vidaApiService
+    .generarFormulario6012(payload)
+    .subscribe({
+      next: (
+        resultado:
+          DocumentoGeneradoDescargadoLocal
+      ) => {
+        this.generandoFormulario6012Servicio =
+          false;
+
+        this.idDocumentoGeneradoFormulario6012 =
+          resultado.idDocumentoGenerado;
+
+        this.blobFormulario6012Generado =
+          resultado.blob;
+
+        if (this.urlFormulario6012Generado) {
+          URL.revokeObjectURL(
+            this.urlFormulario6012Generado
+          );
+        }
+
+        this.urlFormulario6012Generado =
+          URL.createObjectURL(resultado.blob);
+
+        this.formulario6012Generado = true;
+
+        console.log(
+          'Formulario 6012 recibido en el componente:',
+          {
+            registroInternoProceso:
+              this.codigoSolicitud,
+
+            idDocumentoGenerado:
+              this.idDocumentoGeneradoFormulario6012,
+
+            nombreArchivo:
+              resultado.nombreArchivo,
+
+            tamanioBytes:
+              resultado.blob.size,
+
+            contentType:
+              resultado.blob.type
+          }
+        );
+
+        this.descargarFormulario6012Generado();
+
+        this.mostrarAviso(
+          'El Formulario 6012 fue generado correctamente. Descargue el documento, fírmelo y cárguelo en formato PDF.',
+          'exito',
+          'Formulario 6012 listo'
+        );
+
+        if (callbackExito) {
+          callbackExito();
+        }
+      },
+
+      error: (error: unknown) => {
+        this.generandoFormulario6012Servicio =
+          false;
+
+        console.error(
+          'Error generando Formulario 6012 local:',
+          error
+        );
+
+        this.mostrarAviso(
+          'No se pudo generar el Formulario 6012. Revise la respuesta del backend local.',
+          'error',
+          'Error al generar',
+          true
+        );
+      }
+    });
+}
+
+generarFormularioDescuentoDesdeServicio(
+  callbackExito?: () => void
+): void {
+  const payload =
+    this.construirPayloadFormularioDescuento();
+
+  this.generandoFormularioDescuentoServicio = true;
+
+  console.log(
+    'Payload Autorización de Descuento local:',
+    payload
+  );
+
+  this.vidaApiService
+    .generarFormularioDescuento(payload)
+    .subscribe({
+      next: (
+        resultado: DocumentoGeneradoDescargadoLocal
+      ) => {
+        this.generandoFormularioDescuentoServicio = false;
+
+        this.idDocumentoGeneradoAutorizacion =
+          resultado.idDocumentoGenerado;
+
+        this.blobFormularioDescuentoGenerado =
+          resultado.blob;
+
+        console.log(
+          'Resultado recibido en el componente:',
+          {
+            idDocumentoGenerado:
+              resultado.idDocumentoGenerado,
+
+            nombreArchivo:
+              resultado.nombreArchivo,
+
+            tamanioBytes:
+              resultado.blob.size,
+
+            contentType:
+              resultado.blob.type
+          }
+        );
+
+        if (this.urlFormularioDescuentoGenerado) {
+          URL.revokeObjectURL(
+            this.urlFormularioDescuentoGenerado
+          );
+        }
+
+        this.urlFormularioDescuentoGenerado =
+          URL.createObjectURL(resultado.blob);
+
+        this.autorizacionDescuentoGenerada = true;
+
+        console.log(
+          'Autorización descargada correctamente:',
+          {
+            registroInternoProceso:
+              this.codigoSolicitud,
+
+            idDocumentoGenerado:
+              this.idDocumentoGeneradoAutorizacion,
+
+            tamanioBytes:
+              resultado.blob.size,
+
+            tipoArchivo:
+              resultado.blob.type
+          }
+        );
+
+        this.descargarFormularioDescuentoGenerado();
+
+        this.mostrarAviso(
+          'La Autorización de Descuento fue generada correctamente. Descargue el documento, fírmelo y cárguelo en formato PDF.',
+          'exito',
+          'Autorización lista'
+        );
+
+        if (callbackExito) {
+          callbackExito();
+        }
+      },
+
+      error: (error: unknown) => {
+        this.generandoFormularioDescuentoServicio = false;
+
+        console.error(
+          'Error generando autorización local:',
+          error
+        );
+
+        this.mostrarAviso(
+          'No se pudo generar la Autorización de Descuento. Revise la respuesta del backend local.',
+          'error',
+          'Error al generar',
+          true
+        );
+      }
+    });
+}
+
+descargarFormularioDescuentoGenerado(): void {
+  if (!this.blobFormularioDescuentoGenerado) {
+    return;
+  }
+
+  const enlace = document.createElement('a');
+  enlace.href = this.urlFormularioDescuentoGenerado || URL.createObjectURL(this.blobFormularioDescuentoGenerado);
+  enlace.download = `Autorizacion-Descuento-${this.form.titular.numeroDocumento || 'titular'}.pdf`;
+  enlace.click();
+}
+
+descargarFormulario6012Generado(): void {
+  if (!this.blobFormulario6012Generado) {
+    return;
+  }
+
+  const enlace = document.createElement('a');
+  enlace.href = this.urlFormulario6012Generado || URL.createObjectURL(this.blobFormulario6012Generado);
+  enlace.download = `Formulario-6012-${this.form.titular.numeroDocumento || 'titular'}.pdf`;
+  enlace.click();
+}
+
+conyugeRegistradoPara6012(): boolean {
+  const conyuge = this.form.conyuge;
+
+  if (!conyuge) {
+    return false;
+  }
+
+  return !this.nombresSeparadosInvalidos(
+    conyuge
+  )
+    && !this.campoVacio(
+      conyuge.tipoRelacion
+    );
+}
+
+asegurarCodigoSolicitud(): string {
+  const codigoActual =
+    (this.codigoSolicitud || '').trim();
+
+  if (codigoActual) {
+    return codigoActual;
+  }
+
+  const fecha = new Date();
+
+  this.codigoSolicitud =
+    `VIDA-${fecha.getFullYear()}-${fecha.getTime()}`;
+
+  return this.codigoSolicitud;
+}
+
+construirPayloadRegistroAvance():
+  RegistrarAvanceExpedienteRequest {
+
+  const codigoSolicitud =
+    this.asegurarCodigoSolicitud();
+
+  return {
+    registroInternoProceso:
+      codigoSolicitud,
+
+    tipoDocumentoTrabajador:
+      this.form.titular.tipoDocumento,
+
+    numeroDocumentoTrabajador:
+      this.form.titular.numeroDocumento,
+
+    nombresApellidosTrabajador:
+      this.nombreCompletoPersona(this.form.titular),
+
+    canalAcceso:
+      'SOMOS_ESSALUD',
+
+    estadoOperativo:
+      'PROCESO_INICIADO',
+
+    descripcionAvance:
+      'Se inicia el proceso de afiliación digital al +Vida Seguro de Accidentes.',
+
+    usuarioAutenticado:
+      this.form.titular.numeroDocumento,
+
+    ipOrigen:
+      '0:0:0:0:0:0:0:1',
+
+    datosSesionDispositivo:
+      'Navegador local / integración frontend Angular'
+  };
+}
+
+construirPayloadAceptacionLegal():
+  RegistrarAceptacionRequest {
+
+  const codigoSolicitud =
+    this.asegurarCodigoSolicitud();
+
+  return {
+    registroInternoProceso:
+      codigoSolicitud,
+
+    tipoDocumentoTrabajador:
+      this.form.titular.tipoDocumento,
+
+    numeroDocumentoTrabajador:
+      this.form.titular.numeroDocumento,
+
+    nombresApellidosTrabajador:
+      this.nombreCompletoPersona(this.form.titular),
+
+    aceptaDeclaracionJurada:
+      this.aceptaTerminosDeclaracion === true,
+
+    aceptaTratamientoDatosPersonales:
+      this.form.esNuevo
+        ? this.aceptaTratamientoDatos === true
+        : true,
+
+    canalAcceso:
+      'SOMOS EsSalud',
+
+    datosSesionDispositivo:
+      'Navegador local / aceptación legal',
+
+    versionTextoDeclaracionJurada:
+      'DJ_VIDA_001',
+
+    versionTextoTratamientoDatos:
+      'PDP_VIDA_001',
+
+    referenciaPoliticaPrivacidad:
+      'POLITICA_PRIVACIDAD_ESSALUD_001'
+  };
+}
+
+prepararProcesoBackendLocal(
+  callbackExito: () => void
+): void {
+  if (this.preparandoProcesoBackendLocal) {
+    return;
+  }
+
+  if (this.procesoBackendPreparado) {
+    callbackExito();
+    return;
+  }
+
+  const payloadAvance =
+    this.construirPayloadRegistroAvance();
+
+  const payloadAceptacion =
+    this.construirPayloadAceptacionLegal();
+
+  this.preparandoProcesoBackendLocal = true;
+  this.errorPreparacionBackendLocal = '';
+
+  console.log(
+    'Abriendo expediente digital:',
+    payloadAvance
+  );
+
+  this.vidaApiService
+    .registrarAvanceExpediente(payloadAvance)
+    .subscribe({
+      next: expediente => {
+        console.log(
+          'Expediente digital preparado:',
+          expediente
+        );
+
+        this.vidaApiService
+          .registrarAceptacionLegal(payloadAceptacion)
+          .subscribe({
+            next: aceptacion => {
+              this.preparandoProcesoBackendLocal = false;
+              this.procesoBackendPreparado = true;
+              this.errorPreparacionBackendLocal = '';
+
+              console.log(
+                'Aceptación legal registrada:',
+                aceptacion
+              );
+
+              this.mostrarAviso(
+                'Expediente digital y aceptación legal registrados correctamente.',
+                'exito',
+                'Proceso preparado'
+              );
+
+              callbackExito();
+            },
+
+            error: (error: unknown) => {
+              this.preparandoProcesoBackendLocal = false;
+              this.procesoBackendPreparado = false;
+
+              this.errorPreparacionBackendLocal =
+                'No fue posible registrar la aceptación legal.';
+
+              console.error(
+                this.errorPreparacionBackendLocal,
+                error
+              );
+
+              this.mostrarAviso(
+                this.errorPreparacionBackendLocal,
+                'error',
+                'Aceptación no registrada',
+                true
+              );
+            }
+          });
+      },
+
+      error: (error: unknown) => {
+        this.preparandoProcesoBackendLocal = false;
+        this.procesoBackendPreparado = false;
+
+        this.errorPreparacionBackendLocal =
+          'No fue posible abrir el expediente digital.';
+
+        console.error(
+          this.errorPreparacionBackendLocal,
+          error
+        );
+
+        this.mostrarAviso(
+          this.errorPreparacionBackendLocal,
+          'error',
+          'Expediente no registrado',
+          true
+        );
+      }
+    });
+}
+
+construirPayloadFormulario6012():
+  GenerarFormulario6012Request {
+
+  const conyuge = this.form.conyuge;
+
+  const existeConyuge =
+    this.conyugeRegistradoPara6012();
+
+  return {
+    registroInternoProceso:
+      this.asegurarCodigoSolicitud(),
+
+    tipoDocumentoTitular:
+      this.form.titular.tipoDocumento,
+
+    numeroDocumentoTitular:
+      this.form.titular.numeroDocumento,
+
+    nombresApellidosTitular:
+      this.nombreCompletoPersona(
+        this.form.titular
+      ),
+
+    correoElectronico:
+      this.form.correoViva,
+
+    tipoAsegurado:
+      this.form.tipoAsegurado,
+
+    convenioCgbvp:
+      this.obtenerConvenioCgbvpFormulario6012(),
+
+    rucEmpleador:
+      this.form.rucEmpleador,
+
+    tipoDocumentoConyuge:
+    existeConyuge
+    && !this.campoVacio(
+      conyuge!.tipoDocumento
+    )
+      ? conyuge!.tipoDocumento
+      : null,
+
+    numeroDocumentoConyuge:
+    existeConyuge
+    && !this.campoVacio(
+      conyuge!.numeroDocumento
+    )
+      ? conyuge!.numeroDocumento
+      : null,
+
+    nombresApellidosConyuge:
+      existeConyuge
+        ? this.nombreCompletoPersona(
+            conyuge!
+          )
+        : null,
+
+    notificacionCorreo:
+      this.aceptaNotificacionesDeclaracion
+        ? 'SI'
+        : 'NO',
+
+    generadoPor:
+      'SISTEMA',
+
+    canalGeneracion:
+      'MODULO_AFILIACION_DIGITAL',
+
+    beneficiarios:
+      this.beneficiariosRegistrados().map(
+        beneficiario => ({
+          tipoDocumento:
+            this.obtenerTipoDocumentoFormulario6012(
+              beneficiario.tipoDocumento
+            ),
+
+          numeroDocumento:
+            beneficiario.numeroDocumento,
+
+          nombresApellidos:
+            this.nombreCompletoPersona(
+              beneficiario
+            ),
+
+          porcentaje:
+            Number(beneficiario.porcentaje)
+        })
+      )
+  };
+}
+
+construirPayloadFormularioDescuento():
+  GenerarFormularioDescuentoRequest {
+
+  return {
+    registroInternoProceso:
+      this.asegurarCodigoSolicitud(),
+
+    tipoDocumentoTrabajador:
+      this.form.titular.tipoDocumento,
+
+    numeroDocumentoTrabajador:
+      this.form.titular.numeroDocumento,
+
+    nombresApellidosTrabajador:
+      this.nombreCompletoPersona(
+        this.form.titular
+      ),
+
+    codigoPlanilla:
+      this.form.codigoPlanilla,
+
+    decretoLegislativo:
+      this.form.decretoLegislativo,
+
+    tipoAsegurado:
+      this.form.tipoAsegurado,
+
+    rucEmpleador:
+      this.form.rucEmpleador,
+
+    razonSocialEmpleador:
+      this.form.razonSocial,
+
+    montoPrimaMensual:
+      5.00,
+
+    correoElectronico:
+      this.form.correoViva,
+
+    celular:
+      this.form.celular,
+
+    generadoPor:
+      'SISTEMA',
+
+    canalGeneracion:
+      'MODULO_AFILIACION_DIGITAL'
+  };
+}
+
 generarDocumentos(): void {
   this.intentoEnviar = true;
+
+  const requiereConsentimientoDatos = this.form.esNuevo === true;
+
+  // 1. Validación obligatoria de Declaración Jurada
+  if (this.aceptaTerminosDeclaracion !== true) {
+    this.mostrarAviso(
+      'Debe aceptar los términos de la declaración jurada para continuar.',
+      'advertencia',
+      'Aceptación pendiente'
+    );
+    return;
+  }
+
+  // 2. Validación obligatoria de Protección de Datos Personales
+  if (requiereConsentimientoDatos && this.aceptaTratamientoDatos !== true) {
+    this.mostrarAviso(
+      'Debe aceptar el tratamiento de datos personales para continuar.',
+      'advertencia',
+      'Consentimiento pendiente'
+    );
+    return;
+  }
+
+  // 3. Validación general del formulario
+  if (!this.formularioValido()) {
+    this.mostrarAviso(
+      'Revise los campos pendientes antes de generar los documentos.',
+      'advertencia',
+      'Información pendiente'
+    );
+    return;
+  }
 
   const pasosPrevios: PasoFormulario[] = [
     'titular',
@@ -1069,7 +2738,11 @@ generarDocumentos(): void {
   for (const paso of pasosPrevios) {
     if (!this.validarPaso(paso)) {
       this.pasoActual = paso;
-      this.mostrarAviso('Hay información pendiente u observada antes de generar los documentos.');
+      this.mostrarAviso(
+        'Hay información pendiente de revisión antes de generar los documentos.',
+        'advertencia',
+        'Revise la solicitud'
+      );
       this.scrollArriba();
       return;
     }
@@ -1079,44 +2752,112 @@ generarDocumentos(): void {
 
   if (tieneBeneficiarios && !this.beneficiariosValidosPara6012()) {
     this.pasoActual = 'beneficiarios';
-    this.mostrarAviso('Debe registrar al menos un beneficiario válido y asignar el 100% para generar el Formulario 6012.');
+    this.mostrarAviso(
+      'Debe registrar beneficiarios válidos y asignar el 100% para generar el Formulario 6012.',
+      'advertencia',
+      'Beneficiarios pendientes'
+    );
     this.scrollArriba();
     return;
   }
 
   this.form.notificacionesCorreo = 'SI';
 
-  const fecha = new Date();
+  this.asegurarCodigoSolicitud();
 
-  this.codigoSolicitud = 'VIDA-' + fecha.getFullYear() + '-' + fecha.getTime();
-  this.fechaGeneracionDocumentos = fecha.toLocaleString('es-PE');
+  const finalizarGeneracion = (incluyeFormulario6012: boolean): void => {
+    // Seguridad adicional: evita avanzar si por algún motivo cambió la aceptación antes de finalizar.
+    if (this.aceptaTerminosDeclaracion !== true) {
+      this.mostrarAviso(
+        'Debe aceptar los términos de la declaración jurada para continuar.',
+        'advertencia',
+        'Aceptación pendiente'
+      );
+      return;
+    }
 
-  this.tipoGeneracionDocumentos = tieneBeneficiarios
-    ? 'completa'
-    : 'soloAutorizacion';
+    if (requiereConsentimientoDatos && this.aceptaTratamientoDatos !== true) {
+      this.mostrarAviso(
+        'Debe aceptar el tratamiento de datos personales para continuar.',
+        'advertencia',
+        'Consentimiento pendiente'
+      );
+      return;
+    }
 
-  this.autorizacionDescuentoGenerada = true;
-  this.formulario6012Generado = tieneBeneficiarios;
+    const fecha = new Date();
 
-  this.documentosGenerados = true;
-  this.solicitudBloqueada = true;
+    this.asegurarCodigoSolicitud();
 
-  pasosPrevios.forEach(paso => {
-    this.seccionesGrabadas[paso] = true;
-  });
+    this.fechaGeneracionDocumentos =
+      fecha.toLocaleString('es-PE');
 
-  console.log('Payload para generación de documentos:', this.construirPayloadFinal());
+    this.tipoGeneracionDocumentos = incluyeFormulario6012
+      ? 'completa'
+      : 'soloAutorizacion';
 
-  this.pasoActual = 'documentos';
-  this.intentoEnviar = false;
-  this.scrollArriba();
+    this.autorizacionDescuentoGenerada = true;
+    this.formulario6012Generado = incluyeFormulario6012;
 
+    this.documentosGenerados = true;
+    this.solicitudBloqueada = true;
+
+    pasosPrevios.forEach(paso => {
+      this.seccionesGrabadas[paso] = true;
+    });
+
+    console.log('Payload para generación de documentos:', this.construirPayloadFinal());
+
+    this.pasoActual = 'documentos';
+    this.intentoEnviar = false;
+    this.scrollArriba();
+  };
+
+  const continuarGeneracionDocumental = (): void => {
   if (tieneBeneficiarios) {
-    this.mostrarAviso('Documentos generados correctamente. Descárguelos, fírmelos y cargue los archivos escaneados.');
+    this.tipoGeneracionDocumentos = 'completa';
+
+    console.log(
+      'Payload para Autorización de Descuento:',
+      this.construirPayloadFormularioDescuento()
+    );
+
+    console.log(
+      'Payload para Formulario 6012:',
+      this.construirPayloadFormulario6012()
+    );
+
+    this.generarFormularioDescuentoDesdeServicio(() => {
+      this.generarFormulario6012DesdeServicio(() => {
+        finalizarGeneracion(true);
+      });
+    });
+
     return;
   }
 
-  this.mostrarAviso('Se generó solo la Autorización de Descuento. El Formulario 6012 quedará pendiente hasta registrar beneficiarios.');
+  this.tipoGeneracionDocumentos =
+    'soloAutorizacion';
+
+  console.log(
+    'Payload para Autorización de Descuento:',
+    this.construirPayloadFormularioDescuento()
+  );
+
+  this.generarFormularioDescuentoDesdeServicio(() => {
+    finalizarGeneracion(false);
+
+    this.mostrarAviso(
+      'Autorización generada. El Formulario 6012 podrá generarse cuando registre beneficiarios.',
+      'exito',
+      'Documento listo'
+    );
+  });
+};
+
+this.prepararProcesoBackendLocal(
+  continuarGeneracionDocumental
+);
 }
 
 mostrarPantallaInvitacionBeneficiarios(): void {
@@ -1183,50 +2924,119 @@ generarFormulario6012Pendiente(): void {
   this.intentoEnviar = true;
 
   if (!this.beneficiariosValidosPara6012()) {
-    this.mostrarAviso('Debe registrar al menos un beneficiario válido y asignar el 100% para generar el Formulario 6012.');
+    this.mostrarAviso(
+      'Debe registrar beneficiarios válidos y asignar el 100% para generar el Formulario 6012.',
+      'advertencia',
+      'Beneficiarios pendientes'
+    );
     return;
   }
 
-  const fecha = new Date();
-
-  this.fechaGeneracionDocumentos = fecha.toLocaleString('es-PE');
-
-  this.formulario6012Generado = true;
-  this.formulario6012Generado = true;
   this.tipoGeneracionDocumentos = 'soloFormulario6012';
 
-  this.pendienteBeneficiariosPara6012 = false;
-  this.actualizandoBeneficiarios6012 = false;
-  this.documentosGenerados = true;
-  this.solicitudBloqueada = true;
-  this.seccionesGrabadas.beneficiarios = true;
+  console.log(
+    'Payload para Formulario 6012 pendiente:',
+    this.construirPayloadFormulario6012()
+  );
 
-  console.log('Payload para generación del Formulario 6012 pendiente:', this.construirPayloadFinal());
+  this.generarFormulario6012DesdeServicio(() => {
+    const fecha = new Date();
 
-  this.pasoActual = 'documentos';
-  this.intentoEnviar = false;
-  this.scrollArriba();
+    this.fechaGeneracionDocumentos = fecha.toLocaleString('es-PE');
 
-  this.mostrarAviso('Formulario 6012 generado correctamente. Descárguelo, fírmelo y cargue el PDF escaneado.');
+    this.formulario6012Generado = true;
+    this.tipoGeneracionDocumentos = 'soloFormulario6012';
+
+    this.pendienteBeneficiariosPara6012 = false;
+    this.actualizandoBeneficiarios6012 = false;
+
+    this.documentosGenerados = true;
+    this.solicitudBloqueada = true;
+    this.seccionesGrabadas.beneficiarios = true;
+
+    console.log(
+      'Payload final luego de generar Formulario 6012 pendiente:',
+      this.construirPayloadFinal()
+    );
+
+    this.pasoActual = 'documentos';
+    this.intentoEnviar = false;
+    this.scrollArriba();
+  });
 }
 
 descargarDocumentosSimulados(): void {
   if (!this.documentosGenerados) {
-    this.mostrarAviso('Primero debe generar los documentos.');
+    this.mostrarAviso(
+      'Primero debe generar los documentos.',
+      'advertencia',
+      'Documentos no generados'
+    );
     return;
   }
 
   if (this.tipoGeneracionDocumentos === 'soloAutorizacion') {
-    this.mostrarAviso('Descarga lista: Autorización de Descuento por Planilla.');
+    if (!this.blobFormularioDescuentoGenerado) {
+      this.mostrarAviso(
+        'No se encontró la Autorización de Descuento generada para descargar.',
+        'error',
+        'Documento no disponible'
+      );
+      return;
+    }
+
+    this.descargarFormularioDescuentoGenerado();
+
+    this.mostrarAviso(
+      'Autorización de Descuento descargada correctamente.',
+      'exito',
+      'Descarga lista'
+    );
     return;
   }
 
   if (this.tipoGeneracionDocumentos === 'soloFormulario6012') {
-    this.mostrarAviso('Descarga lista: Formulario 6012.');
+    if (!this.blobFormulario6012Generado) {
+      this.mostrarAviso(
+        'No se encontró el Formulario 6012 generado para descargar.',
+        'error',
+        'Documento no disponible'
+      );
+      return;
+    }
+
+    this.descargarFormulario6012Generado();
+
+    this.mostrarAviso(
+      'Formulario 6012 descargado correctamente.',
+      'exito',
+      'Descarga lista'
+    );
     return;
   }
 
-  this.mostrarAviso('Descarga única lista: Formulario 6012 y Autorización de Descuento por Planilla.');
+  if (this.tipoGeneracionDocumentos === 'completa') {
+    if (!this.blobFormularioDescuentoGenerado || !this.blobFormulario6012Generado) {
+      this.mostrarAviso(
+        'No se encontraron todos los documentos generados para descargar.',
+        'error',
+        'Documentos no disponibles'
+      );
+      return;
+    }
+
+    this.descargarFormularioDescuentoGenerado();
+
+    setTimeout(() => {
+      this.descargarFormulario6012Generado();
+    }, 300);
+
+    this.mostrarAviso(
+      'Formulario 6012 y Autorización de Descuento descargados correctamente.',
+      'exito',
+      'Descarga lista'
+    );
+  }
 }
 
 simularRetornoPendienteCarga(): void {
@@ -1259,25 +3069,62 @@ simularRetornoPendienteBeneficiarios(): void {
   this.mostrarAviso('Autorización de Descuento enviada. Puede registrar beneficiarios y generar el Formulario 6012.');
 }
 
-seleccionarArchivo(event: Event, tipo: TipoDocumentoFirmado): void {
-  const input = event.target as HTMLInputElement;
-  const archivo = input.files?.[0];
+seleccionarArchivo(
+  event: Event,
+  tipo: TipoDocumentoFirmado
+): void {
+  const input =
+    event.target as HTMLInputElement;
 
-  if (!archivo) return;
+  const archivo =
+    input.files?.[0];
 
-  const archivoValidado = this.validarArchivoPdf(archivo);
+  if (!archivo) {
+    return;
+  }
+
+  const archivoValidado =
+    this.validarArchivoPdf(archivo);
+
+  this.documentosFirmadosCargadosBackend =
+  false;
+
+  this.documentosValidadosBackend =
+    false;
+
+  this.mensajeRechazoValidacion = '';
 
   if (tipo === 'formulario6012') {
-    this.archivoFormulario6012 = archivoValidado;
+    this.archivoFormulario6012 =
+      archivoValidado;
+
+    this.idDocumentoCargadoFormulario6012 =
+      '';
+
+    this.formulario6012ValidadoBackend =
+      false;
+
+    this.resultadoValidacionFormulario6012 =
+      null;
   }
 
   if (tipo === 'autorizacionDescuento') {
-    this.archivoAutorizacionDescuento = archivoValidado;
+    this.archivoAutorizacionDescuento =
+      archivoValidado;
+
+    this.idDocumentoCargadoAutorizacion =
+      '';
+
+    this.autorizacionValidadaBackend =
+      false;
+
+    this.resultadoValidacionAutorizacion =
+      null;
   }
 }
 
 validarArchivoPdf(archivo: File): ArchivoDocumentoFirmado {
-  const maximoMB = 15;
+  const maximoMB = 10;
   const maximoBytes = maximoMB * 1024 * 1024;
 
   const esPdf = archivo.type === 'application/pdf'
@@ -1301,7 +3148,7 @@ validarArchivoPdf(archivo: File): ArchivoDocumentoFirmado {
       nombre: archivo.name,
       tamanioMB: this.formatearPesoArchivo(archivo.size),
       cargado: false,
-      error: 'El archivo no debe superar los 15 MB.',
+      error: 'El archivo no debe superar los 10 MB.',
       urlTemporal: '',
       urlVistaPrevia: null
     };
@@ -1338,35 +3185,7 @@ documentosFirmadosCompletos(): boolean {
 }
 
 publicarDocumentosSellados(): void {
-  const fecha = new Date();
-
-  this.fechaRecepcionDocumentos = fecha.toLocaleString('es-PE');
-  this.correoEnvioDocumentos = this.form.correoViva;
-
-  this.documentosPublicados = true;
-
-  this.autorizacionDescuentoSellada =
-    this.autorizacionDescuentoGenerada && this.archivoAutorizacionDescuento.cargado;
-
-  this.formulario6012Sellado =
-    this.formulario6012Generado && this.archivoFormulario6012.cargado;
-
-  this.seccionesGrabadas.documentos = true;
-  this.seccionesGrabadas.publicacion = true;
-
-  this.pasoActual = 'publicacion';
-  this.vista = 'formulario';
-  this.intentoEnviar = false;
-
-  console.log('Documentos sellados y publicados:', {
-    codigoSolicitud: this.codigoSolicitud,
-    fechaRecepcion: this.fechaRecepcionDocumentos,
-    correoEnvio: this.correoEnvioDocumentos,
-    formulario6012Sellado: this.formulario6012Sellado,
-    autorizacionDescuentoSellada: this.autorizacionDescuentoSellada
-  });
-
-  this.scrollArriba();
+  this.procesarCierreDocumental();
 }
 
 obtenerArchivoDocumento(tipoDocumento: TipoDocumentoFirmado): ArchivoDocumentoFirmado {
@@ -1379,33 +3198,6 @@ obtenerTituloDocumento(tipoDocumento: TipoDocumentoFirmado): string {
   return tipoDocumento === 'formulario6012'
     ? 'Formulario 6012'
     : 'Autorización de Descuento';
-}
-
-verDocumentoSelladoSimulado(tipoDocumento: TipoDocumentoFirmado): void {
-  const documento = this.obtenerArchivoDocumento(tipoDocumento);
-
-  if (!documento.cargado || !documento.urlVistaPrevia) {
-    this.mostrarAviso('No hay un PDF cargado para visualizar.');
-    return;
-  }
-
-  this.tituloDocumentoPdf = `${this.obtenerTituloDocumento(tipoDocumento)} recepcionado`;
-  this.urlDocumentoPdf = documento.urlVistaPrevia;
-  this.documentoPdfVisible = true;
-}
-
-descargarDocumentoSelladoSimulado(tipoDocumento: TipoDocumentoFirmado): void {
-  const documento = this.obtenerArchivoDocumento(tipoDocumento);
-
-  if (!documento.cargado || !documento.urlTemporal) {
-    this.mostrarAviso('No hay un PDF cargado para descargar.');
-    return;
-  }
-
-  const enlace = document.createElement('a');
-  enlace.href = documento.urlTemporal;
-  enlace.download = `SELLADO-${documento.nombre}`;
-  enlace.click();
 }
 
 cerrarVistaPreviaPdf(): void {
@@ -1425,7 +3217,7 @@ simularRetornoDocumentosPublicados(): void {
   this.intentoEnviar = false;
   this.scrollArriba();
 
-  this.mostrarAviso('Documentos recepcionados disponibles en la plataforma.');
+  this.mostrarAviso('Documentos validados y sellados disponibles en la plataforma.');
 }
 
 finalizarPublicacionDocumentos(): void {
@@ -1433,51 +3225,1190 @@ finalizarPublicacionDocumentos(): void {
   this.scrollArriba();
 }
 
+obtenerTipoDocumentoCargaBackend(
+  tipoDocumento: TipoDocumentoFirmado
+): TipoDocumentoCargaLocal {
+  return tipoDocumento === 'formulario6012'
+    ? 'FORMULARIO_6012'
+    : 'AUTORIZACION_DESCUENTO';
+}
+
+cargarDocumentoFirmadoDesdeServicio(
+  tipoDocumento: TipoDocumentoFirmado,
+  callbackExito: () => void,
+  callbackError: () => void
+): void {
+  const documento =
+    this.obtenerArchivoDocumento(
+      tipoDocumento
+    );
+
+  if (
+    !documento.cargado
+    || !documento.archivo
+  ) {
+    this.mostrarAviso(
+      `No existe un archivo válido para ${this.obtenerTituloDocumento(tipoDocumento)}.`,
+      'error',
+      'Archivo no disponible',
+      true
+    );
+
+    callbackError();
+    return;
+  }
+
+  const tipoDocumentoBackend =
+    this.obtenerTipoDocumentoCargaBackend(
+      tipoDocumento
+    );
+
+  console.log(
+    'Cargando documento firmado:',
+    {
+      registroInternoProceso:
+        this.codigoSolicitud,
+
+      tipoDocumento:
+        tipoDocumentoBackend,
+
+      nombreArchivo:
+        documento.archivo.name,
+
+      tamanioBytes:
+        documento.archivo.size
+    }
+  );
+
+  this.vidaApiService
+    .cargarDocumentoFirmado(
+      documento.archivo,
+      this.codigoSolicitud,
+      tipoDocumentoBackend,
+      this.form.titular.tipoDocumento,
+      this.form.titular.numeroDocumento,
+      this.nombreCompletoPersona(
+        this.form.titular
+      )
+    )
+    .subscribe({
+      next: (
+        respuesta:
+          DocumentoCargadoLocalResponse
+      ) => {
+        if (
+          tipoDocumento ===
+          'formulario6012'
+        ) {
+          this.idDocumentoCargadoFormulario6012 =
+            respuesta.idDocumentoCargado;
+        }
+
+        if (
+          tipoDocumento ===
+          'autorizacionDescuento'
+        ) {
+          this.idDocumentoCargadoAutorizacion =
+            respuesta.idDocumentoCargado;
+        }
+
+        console.log(
+          'Documento firmado cargado:',
+          {
+            tipoDocumento:
+              tipoDocumentoBackend,
+
+            idDocumentoCargado:
+              respuesta.idDocumentoCargado,
+
+            hashDocumento:
+              respuesta.hashDocumento,
+
+            numeroPaginas:
+              respuesta.numeroPaginas
+          }
+        );
+
+        callbackExito();
+      },
+
+      error: (error: unknown) => {
+        console.error(
+          `Error cargando ${tipoDocumentoBackend}:`,
+          error
+        );
+
+        callbackError();
+      }
+    });
+}
+
+validarDocumentoFirmadoDesdeServicio(
+  tipoDocumento: TipoDocumentoFirmado,
+  callbackAprobado: () => void,
+  callbackRechazado: (
+    resultado: ValidacionDocumentalCompletaResponseLocal
+  ) => void,
+  callbackError: () => void
+): void {
+  const documento =
+    this.obtenerArchivoDocumento(
+      tipoDocumento
+    );
+
+  const tipoDocumentoBackend =
+    this.obtenerTipoDocumentoCargaBackend(
+      tipoDocumento
+    );
+
+  const idDocumentoCargado =
+    tipoDocumento === 'formulario6012'
+      ? this.idDocumentoCargadoFormulario6012
+      : this.idDocumentoCargadoAutorizacion;
+
+  if (
+    !documento.archivo
+    || !documento.cargado
+  ) {
+    this.mostrarAviso(
+      `No existe un PDF firmado válido para ${this.obtenerTituloDocumento(tipoDocumento)}.`,
+      'error',
+      'Archivo no disponible',
+      true
+    );
+
+    callbackError();
+    return;
+  }
+
+  if (!idDocumentoCargado) {
+    this.mostrarAviso(
+      `El documento ${this.obtenerTituloDocumento(tipoDocumento)} todavía no cuenta con un ID de carga.`,
+      'error',
+      'Carga pendiente',
+      true
+    );
+
+    callbackError();
+    return;
+  }
+
+  console.log(
+    'Ejecutando validación completa:',
+    {
+      registroInternoProceso:
+        this.codigoSolicitud,
+
+      tipoDocumento:
+        tipoDocumentoBackend,
+
+      idDocumentoCargado,
+
+      nombreArchivo:
+        documento.archivo.name
+    }
+  );
+
+  this.vidaApiService
+    .validarDocumentoCompleto(
+      documento.archivo,
+      this.codigoSolicitud,
+      tipoDocumentoBackend,
+      this.form.titular.tipoDocumento,
+      this.form.titular.numeroDocumento,
+      idDocumentoCargado,
+      this.form.titular.numeroDocumento
+    )
+    .subscribe({
+      next: respuesta => {
+        const resultado =
+          respuesta.body!;
+
+        const validacionAprobada =
+          resultado.documentoAprobado === true
+          && resultado.estadoValidacionDocumental ===
+            'VALIDACION_DOCUMENTAL_APROBADA';
+
+        console.log(
+          'Resultado del orquestador:',
+          {
+            tipoDocumento:
+              tipoDocumentoBackend,
+
+            codResultado:
+              respuesta.codResultado,
+
+            mensaje:
+              respuesta.mensaje,
+
+            documentoAprobado:
+              resultado.documentoAprobado,
+
+            estado:
+              resultado.estadoValidacionDocumental,
+
+            etapas:
+              resultado.etapas,
+
+            permiteNuevaCargaTrabajador:
+              resultado.permiteNuevaCargaTrabajador
+          }
+        );
+
+        if (
+          tipoDocumento ===
+          'formulario6012'
+        ) {
+          this.resultadoValidacionFormulario6012 =
+            resultado;
+
+          this.formulario6012ValidadoBackend =
+            validacionAprobada;
+        }
+
+        if (
+          tipoDocumento ===
+          'autorizacionDescuento'
+        ) {
+          this.resultadoValidacionAutorizacion =
+            resultado;
+
+          this.autorizacionValidadaBackend =
+            validacionAprobada;
+        }
+
+        if (validacionAprobada) {
+          callbackAprobado();
+          return;
+        }
+
+        const mensajeRechazo =
+          resultado.mensajeValidacion
+          || respuesta.mensaje
+          || `El documento ${this.obtenerTituloDocumento(tipoDocumento)} fue rechazado durante la validación documental.`;
+
+        this.mensajeRechazoValidacion =
+          mensajeRechazo;
+
+        callbackRechazado(resultado);
+      },
+
+      error: (error: unknown) => {
+        console.error(
+          `Error validando ${tipoDocumentoBackend}:`,
+          error
+        );
+
+        callbackError();
+      }
+    });
+}
+
+procesarCierreDocumentoDesdeServicio(
+  tipoDocumento: TipoDocumentoFirmado,
+  callbackExito: () => void,
+  callbackError: () => void
+): void {
+  const documento =
+    this.obtenerArchivoDocumento(
+      tipoDocumento
+    );
+
+  const tipoDocumentoBackend =
+    this.obtenerTipoDocumentoCargaBackend(
+      tipoDocumento
+    );
+
+  const documentoValidado =
+    tipoDocumento === 'formulario6012'
+      ? this.formulario6012ValidadoBackend
+      : this.autorizacionValidadaBackend;
+
+  if (
+    !documento.archivo
+    || !documento.cargado
+  ) {
+    this.mensajeErrorCierre =
+      `No se encontró el PDF de ${this.obtenerTituloDocumento(tipoDocumento)}.`;
+
+    callbackError();
+    return;
+  }
+
+  if (!documentoValidado) {
+    this.mensajeErrorCierre =
+      `${this.obtenerTituloDocumento(tipoDocumento)} todavía no aprobó la validación documental.`;
+
+    callbackError();
+    return;
+  }
+
+  console.log(
+    'Ejecutando cierre documental:',
+    {
+      registroInternoProceso:
+        this.codigoSolicitud,
+
+      tipoDocumento:
+        tipoDocumentoBackend,
+
+      nombreArchivo:
+        documento.archivo.name
+    }
+  );
+
+  this.vidaApiService
+    .procesarCierreDocumental(
+      documento.archivo,
+      this.codigoSolicitud,
+      tipoDocumentoBackend,
+      this.form.titular.tipoDocumento,
+      this.form.titular.numeroDocumento,
+      this.nombreCompletoPersona(
+        this.form.titular
+      )
+    )
+    .subscribe({
+      next: respuesta => {
+        const resultado =
+          respuesta.body!;
+
+        const idDocumentoSellado =
+          resultado.idDocumentoSellado
+            ?.trim()
+          || '';
+
+        const idDocumentoPublicado =
+          resultado.idDocumentoPublicado
+            ?.trim()
+          || '';
+
+        const estado =
+        String(
+          resultado.estadoCierreDocumental
+          ?? resultado.estadoDocumento
+          ?? resultado.estadoProceso
+          ?? resultado.estado
+          ?? ''
+        ).trim();
+
+        const cierreCorrecto =
+        String(respuesta.codResultado).trim() === '1'
+        && resultado.cierreCompletado === true
+        && !!idDocumentoSellado
+        && !!idDocumentoPublicado
+        && estado === 'DOCUMENTO_PUBLICADO';
+
+        console.log(
+          'Resultado del cierre documental:',
+          {
+            tipoDocumento:
+              tipoDocumentoBackend,
+
+            codResultado:
+              respuesta.codResultado,
+
+            mensaje:
+              respuesta.mensaje,
+
+            cierreCompletado:
+              resultado.cierreCompletado,
+
+            idDocumentoSellado,
+            idDocumentoPublicado,
+            estado
+          }
+        );
+
+        if (
+          tipoDocumento ===
+          'autorizacionDescuento'
+        ) {
+          this.resultadoCierreAutorizacion =
+            resultado;
+
+          this.idDocumentoSelladoAutorizacion =
+            idDocumentoSellado;
+
+          this.idDocumentoPublicadoAutorizacion =
+            idDocumentoPublicado;
+        }
+
+        if (
+          tipoDocumento ===
+          'formulario6012'
+        ) {
+          this.resultadoCierreFormulario6012 =
+            resultado;
+
+          this.idDocumentoSelladoFormulario6012 =
+            idDocumentoSellado;
+
+          this.idDocumentoPublicadoFormulario6012 =
+            idDocumentoPublicado;
+        }
+
+        if (!cierreCorrecto) {
+          this.mensajeErrorCierre =
+            resultado.mensajeCierre
+            || respuesta.mensaje
+            || `No se pudo cerrar y publicar ${this.obtenerTituloDocumento(tipoDocumento)}.`;
+
+          callbackError();
+          return;
+        }
+
+        callbackExito();
+      },
+
+      error: (error: unknown) => {
+        console.error(
+          `Error cerrando ${tipoDocumentoBackend}:`,
+          error
+        );
+
+        this.mensajeErrorCierre =
+          `No se pudo completar el cierre de ${this.obtenerTituloDocumento(tipoDocumento)}.`;
+
+        callbackError();
+      }
+    });
+}
+
+procesarCierreDocumental(): void {
+  if (this.cerrandoDocumentosBackend) {
+    return;
+  }
+
+  if (this.documentosCerradosBackend) {
+    return;
+  }
+
+  if (!this.documentosValidadosBackend) {
+    this.mostrarAviso(
+      'Los documentos todavía no han superado la validación documental completa.',
+      'advertencia',
+      'Validación pendiente'
+    );
+
+    return;
+  }
+
+  this.cerrandoDocumentosBackend = true;
+  this.mensajeErrorCierre = '';
+
+  const finalizarCierreCorrecto = (): void => {
+    const fecha =
+      new Date();
+
+    this.cerrandoDocumentosBackend =
+      false;
+
+    this.documentosCerradosBackend =
+      true;
+
+    this.documentosPublicados =
+      true;
+
+    this.fechaRecepcionDocumentos =
+      fecha.toLocaleString('es-PE');
+
+    this.correoEnvioDocumentos =
+      this.form.correoViva;
+
+    if (
+      this.tipoGeneracionDocumentos
+      !== 'soloFormulario6012'
+    ) {
+      this.autorizacionDescuentoSellada =
+        true;
+    }
+
+    if (
+      this.tipoGeneracionDocumentos
+      !== 'soloAutorizacion'
+    ) {
+      this.formulario6012Sellado =
+        true;
+    }
+
+    this.seccionesGrabadas.documentos =
+      true;
+
+    this.seccionesGrabadas.publicacion =
+      true;
+
+    console.log(
+      'Cierre documental completado:',
+      {
+        registroInternoProceso:
+          this.codigoSolicitud,
+
+        idDocumentoSelladoAutorizacion:
+          this.idDocumentoSelladoAutorizacion,
+
+        idDocumentoPublicadoAutorizacion:
+          this.idDocumentoPublicadoAutorizacion,
+
+        idDocumentoSelladoFormulario6012:
+          this.idDocumentoSelladoFormulario6012,
+
+        idDocumentoPublicadoFormulario6012:
+          this.idDocumentoPublicadoFormulario6012
+      }
+    );
+
+    if (
+      this.tipoGeneracionDocumentos ===
+      'soloAutorizacion'
+    ) {
+      this.autorizacionFirmadaBloqueada =
+        true;
+
+      this.pendienteBeneficiariosPara6012 =
+        false;
+
+      this.modoRetornoPendiente =
+        false;
+
+      this.mostrarInvitacionBeneficiarios =
+        true;
+    }
+
+    this.pasoActual =
+      'publicacion';
+
+    this.vista =
+      'formulario';
+
+    this.intentoEnviar =
+      false;
+
+    this.scrollArriba();
+
+    this.mostrarAviso(
+      'Los documentos fueron validados, sellados y publicados correctamente.',
+      'exito',
+      'Proceso completado',
+      true
+    );
+  };
+
+  const finalizarCierreConError = (): void => {
+    this.cerrandoDocumentosBackend =
+      false;
+
+    this.documentosCerradosBackend =
+      false;
+
+    /*
+     * La validación permanece aprobada.
+     * No corresponde pedir otra carga al trabajador.
+     */
+    this.mostrarAviso(
+      this.mensajeErrorCierre
+      || 'Ocurrió una incidencia interna durante el sellado o la publicación. Los documentos siguen validados y no deben cargarse nuevamente.',
+      'error',
+      'Publicación pendiente',
+      true
+    );
+  };
+
+  const cerrarFormulario6012 = (): void => {
+    if (
+      this.idDocumentoPublicadoFormulario6012
+    ) {
+      finalizarCierreCorrecto();
+      return;
+    }
+
+    this.procesarCierreDocumentoDesdeServicio(
+      'formulario6012',
+      finalizarCierreCorrecto,
+      finalizarCierreConError
+    );
+  };
+
+  if (
+    this.tipoGeneracionDocumentos ===
+    'soloAutorizacion'
+  ) {
+    if (
+      this.idDocumentoPublicadoAutorizacion
+    ) {
+      finalizarCierreCorrecto();
+      return;
+    }
+
+    this.procesarCierreDocumentoDesdeServicio(
+      'autorizacionDescuento',
+      finalizarCierreCorrecto,
+      finalizarCierreConError
+    );
+
+    return;
+  }
+
+  if (
+    this.tipoGeneracionDocumentos ===
+    'soloFormulario6012'
+  ) {
+    cerrarFormulario6012();
+    return;
+  }
+
+  /*
+   * Flujo completo:
+   * primero Autorización y luego Formulario 6012.
+   *
+   * Si el primero ya cerró en un intento anterior,
+   * se omite y se reintenta solamente el segundo.
+   */
+  if (
+    this.idDocumentoPublicadoAutorizacion
+  ) {
+    cerrarFormulario6012();
+    return;
+  }
+
+  this.procesarCierreDocumentoDesdeServicio(
+    'autorizacionDescuento',
+
+    () => {
+      cerrarFormulario6012();
+    },
+
+    finalizarCierreConError
+  );
+}
+
+private obtenerIdDocumentoPublicado(
+  tipoDocumento: TipoDocumentoFirmado
+): string {
+  return tipoDocumento === 'formulario6012'
+    ? this.idDocumentoPublicadoFormulario6012
+    : this.idDocumentoPublicadoAutorizacion;
+}
+
+private obtenerNombreDocumentoPublicado(
+  tipoDocumento: TipoDocumentoFirmado
+): string {
+  const numeroDocumento =
+    this.form.titular.numeroDocumento
+    || 'trabajador';
+
+  return tipoDocumento === 'formulario6012'
+    ? `Formulario-6012-${numeroDocumento}-sellado.pdf`
+    : `Autorizacion-Descuento-${numeroDocumento}-sellada.pdf`;
+}
+
+verDocumentoPublicado(
+  tipoDocumento: TipoDocumentoFirmado
+): void {
+  const idDocumentoPublicado =
+    this.obtenerIdDocumentoPublicado(
+      tipoDocumento
+    );
+
+  if (!idDocumentoPublicado) {
+    this.mostrarAviso(
+      'El documento todavía no cuenta con un identificador de publicación.',
+      'error',
+      'Documento no disponible',
+      true
+    );
+
+    return;
+  }
+
+  if (this.consultandoDocumentoPublicado) {
+    return;
+  }
+
+  /*
+   * La ventana se abre antes de la petición HTTP para
+   * evitar que el navegador la bloquee como popup.
+   */
+  const ventanaDocumento =
+    window.open(
+      '',
+      '_blank'
+    );
+
+  if (!ventanaDocumento) {
+    this.mostrarAviso(
+      'El navegador bloqueó la nueva ventana. Habilite las ventanas emergentes para visualizar el PDF.',
+      'advertencia',
+      'Ventana bloqueada',
+      true
+    );
+
+    return;
+  }
+
+  ventanaDocumento.document.write(
+    '<p style="font-family: Arial; padding: 24px;">'
+    + 'Cargando documento publicado...'
+    + '</p>'
+  );
+
+  this.consultandoDocumentoPublicado =
+    tipoDocumento;
+
+  this.vidaApiService
+    .obtenerDocumentoPublicado(
+      idDocumentoPublicado
+    )
+    .subscribe({
+      next: blob => {
+        this.consultandoDocumentoPublicado =
+          null;
+
+        const urlTemporal =
+          URL.createObjectURL(blob);
+
+        ventanaDocumento.location.href =
+          urlTemporal;
+
+        /*
+         * Se concede tiempo suficiente para que
+         * el visor del navegador cargue el PDF.
+         */
+        setTimeout(
+          () => {
+            URL.revokeObjectURL(
+              urlTemporal
+            );
+          },
+          60_000
+        );
+      },
+
+      error: (error: unknown) => {
+        this.consultandoDocumentoPublicado =
+          null;
+
+        console.error(
+          'Error visualizando documento publicado:',
+          error
+        );
+
+        ventanaDocumento.close();
+
+        this.mostrarAviso(
+          'No se pudo abrir el documento publicado. Revise la respuesta del backend.',
+          'error',
+          'Visualización no disponible',
+          true
+        );
+      }
+    });
+}
+
+descargarDocumentoPublicado(
+  tipoDocumento: TipoDocumentoFirmado
+): void {
+  const idDocumentoPublicado =
+    this.obtenerIdDocumentoPublicado(
+      tipoDocumento
+    );
+
+  if (!idDocumentoPublicado) {
+    this.mostrarAviso(
+      'El documento todavía no cuenta con un identificador de publicación.',
+      'error',
+      'Documento no disponible',
+      true
+    );
+
+    return;
+  }
+
+  if (this.consultandoDocumentoPublicado) {
+    return;
+  }
+
+  this.consultandoDocumentoPublicado =
+    tipoDocumento;
+
+  this.vidaApiService
+    .obtenerDocumentoPublicado(
+      idDocumentoPublicado
+    )
+    .subscribe({
+      next: blob => {
+        this.consultandoDocumentoPublicado =
+          null;
+
+        const urlTemporal =
+          URL.createObjectURL(blob);
+
+        const enlace =
+          document.createElement('a');
+
+        enlace.href =
+          urlTemporal;
+
+        enlace.download =
+          this.obtenerNombreDocumentoPublicado(
+            tipoDocumento
+          );
+
+        document.body.appendChild(
+          enlace
+        );
+
+        enlace.click();
+        enlace.remove();
+
+        setTimeout(
+          () => {
+            URL.revokeObjectURL(
+              urlTemporal
+            );
+          },
+          1_000
+        );
+      },
+
+      error: (error: unknown) => {
+        this.consultandoDocumentoPublicado =
+          null;
+
+        console.error(
+          'Error descargando documento publicado:',
+          error
+        );
+
+        this.mostrarAviso(
+          'No se pudo descargar el documento publicado. Revise la respuesta del backend.',
+          'error',
+          'Descarga no disponible',
+          true
+        );
+      }
+    });
+}
+
+validarDocumentosFirmados(): void {
+  if (this.validandoDocumentosBackend) {
+    return;
+  }
+
+  if (!this.documentosFirmadosCargadosBackend) {
+    this.mostrarAviso(
+      'Primero debe cargar los documentos firmados al backend.',
+      'advertencia',
+      'Carga pendiente'
+    );
+
+    return;
+  }
+
+  if (this.documentosValidadosBackend) {
+    this.mostrarAviso(
+      'Los documentos ya superaron la validación documental completa.',
+      'info',
+      'Validación completada'
+    );
+
+    return;
+  }
+
+  this.validandoDocumentosBackend = true;
+  this.mensajeRechazoValidacion = '';
+
+  const finalizarValidacionCorrecta = (): void => {
+    this.validandoDocumentosBackend = false;
+    this.documentosValidadosBackend = true;
+
+    console.log(
+      'Validación documental completada:',
+      {
+        registroInternoProceso:
+          this.codigoSolicitud,
+
+        autorizacionValidada:
+          this.autorizacionValidadaBackend,
+
+        formulario6012Validado:
+          this.formulario6012ValidadoBackend,
+
+        resultadoAutorizacion:
+          this.resultadoValidacionAutorizacion,
+
+        resultadoFormulario6012:
+          this.resultadoValidacionFormulario6012
+      }
+    );
+
+    /*
+    * La validación aprobada continúa automáticamente
+    * con sellado y publicación.
+    */
+    this.procesarCierreDocumental();
+  };
+
+  const finalizarConRechazo = (
+    resultado:
+      ValidacionDocumentalCompletaResponseLocal
+  ): void => {
+    this.validandoDocumentosBackend = false;
+    this.documentosValidadosBackend = false;
+
+    const permiteNuevaCarga =
+      resultado.permiteNuevaCargaTrabajador
+      !== false;
+
+    this.mostrarAviso(
+      this.mensajeRechazoValidacion
+      || (
+        permiteNuevaCarga
+          ? 'El documento fue rechazado. Corrija el archivo y vuelva a cargarlo.'
+          : 'El documento no superó la validación documental.'
+      ),
+      'error',
+      'Documento rechazado',
+      true
+    );
+  };
+
+  const finalizarConError = (): void => {
+    this.validandoDocumentosBackend = false;
+    this.documentosValidadosBackend = false;
+
+    this.mostrarAviso(
+      'No se pudo ejecutar la validación documental completa. Revise Network y la consola del backend.',
+      'error',
+      'Validación no disponible',
+      true
+    );
+  };
+
+  const validarFormulario6012 = (): void => {
+    if (this.formulario6012ValidadoBackend) {
+      finalizarValidacionCorrecta();
+      return;
+    }
+
+    this.validarDocumentoFirmadoDesdeServicio(
+      'formulario6012',
+      finalizarValidacionCorrecta,
+      finalizarConRechazo,
+      finalizarConError
+    );
+  };
+
+  if (
+    this.tipoGeneracionDocumentos ===
+    'soloAutorizacion'
+  ) {
+    this.validarDocumentoFirmadoDesdeServicio(
+      'autorizacionDescuento',
+      finalizarValidacionCorrecta,
+      finalizarConRechazo,
+      finalizarConError
+    );
+
+    return;
+  }
+
+  if (
+    this.tipoGeneracionDocumentos ===
+    'soloFormulario6012'
+  ) {
+    this.validarDocumentoFirmadoDesdeServicio(
+      'formulario6012',
+      finalizarValidacionCorrecta,
+      finalizarConRechazo,
+      finalizarConError
+    );
+
+    return;
+  }
+
+  if (this.autorizacionValidadaBackend) {
+    validarFormulario6012();
+    return;
+  }
+
+  this.validarDocumentoFirmadoDesdeServicio(
+    'autorizacionDescuento',
+
+    () => {
+      validarFormulario6012();
+    },
+
+    finalizarConRechazo,
+    finalizarConError
+  );
+}
+
 enviarDocumentosFirmados(): void {
   this.intentoEnviar = true;
 
+if (
+  this.cargandoDocumentosFirmadosBackend
+  || this.validandoDocumentosBackend
+  || this.cerrandoDocumentosBackend
+) {
+  return;
+}
+
+if (this.documentosCerradosBackend) {
+  return;
+}
+
+/*
+ * Permite reintentar solamente el cierre
+ * cuando carga y validación ya terminaron.
+ */
+if (
+  this.documentosValidadosBackend
+  && !this.documentosCerradosBackend
+) {
+  this.procesarCierreDocumental();
+  return;
+}
+
+/*
+ * Permite reintentar solamente la validación
+ * cuando los documentos ya fueron cargados.
+ */
+if (
+  this.documentosFirmadosCargadosBackend
+  && !this.documentosValidadosBackend
+) {
+  this.validarDocumentosFirmados();
+  return;
+}
+
   if (!this.documentosFirmadosCompletos()) {
-    if (this.tipoGeneracionDocumentos === 'soloAutorizacion') {
-      this.mostrarAviso('Debe cargar la Autorización de Descuento firmada en formato PDF.');
+    if (
+      this.tipoGeneracionDocumentos ===
+      'soloAutorizacion'
+    ) {
+      this.mostrarAviso(
+        'Debe cargar la Autorización de Descuento firmada en formato PDF.'
+      );
+
       return;
     }
 
-    if (this.tipoGeneracionDocumentos === 'soloFormulario6012') {
-      this.mostrarAviso('Debe cargar el Formulario 6012 firmado en formato PDF.');
+    if (
+      this.tipoGeneracionDocumentos ===
+      'soloFormulario6012'
+    ) {
+      this.mostrarAviso(
+        'Debe cargar el Formulario 6012 firmado en formato PDF.'
+      );
+
       return;
     }
 
-    this.mostrarAviso('Debe cargar ambos documentos firmados en formato PDF.');
+    this.mostrarAviso(
+      'Debe cargar ambos documentos firmados en formato PDF.'
+    );
+
     return;
   }
 
-  if (this.tipoGeneracionDocumentos === 'soloAutorizacion') {
-    this.autorizacionFirmadaBloqueada = true;
-    this.pendienteBeneficiariosPara6012 = false;
-    this.modoRetornoPendiente = false;
+  this.cargandoDocumentosFirmadosBackend =
+    true;
 
-    console.log('Autorización de descuento firmada registrada:', {
-      codigoSolicitud: this.codigoSolicitud,
-      autorizacionDescuento: this.archivoAutorizacionDescuento.nombre
-    });
+  const finalizarCargaCorrecta = (): void => {
+      this.cargandoDocumentosFirmadosBackend =
+        false;
 
-    this.publicarDocumentosSellados();
-    this.mostrarInvitacionBeneficiarios = true;
+      this.documentosFirmadosCargadosBackend =
+        true;
 
-    this.mostrarAviso('Autorización recepcionada, sellada y publicada en la plataforma.');
+      this.seccionesGrabadas.documentos =
+        true;
+
+      console.log(
+        'Carga documental completada:',
+        {
+          registroInternoProceso:
+            this.codigoSolicitud,
+
+          idDocumentoCargadoAutorizacion:
+            this.idDocumentoCargadoAutorizacion,
+
+          idDocumentoCargadoFormulario6012:
+            this.idDocumentoCargadoFormulario6012
+        }
+      );
+
+      /*
+      * Al terminar la carga, se ejecuta automáticamente
+      * la validación documental completa.
+      */
+      this.validarDocumentosFirmados();
+    };
+
+    this.mostrarAviso(
+      'Los documentos firmados fueron cargados correctamente. Permanecen pendientes de validación documental.',
+      'exito',
+      'Carga completada',
+      true
+    );
+  
+
+  const finalizarCargaConError = (): void => {
+    this.cargandoDocumentosFirmadosBackend =
+      false;
+
+    this.documentosFirmadosCargadosBackend =
+      false;
+
+    this.mostrarAviso(
+      'No se pudo completar la carga de los documentos firmados. Revise Network y la respuesta del backend.',
+      'error',
+      'Carga incompleta',
+      true
+    );
+  };
+
+  if (
+    this.tipoGeneracionDocumentos ===
+    'soloAutorizacion'
+  ) {
+    this.cargarDocumentoFirmadoDesdeServicio(
+      'autorizacionDescuento',
+      finalizarCargaCorrecta,
+      finalizarCargaConError
+    );
+
     return;
   }
 
-  console.log('Archivos firmados listos para backend:', {
-    codigoSolicitud: this.codigoSolicitud,
-    formulario6012: this.archivoFormulario6012.nombre,
-    autorizacionDescuento: this.archivoAutorizacionDescuento.nombre,
-    autorizacionPreviamenteRegistrada: this.autorizacionFirmadaBloqueada
-  });
+  if (
+    this.tipoGeneracionDocumentos ===
+    'soloFormulario6012'
+  ) {
+    this.cargarDocumentoFirmadoDesdeServicio(
+      'formulario6012',
+      finalizarCargaCorrecta,
+      finalizarCargaConError
+    );
 
-  this.publicarDocumentosSellados();
+    return;
+  }
 
-  this.mostrarAviso('Documentos recepcionados, sellados y publicados en la plataforma.');
+  this.cargarDocumentoFirmadoDesdeServicio(
+    'autorizacionDescuento',
+
+    () => {
+      this.cargarDocumentoFirmadoDesdeServicio(
+        'formulario6012',
+        finalizarCargaCorrecta,
+        finalizarCargaConError
+      );
+    },
+
+    finalizarCargaConError
+  );
 }
 
 scrollArriba(): void {
@@ -1488,4 +4419,4 @@ trackByIndex(index: number): number {
   return index;
 }
 
-}
+};

@@ -1,7 +1,28 @@
 <div class="pagina">
 
-  <div *ngIf="avisoTemporal" class="toast-aviso">
-    {{ avisoTemporal }}
+  <div
+    *ngIf="avisoFlotante as aviso"
+    class="toast-aviso"
+    [class.toast-info]="aviso.tipo === 'info'"
+    [class.toast-exito]="aviso.tipo === 'exito'"
+    [class.toast-advertencia]="aviso.tipo === 'advertencia'"
+    [class.toast-error]="aviso.tipo === 'error'">
+
+    <div class="toast-icono">
+      {{ obtenerIconoAviso(aviso.tipo) }}
+    </div>
+
+    <div class="toast-contenido">
+      <strong>{{ aviso.titulo }}</strong>
+      <span>{{ aviso.mensaje }}</span>
+    </div>
+
+    <button
+      type="button"
+      class="toast-cerrar"
+      (click)="cerrarAviso()">
+      Aceptar
+    </button>
   </div>
 
   <main class="card-custom" *ngIf="vista === 'formulario'">
@@ -19,12 +40,6 @@
         <p>{{ subtituloFormulario }}</p>
       </div>
     </header>
-
-    <div
-      class="alerta-info"
-      *ngIf="solicitudBloqueada && !pendienteBeneficiariosPara6012 && !modoRetornoPendiente && !mostrarInvitacionBeneficiarios">
-      🔒 La solicitud ya generó documentos. Los datos registrados quedaron bloqueados.
-    </div>
 
     <div class="alerta-info" *ngIf="solicitudBloqueada && !pendienteBeneficiariosPara6012 && modoRetornoPendiente">
       📌 Usted tiene una solicitud pendiente de carga de documentos firmados.
@@ -54,58 +69,103 @@
         <h4>1. Información del Asegurado Titular</h4>
       </div>
 
+      <div class="alerta-info" *ngIf="cargandoDatosTitular">
+        Cargando información del trabajador titular...
+      </div>
+
+      <div class="alerta-bloqueo-comunicacion" *ngIf="errorDatosTitular">
+        <strong>No se pudo cargar la información del titular.</strong>
+        <span>{{ errorDatosTitular }}</span>
+      </div>
+
+      <div class="alerta-info" *ngIf="cargandoDatosTitular">
+        Cargando información del titular...
+      </div>
+
+      <div class="alerta-bloqueo-comunicacion" *ngIf="errorTipoAsegurado">
+        <strong>No se pudo cargar el tipo de asegurado.</strong>
+        <span>{{ errorTipoAsegurado }}</span>
+      </div>
+
+      <div class="alerta-bloqueo-comunicacion" *ngIf="errorDatosTitular">
+        <strong>No se pudo cargar la información del titular.</strong>
+        <span>{{ errorDatosTitular }}</span>
+      </div>
+
+     <div class="alerta-bloqueo-comunicacion" *ngIf="titularTieneSeguroComplementario">
+        <strong>No corresponde una nueva afiliación.</strong>
+        <span>
+          {{ mensajeSeguroComplementario }}
+        </span>
+      </div>
+
+      <div class="alerta-bloqueo-comunicacion" *ngIf="errorValidacionSeguroComplementario">
+        <strong>No se pudo validar +Vida Seguro de Accidentes.</strong>
+        <span>
+          {{ errorValidacionSeguroComplementario }}
+        </span>
+      </div>
+
       <div class="layout-titular-pc">
        <section class="seccion-dinamica bloque-titular-formulario">
         <div class="grid-2">
-          <div class="campo">
-            <label>Tipo Documento de Identidad</label>
-            <input
-              type="text"
-              [value]="getDescripcionTipoDocumento(form.titular.tipoDocumento)"
-              readonly
-              class="bg-light">
-          </div>
-
-          <div class="campo">
-            <label>Nro. Documento de Identidad</label>
-            <input
-              type="text"
-              [value]="form.titular.numeroDocumento"
-              readonly
-              class="bg-light">
-          </div>
+        <div class="campo">
+          <label>Tipo Documento de Identidad</label>
+          <input
+            type="text"
+            [value]="getDescripcionTipoDocumento(form.titular.tipoDocumento)"
+            readonly
+            class="bg-light">
         </div>
 
         <div class="campo">
-          <label>Apellidos y Nombres</label>
+          <label>Nro. Documento de Identidad</label>
           <input
             type="text"
-            [value]="nombreCompletoPersona(form.titular)"
+            [value]="form.titular.numeroDocumento"
             readonly
-            class="bg-light forzar-mayusculas">
+            class="bg-light">
         </div>
+      </div>
 
+      <div class="campo">
+        <label>Apellidos y Nombres</label>
+        <input
+          type="text"
+          [value]="nombreCompletoPersona(form.titular)"
+          readonly
+          class="bg-light forzar-mayusculas"
+          [class.is-invalid]="intentoEnviar && nombresSeparadosInvalidos(form.titular)">
+
+        <small class="ayuda">
+          Dato obtenido desde los sistemas institucionales de EsSalud. No editable.
+        </small>
+
+        <div class="error-texto" *ngIf="intentoEnviar && nombresSeparadosInvalidos(form.titular)">
+          No se pudo cargar la información del titular.
+        </div>
+      </div>
         <div class="grid-3">
-  <div class="campo">
-    <label class="fw-primary">Correo electrónico <span>*</span></label>
-    <input
-      type="email"
-      placeholder="Ingrese correo electrónico"
-      [(ngModel)]="form.correoViva"
-      [ngModelOptions]="{ standalone: true }"
-      [readonly]="solicitudBloqueada"
-      [class.bg-light]="solicitudBloqueada"
-      [class.is-invalid]="intentoEnviar && correoInvalido()">
-    <small class="ayuda">
-      Correo registrado en VIVA. Puede actualizarlo antes de generar documentos.
-    </small>
-    <div class="error-texto" *ngIf="intentoEnviar && campoVacio(form.correoViva)">
-      Este campo es obligatorio.
-    </div>
-    <div class="error-texto" *ngIf="intentoEnviar && !campoVacio(form.correoViva) && correoInvalido()">
-      Ingrese un correo electrónico válido.
-    </div>
-  </div>
+        <div class="campo">
+          <label class="fw-primary">Correo electrónico <span>*</span></label>
+          <input
+            type="email"
+            placeholder="Ingrese correo electrónico"
+            [(ngModel)]="form.correoViva"
+            [ngModelOptions]="{ standalone: true }"
+            [readonly]="solicitudBloqueada"
+            [class.bg-light]="solicitudBloqueada"
+            [class.is-invalid]="intentoEnviar && correoInvalido()">
+          <small class="ayuda">
+            Correo registrado en VIVA. Puede actualizarlo antes de generar documentos.
+          </small>
+          <div class="error-texto" *ngIf="intentoEnviar && campoVacio(form.correoViva)">
+            Este campo es obligatorio.
+          </div>
+          <div class="error-texto" *ngIf="intentoEnviar && !campoVacio(form.correoViva) && correoInvalido()">
+            Ingrese un correo electrónico válido.
+          </div>
+        </div>
 
   <div class="campo">
     <label class="fw-primary">Teléfono / Celular <span>*</span></label>
@@ -129,7 +189,7 @@
     <label>Tipo de Asegurado</label>
     <input
       type="text"
-      [value]="form.tipoAsegurado"
+      [value]="textoTipoAseguradoTitular()"
       readonly
       class="bg-light">
     <small class="ayuda">Dato oficial obtenido de EsSalud. No editable.</small>
@@ -158,20 +218,49 @@
         <h4>2. Datos Laborales e Información Complementaria</h4>
       </div>
 
+      <div class="alerta-info" *ngIf="cargandoEmpleador">
+        Consultando empleador del titular...
+      </div>
+
+      <div class="alerta-neutral" *ngIf="errorEmpleador">
+        {{ errorEmpleador }}
+      </div>
+
+      <div
+        class="campo"
+        *ngIf="empresasEmpleador.length > 1">
+        <label>Empleador encontrado <span>*</span></label>
+
+        <select
+          [ngModel]="empresasEmpleador[0]"
+          [ngModelOptions]="{ standalone: true }"
+          [compareWith]="compararEmpleadorPorId"
+          (ngModelChange)="seleccionarEmpleador($event)"
+          [disabled]="solicitudBloqueada">
+          <option *ngFor="let empresa of empresasEmpleador" [ngValue]="empresa">
+            {{ empresa.RUC }} - {{ empresa.RAZON_SOCIAL }}
+          </option>
+        </select>
+
+        <small class="ayuda">
+          Se encontró más de un empleador para el titular. Seleccione el que corresponde.
+        </small>
+      </div>
+
       <section class="seccion-dinamica">
         <div class="grid-3">
           <div class="campo">
             <label>Cód. Planilla <span>*</span></label>
             <input
               type="text"
-              class="forzar-mayusculas"
-              placeholder="Ej. PLN-2026"
+              class="forzar-mayusculas bg-light"
               [(ngModel)]="form.codigoPlanilla"
               [ngModelOptions]="{ standalone: true }"
-              (ngModelChange)="form.codigoPlanilla = convertirMayusculas($event)"
-              [readonly]="solicitudBloqueada"
-              [class.bg-light]="solicitudBloqueada"
+              readonly
               [class.is-invalid]="intentoEnviar && campoVacio(form.codigoPlanilla)">
+            <small class="ayuda">
+              Dato obtenido de EsSalud. No editable.
+            </small>
             <div class="error-texto" *ngIf="intentoEnviar && campoVacio(form.codigoPlanilla)">
               Obligatorio.
             </div>
@@ -180,35 +269,77 @@
           <div class="campo">
             <label>D. Legislativo <span>*</span></label>
             <select
+              class="bg-light"
               [(ngModel)]="form.decretoLegislativo"
               [ngModelOptions]="{ standalone: true }"
-              [disabled]="solicitudBloqueada"
-              [class.bg-light]="solicitudBloqueada"
+              disabled
               [class.is-invalid]="intentoEnviar && campoVacio(form.decretoLegislativo)">
               <option value="">Seleccione...</option>
               <option *ngFor="let decreto of decretosLegislativos" [value]="decreto">
                 {{ decreto }}
               </option>
             </select>
+            <small class="ayuda">
+              Dato obtenido de EsSalud. No editable.
+            </small>
             <div class="error-texto" *ngIf="intentoEnviar && campoVacio(form.decretoLegislativo)">
               Obligatorio.
             </div>
           </div>
 
-          <div class="campo">
-            <label>Convenio CGBVP <span>*</span></label>
+          <div class="campo campo-con-ayuda">
+            <div class="label-con-ayuda">
+              <label>Convenio CGBVP <span>*</span></label>
+
+              <button
+                type="button"
+                class="btn-ayuda-campo"
+                (click)="alternarAyudaCgbvp()"
+                aria-label="Ver ayuda sobre Convenio CGBVP">
+                ¿Qué es?
+              </button>
+            </div>
+
             <select
               [(ngModel)]="form.convenioCGBVP"
               [ngModelOptions]="{ standalone: true }"
-              [disabled]="solicitudBloqueada"
-              [class.bg-light]="solicitudBloqueada"
               [class.is-invalid]="intentoEnviar && campoVacio(form.convenioCGBVP)">
               <option value="">Seleccione...</option>
               <option value="NO">No</option>
               <option value="SI">Sí, cuenta con convenio</option>
             </select>
-            <div class="error-texto" *ngIf="intentoEnviar && campoVacio(form.convenioCGBVP)">
-              Obligatorio.
+
+            <div
+              class="ayuda-flotante-campo"
+              *ngIf="mostrarAyudaCgbvp">
+
+              <div class="ayuda-flotante-header">
+                <strong>Convenio CGBVP</strong>
+
+                <button
+                  type="button"
+                  class="btn-cerrar-ayuda"
+                  (click)="cerrarAyudaCgbvp()"
+                  aria-label="Cerrar ayuda">
+                  ×
+                </button>
+              </div>
+
+              <p>
+                CGBVP significa <strong>Cuerpo General de Bomberos Voluntarios del Perú</strong>.
+              </p>
+
+              <p>
+                Seleccione <strong>“Sí”</strong> solo si el trabajador pertenece a dicho convenio.
+                En caso contrario, seleccione <strong>“No”</strong>.
+              </p>
+
+              <button
+                type="button"
+                class="btn-entendido-ayuda"
+                (click)="cerrarAyudaCgbvp()">
+                Entendido
+              </button>
             </div>
           </div>
         </div>
@@ -217,16 +348,13 @@
           <div class="campo">
             <label>RUC Empleador <span>*</span></label>
             <input
-              type="text"
-              inputmode="numeric"
-              maxlength="11"
-              placeholder="Ingrese RUC de 11 dígitos"
-              [(ngModel)]="form.rucEmpleador"
-              [ngModelOptions]="{ standalone: true }"
-              (input)="limpiarRuc()"
-              [readonly]="form.rucDesdeBase || solicitudBloqueada"
-              [class.bg-light]="form.rucDesdeBase || solicitudBloqueada"
-              [class.is-invalid]="intentoEnviar && rucInvalido()">
+            type="text"
+            [(ngModel)]="form.rucEmpleador"
+            [ngModelOptions]="{ standalone: true }"
+            (input)="limpiarRuc()"
+            [readonly]="form.rucDesdeBase || solicitudBloqueada"
+            [class.bg-light]="form.rucDesdeBase || solicitudBloqueada"
+            [class.is-invalid]="intentoEnviar && rucInvalido()">
             <small class="ayuda" *ngIf="form.rucDesdeBase">
               Dato obtenido de EsSalud. No editable.
             </small>
@@ -244,15 +372,13 @@
           <div class="campo">
             <label>Razón Social / Institución <span>*</span></label>
             <input
-              type="text"
-              class="forzar-mayusculas"
-              placeholder="Ingrese razón social"
-              [(ngModel)]="form.razonSocial"
-              [ngModelOptions]="{ standalone: true }"
-              (ngModelChange)="form.razonSocial = convertirMayusculas($event)"
-              [readonly]="form.razonSocialDesdeBase || solicitudBloqueada"
-              [class.bg-light]="form.razonSocialDesdeBase || solicitudBloqueada"
-              [class.is-invalid]="intentoEnviar && razonSocialInvalida()">
+            type="text"
+            [(ngModel)]="form.razonSocial"
+            [ngModelOptions]="{ standalone: true }"
+            class="forzar-mayusculas"
+            [readonly]="form.razonSocialDesdeBase || solicitudBloqueada"
+            [class.bg-light]="form.razonSocialDesdeBase || solicitudBloqueada"
+            [class.is-invalid]="intentoEnviar && razonSocialInvalida()">
             <small class="ayuda" *ngIf="form.razonSocialDesdeBase">
               Dato obtenido de EsSalud. No editable.
             </small>
@@ -275,189 +401,201 @@
     </section>
 
     <!-- PASO 3: CÓNYUGE -->
-    <section *ngIf="pasoActual === 'conyuge'">
+<section *ngIf="pasoActual === 'conyuge'">
 
-      <div class="paso-header">
-        <h4>3. Información del Cónyuge o Concubina(o) Registrada(o)</h4>
-        <p>Si no corresponde registrar cónyuge o concubina(o), puede continuar sin agregar información.</p>
+  <div class="paso-header">
+    <h4>
+      3. Información del Cónyuge o Concubina(o) Registrada(o)
+    </h4>
+  </div>
+
+  <div
+    class="alerta-info"
+    *ngIf="cargandoConyuge">
+
+    Consultando información de cónyuge o concubina(o)...
+
+  </div>
+
+  <div
+    class="alerta-bloqueo-comunicacion"
+    *ngIf="errorConyuge">
+
+    <strong>
+      No se pudo completar la consulta.
+    </strong>
+
+    <span>
+      {{ errorConyuge }}
+    </span>
+
+    <button
+      type="button"
+      class="btn-secundario"
+      [disabled]="cargandoConyuge"
+      (click)="consultarConyugeConcubino(true)">
+
+      Reintentar consulta
+
+    </button>
+
+  </div>
+
+  <ng-container
+    *ngIf="
+      conyugeConsultado
+      && !cargandoConyuge
+      && !errorConyuge
+    ">
+
+    <section
+      *ngIf="form.conyuge as conyuge; else sinConyuge"
+      class="seccion-dinamica">
+
+      <div class="titulo-con-accion">
+        <h4>
+          Datos del Cónyuge o Concubina(o)
+        </h4>
       </div>
 
-      <div *ngIf="!form.conyuge && !solicitudBloqueada" class="contenedor-boton-conyuge">
-        <button type="button" class="btn-outline" (click)="agregarConyuge()">
-          + Añadir Cónyuge o Concubina(o)
-        </button>
+      <div class="alerta-info">
+        🔒 Información obtenida desde las bases institucionales
+        de aseguramiento. No editable.
       </div>
 
-      <div *ngIf="!form.conyuge && solicitudBloqueada" class="alerta-neutral">
-        No se registró cónyuge o concubina(o) en la solicitud.
+      <div class="campo">
+        <label>Tipo de relación</label>
+
+        <input
+          type="text"
+          [value]="conyuge.tipoRelacion"
+          readonly
+          class="bg-light">
       </div>
 
-      <section *ngIf="form.conyuge as conyuge" class="seccion-dinamica">
-        <div class="titulo-con-accion">
-          <h4>Datos del Cónyuge o Concubina(o)</h4>
+      <div class="grid-4 mt-2">
 
-          <button
-            *ngIf="!form.conyugeDesdeBase && !solicitudBloqueada"
-            type="button"
-            class="btn-danger-small"
-            (click)="quitarConyuge()">
-            Quitar Cónyuge
-          </button>
+        <div class="campo">
+          <label>Apellido Paterno</label>
+
+          <input
+            type="text"
+            [value]="conyuge.apellidoPaterno"
+            readonly
+            class="bg-light">
         </div>
 
-        <div class="alerta-info" *ngIf="form.conyugeDesdeBase">
-          🔒 Cónyuge/concubino obtenido de EsSalud. Esta información no puede modificarse.
+        <div class="campo">
+          <label>Apellido Materno</label>
+
+          <input
+            type="text"
+            [value]="conyuge.apellidoMaterno"
+            readonly
+            class="bg-light">
         </div>
 
-        <div class="grid-2">
-          <div class="campo">
-            <label>Tipo Documento <span>*</span></label>
-            <select
-              [(ngModel)]="conyuge.tipoDocumento"
-              [ngModelOptions]="{ standalone: true }"
-              (change)="alCambiarTipoDocumento(conyuge)"
-              [disabled]="form.conyugeDesdeBase || solicitudBloqueada"
-              [class.bg-light]="form.conyugeDesdeBase || solicitudBloqueada"
-              [class.is-invalid]="intentoEnviar && tipoDocumentoVacio(conyuge)">
-              <option value="">Seleccione...</option>
-              <option *ngFor="let tipo of tiposDocumento" [value]="tipo.codigo">
-                {{ tipo.descripcion }}
-              </option>
-            </select>
-            <div class="error-texto" *ngIf="intentoEnviar && tipoDocumentoVacio(conyuge)">
-              Obligatorio.
-            </div>
+        <div class="campo">
+          <label>Primer Nombre</label>
 
-            <input
-              *ngIf="requiereOtroDocumento(conyuge)"
-              type="text"
-              class="mt-2 forzar-mayusculas"
-              placeholder="Especifique"
-              [(ngModel)]="conyuge.otroTipoDocumento"
-              [ngModelOptions]="{ standalone: true }"
-              (ngModelChange)="conyuge.otroTipoDocumento = convertirMayusculas($event)"
-              [readonly]="form.conyugeDesdeBase || solicitudBloqueada"
-              [class.bg-light]="form.conyugeDesdeBase || solicitudBloqueada"
-              [class.is-invalid]="intentoEnviar && otroDocumentoInvalido(conyuge)">
-            <div class="error-texto" *ngIf="intentoEnviar && otroDocumentoInvalido(conyuge)">
-              Especifique el tipo de documento.
-            </div>
-          </div>
-
-          <div class="campo">
-            <label>N° Documento <span>*</span></label>
-            <input
-              type="text"
-              [attr.maxlength]="getMaxLengthDocumento(conyuge.tipoDocumento)"
-              [(ngModel)]="conyuge.numeroDocumento"
-              [ngModelOptions]="{ standalone: true }"
-              (input)="limpiarDocumento(conyuge)"
-              [readonly]="form.conyugeDesdeBase || solicitudBloqueada"
-              [class.bg-light]="form.conyugeDesdeBase || solicitudBloqueada"
-              [class.is-invalid]="intentoEnviar && numeroDocumentoInvalido(conyuge)">
-            <div class="error-texto" *ngIf="intentoEnviar && numeroDocumentoInvalido(conyuge)">
-              {{ mensajeDocumentoInvalido(conyuge) }}
-            </div>
-          </div>
+          <input
+            type="text"
+            [value]="conyuge.primerNombre"
+            readonly
+            class="bg-light">
         </div>
 
-        <div class="grid-4 mt-2">
-          <div class="campo">
-            <label>Apellido Paterno <span>*</span></label>
-            <input
-              type="text"
-              class="forzar-mayusculas"
-              [(ngModel)]="conyuge.apellidoPaterno"
-              [ngModelOptions]="{ standalone: true }"
-              (ngModelChange)="conyuge.apellidoPaterno = convertirMayusculas($event)"
-              [readonly]="form.conyugeDesdeBase || solicitudBloqueada"
-              [class.bg-light]="form.conyugeDesdeBase || solicitudBloqueada"
-              [class.is-invalid]="intentoEnviar && campoVacio(conyuge.apellidoPaterno)">
-            <div class="error-texto" *ngIf="intentoEnviar && campoVacio(conyuge.apellidoPaterno)">
-              Obligatorio.
-            </div>
-          </div>
+        <div class="campo">
+          <label>Segundo Nombre</label>
 
-          <div class="campo">
-            <label>Apellido Materno <span>*</span></label>
-            <input
-              type="text"
-              class="forzar-mayusculas"
-              [(ngModel)]="conyuge.apellidoMaterno"
-              [ngModelOptions]="{ standalone: true }"
-              (ngModelChange)="conyuge.apellidoMaterno = convertirMayusculas($event)"
-              [readonly]="form.conyugeDesdeBase || solicitudBloqueada"
-              [class.bg-light]="form.conyugeDesdeBase || solicitudBloqueada"
-              [class.is-invalid]="intentoEnviar && campoVacio(conyuge.apellidoMaterno)">
-            <div class="error-texto" *ngIf="intentoEnviar && campoVacio(conyuge.apellidoMaterno)">
-              Obligatorio.
-            </div>
-          </div>
-
-          <div class="campo">
-            <label>Primer Nombre <span>*</span></label>
-            <input
-              type="text"
-              class="forzar-mayusculas"
-              [(ngModel)]="conyuge.primerNombre"
-              [ngModelOptions]="{ standalone: true }"
-              (ngModelChange)="conyuge.primerNombre = convertirMayusculas($event)"
-              [readonly]="form.conyugeDesdeBase || solicitudBloqueada"
-              [class.bg-light]="form.conyugeDesdeBase || solicitudBloqueada"
-              [class.is-invalid]="intentoEnviar && campoVacio(conyuge.primerNombre)">
-            <div class="error-texto" *ngIf="intentoEnviar && campoVacio(conyuge.primerNombre)">
-              Obligatorio.
-            </div>
-          </div>
-
-          <div class="campo">
-            <label>Segundo Nombre</label>
-            <input
-              type="text"
-              class="forzar-mayusculas"
-              [(ngModel)]="conyuge.segundoNombre"
-              [ngModelOptions]="{ standalone: true }"
-              (ngModelChange)="conyuge.segundoNombre = convertirMayusculas($event)"
-              [readonly]="form.conyugeDesdeBase || solicitudBloqueada"
-              [class.bg-light]="form.conyugeDesdeBase || solicitudBloqueada">
-          </div>
+          <input
+            type="text"
+            [value]="conyuge.segundoNombre"
+            readonly
+            class="bg-light">
         </div>
+
+      </div>
+
+      <div class="alerta-neutral mt-2">
+        Si la información mostrada no es correcta, deberá realizar
+        la actualización de datos personales y situación civil
+        mediante la OSPE.
+      </div>
+
+    </section>
+
+    <ng-template #sinConyuge>
+
+      <section class="seccion-dinamica">
+
+        <div class="alerta-info">
+          No se encontró información registrada de cónyuge o
+          concubina(o) en las bases institucionales.
+
+          Puede continuar con el proceso de afiliación. Si considera
+          que esta información debe actualizarse, deberá realizar el
+          trámite correspondiente mediante la OSPE.
+        </div>
+
       </section>
 
-      <div class="botonera-pasos">
-  <button type="button" class="btn-secundario" (click)="volverPaso()">
-    Volver
-  </button>
+    </ng-template>
 
-  <button type="button" class="btn-success" (click)="continuarPaso()">
-    Siguiente
-  </button>
-</div>
-    </section>
+  </ng-container>
+
+  <div class="botonera-pasos">
+
+    <button
+      type="button"
+      class="btn-secundario"
+      (click)="volverPaso()">
+
+      Volver
+
+    </button>
+
+    <button
+      type="button"
+      class="btn-success"
+      [disabled]="
+        cargandoConyuge
+        || !conyugeConsultado
+        || !campoVacio(errorConyuge)
+      "
+      (click)="continuarPaso()">
+
+      Siguiente
+
+    </button>
+
+  </div>
+
+</section>
 
     <!-- PASO 4: BENEFICIARIOS -->
     <section *ngIf="pasoActual === 'beneficiarios'">
 
       <div class="paso-header">
         <h4>4. Información de Beneficiario(s)</h4>
-        <p>Puede registrar hasta 5 beneficiarios. Para generar el Formulario 6012 debe registrar al menos un beneficiario.</p>
+        <p>Registre los beneficiarios que correspondan y asigne el porcentaje de distribución del beneficio. La suma total de porcentajes debe ser igual al 100%.</p>
       </div>
 
       <div class="alerta-pendiente-6012" *ngIf="pendienteBeneficiariosPara6012">
         <strong *ngIf="!actualizandoBeneficiarios6012">
-          📌 Registro de beneficiarios para la generación del Formulario 6012.
+          Autorización registrada.
         </strong>
 
         <strong *ngIf="actualizandoBeneficiarios6012">
-          📌 Actualización de beneficiarios del Formulario 6012.
+          Actualización del Formulario 6012.
         </strong>
 
         <span *ngIf="!actualizandoBeneficiarios6012">
-          La Autorización de Descuento ya fue registrada. Complete al menos un beneficiario y asigne el 100% para generar el Formulario 6012.
+          Complete los beneficiarios y distribuya el 100% para generar el Formulario 6012.
         </span>
 
         <span *ngIf="actualizandoBeneficiarios6012">
-          Modifique los beneficiarios registrados, verifique que los porcentajes sumen 100% y genere nuevamente el Formulario 6012.
+          Revise los beneficiarios y distribuya nuevamente el 100%.
         </span>
       </div>
 
@@ -484,13 +622,6 @@
 
         <div class="titulo-con-accion">
           <strong>Beneficiario #{{ i + 1 }}</strong>
-          <button
-            *ngIf="!beneficiariosBloqueados()"
-            type="button"
-            class="btn-danger-small"
-            (click)="quitarBeneficiario(i)">
-            Quitar
-          </button>
         </div>
 
         <div class="grid-beneficiario">
@@ -532,14 +663,36 @@
             <label>Nro de Doc. <span>*</span></label>
             <input
               type="text"
-              [attr.maxlength]="getMaxLengthDocumento(beneficiario.tipoDocumento)"
               [(ngModel)]="beneficiario.numeroDocumento"
               [ngModelOptions]="{ standalone: true }"
               (input)="limpiarDocumento(beneficiario)"
               [readonly]="beneficiariosBloqueados()"
               [class.bg-light]="beneficiariosBloqueados()"
-              [class.is-invalid]="intentoEnviar && numeroDocumentoInvalido(beneficiario)">
-            <div class="error-texto" *ngIf="intentoEnviar && numeroDocumentoInvalido(beneficiario)">
+              [class.is-invalid]="
+                numeroDocumentoInvalido(beneficiario)
+                && !campoVacio(beneficiario.numeroDocumento)
+              ">
+
+              <button
+                type="button"
+                class="btn-consulta-persona"
+                *ngIf="!beneficiariosBloqueados()"
+                [disabled]="
+                  consultandoInformacionPersona
+                  || tipoDocumentoVacio(beneficiario)
+                  || campoVacio(beneficiario.numeroDocumento)
+                  || numeroDocumentoInvalido(beneficiario)
+                "
+                (click)="consultarInformacionPersona(beneficiario, 'beneficiario')">
+                {{ consultandoInformacionPersona ? 'Buscando...' : 'Buscar datos' }}
+              </button>
+
+            <div
+              class="error-texto"
+              *ngIf="
+                numeroDocumentoInvalido(beneficiario)
+                && !campoVacio(beneficiario.numeroDocumento)
+              ">
               {{ mensajeDocumentoInvalido(beneficiario) }}
             </div>
           </div>
@@ -622,10 +775,20 @@
             </div>
           </div>
         </div>
+      
+      <div class="acciones-beneficiario-inferior" *ngIf="!beneficiariosBloqueados()">
+        <button
+          type="button"
+          class="btn-danger-small btn-quitar-beneficiario-abajo"
+          (click)="quitarBeneficiario(i)">
+          Quitar beneficiario
+        </button>
+      </div>
+
       </section>
 
       <button
-        *ngIf="!beneficiariosBloqueados() && form.beneficiarios.length < 5"
+        *ngIf="!beneficiariosBloqueados()"
         type="button"
         class="btn-outline ancho-completo"
         (click)="agregarBeneficiario()">
@@ -648,8 +811,6 @@
         <button
           type="button"
           class="btn-success"
-          [disabled]="!beneficiariosValidosPara6012()"
-          [class.btn-deshabilitado]="!beneficiariosValidosPara6012()"
           (click)="continuarPaso()">
           Siguiente
         </button>
@@ -659,10 +820,10 @@
         <button
           type="button"
           class="btn-success"
-          [disabled]="!beneficiariosValidosPara6012()"
+          [disabled]="generandoFormulario6012Servicio"
           [class.btn-deshabilitado]="!beneficiariosValidosPara6012()"
           (click)="generarFormulario6012Pendiente()">
-          {{ textoBotonGenerarFormulario6012() }}
+          {{ generandoFormulario6012Servicio ? 'Generando Formulario 6012...' : 'Generar Formulario 6012' }}
         </button>
       </div>
     </section>
@@ -674,28 +835,7 @@
     <h4>5. Declaración Jurada y Generación de Documentos</h4>
   </div>
 
-  <div
-  class="alerta-revision-final"
-  *ngIf="hayBeneficiariosRegistrados(); else alertaSoloAutorizacion">
-  <strong>⚠️ Revise cuidadosamente toda la información registrada antes de generar los documentos.</strong>
-  <span>
-    Una vez generados el Formulario 6012 y la Autorización de Descuento, los datos quedarán bloqueados y no podrán modificarse para esta solicitud.
-  </span>
-</div>
-
-<ng-template #alertaSoloAutorizacion>
-  <div class="alerta-revision-final alerta-revision-solo-autorizacion">
-    <strong>⚠️ Revise cuidadosamente la información registrada antes de generar la Autorización de Descuento.</strong>
-    <span>
-      No se registraron beneficiarios. En esta etapa solo se generará la Autorización de Descuento por Planilla.
-      El Formulario 6012 podrá generarse posteriormente cuando registre sus beneficiarios.
-    </span>
-    <span>
-      Una vez generada la Autorización de Descuento, los datos registrados quedarán bloqueados para esta solicitud.
-    </span>
-  </div>
-</ng-template>
-
+  <!-- SECCIÓN 1: RESUMEN -->
   <section class="bloque-resumen resumen-final">
     <h4>Resumen completo de la solicitud</h4>
 
@@ -725,10 +865,22 @@
       <h5>❤️ Cónyuge o Concubina(o)</h5>
 
       <ng-container *ngIf="form.conyuge; else sinConyugeResumen">
-        <p>
+        <p *ngIf="form.conyuge.tipoRelacion">
+          <strong>Tipo de relación:</strong>
+          {{ form.conyuge.tipoRelacion }}
+        </p>
+
+        <p
+          *ngIf="
+            !campoVacio(form.conyuge.tipoDocumento)
+            && !campoVacio(form.conyuge.numeroDocumento)
+          ">
+
           <strong>Documento:</strong>
-          {{ getDescripcionTipoDocumento(form.conyuge.tipoDocumento) }} -
+          {{ getDescripcionTipoDocumento(form.conyuge.tipoDocumento) }}
+          -
           {{ form.conyuge.numeroDocumento }}
+
         </p>
         <p><strong>Apellidos y nombres:</strong> {{ nombreCompletoPersona(form.conyuge) }}</p>
         <p *ngIf="form.conyugeDesdeBase" class="texto-bloqueado">
@@ -770,11 +922,19 @@
     </div>
   </section>
 
-  <section class="seccion-declaracion">
-  <h4>Declaración jurada</h4>
+<!-- SECCIÓN 2: DECLARACIÓN JURADA Y AUTORIZACIONES -->
+<section class="seccion-declaracion declaracion-institucional">
+  <div class="encabezado-seccion-legal">
+    <h4>Declaración jurada y autorizaciones</h4>
+    <p>
+      Lea cuidadosamente las declaraciones y autorizaciones antes de continuar con la generación documental.
+    </p>
+  </div>
 
-  <div class="item-declaracion">
-      <strong>Declaración de veracidad</strong>
+  <div class="contenedor-clausulas-legales">
+
+    <div class="clausula-legal">
+      <h5>Declaración de veracidad</h5>
       <p>
         Declaro bajo juramento que la información consignada en el presente formulario
         es verdadera, no es adulterada, sujeta al principio de veracidad
@@ -787,11 +947,13 @@
         a resarcir los daños ocasionados, así como a asumir la responsabilidad penal
         a que hubiera lugar.
       </p>
-  </div>
+    </div>
 
-  <div class="texto-declaracion-jurada">
-    <div class="item-declaracion" *ngIf="hayBeneficiariosRegistrados(); else declaracionSoloAutorizacion">
-      <strong>Autorización para la generación de documentos</strong>
+    <div
+      class="clausula-legal"
+      *ngIf="hayBeneficiariosRegistrados(); else declaracionSoloAutorizacion">
+
+      <h5>Autorización para la generación de documentos</h5>
       <p>
         En señal de conformidad, autorizo la generación del Formulario 6012 y de la
         Autorización de Descuento por Planilla correspondiente a la prima mensual
@@ -800,8 +962,8 @@
     </div>
 
     <ng-template #declaracionSoloAutorizacion>
-      <div class="item-declaracion">
-        <strong>Autorización para la generación de documento</strong>
+      <div class="clausula-legal">
+        <h5>Autorización para la generación de documento</h5>
         <p>
           En señal de conformidad, autorizo la generación de la Autorización de Descuento
           por Planilla correspondiente a la prima mensual de S/ 5.00 del seguro +Vida
@@ -810,14 +972,56 @@
       </div>
     </ng-template>
 
-    <div class="item-declaracion" *ngIf="form.esNuevo">
-      <strong>Notificaciones al correo electrónico</strong>
+    <div class="clausula-legal" *ngIf="form.esNuevo">
+      <h5>Notificaciones al correo electrónico</h5>
       <p>
         Autorizo que las comunicaciones y notificaciones relacionadas con esta solicitud
         sean remitidas al correo electrónico registrado.
       </p>
     </div>
+
+    <div class="clausula-legal clausula-datos-personales" *ngIf="form.esNuevo">
+      <h5>Protección de datos personales</h5>
+
+      <p>
+        Declaro haber sido informado(a) y otorgo mi consentimiento expreso para que mis datos personales
+        sean tratados por el Seguro Social de Salud - EsSalud, conforme a la Ley N.° 29733,
+        su Reglamento vigente y la Política de Privacidad institucional aplicable.
+      </p>
+
+      <p>
+        Los datos serán utilizados con la finalidad de gestionar mi afiliación, validar mi información,
+        generar los documentos correspondientes, verificar mi cobertura y atender las acciones vinculadas
+        al +Vida Seguro de Accidentes.
+      </p>
+
+      <p>
+        Declaro conocer que mis datos podrán ser transferidos a los consorcios aseguradores del
+        +Vida Seguro de Accidentes y demás entidades autorizadas, únicamente para los fines vinculados
+        al presente proceso. Asimismo, podré ejercer mis derechos de acceso, rectificación, cancelación
+        y oposición, así como revocar el consentimiento otorgado, conforme a los canales establecidos
+        por EsSalud.
+      </p>
+
+      <div class="referencia-politica">
+        <span>
+          Política de Privacidad para el Tratamiento de Datos Personales de EsSalud:
+        </span>
+        <a
+          href="https://www.gob.pe/institucion/essalud/informes-publicaciones/4852903-politica-de-privacidad-para-el-tratamiento-de-datos-personales-essalud"
+          target="_blank"
+          rel="noopener noreferrer">
+          Ver documento
+        </a>
+      </div>
+    </div>
+
   </div>
+</section>
+
+ <!-- SECCIÓN 3: ACEPTACIÓN -->
+<section class="seccion-aceptacion-declaracion">
+  <h4>Aceptación</h4>
 
   <label class="check-linea check-final-declaracion">
     <input
@@ -826,47 +1030,89 @@
       [ngModelOptions]="{ standalone: true }"
       [disabled]="solicitudBloqueada">
     <span>
-      He leído y acepto los términos de la declaración jurada.
+      He leído y acepto los términos de la declaración jurada, incluyendo la declaración
+      de veracidad, la autorización para la generación de documentos y la autorización de notificaciones
+      al correo electrónico registrado.
     </span>
   </label>
 
   <div class="error-texto" *ngIf="intentoEnviar && !aceptaTerminosDeclaracion">
     Debe aceptar los términos de la declaración jurada para continuar.
   </div>
+
+  <label class="check-linea check-final-declaracion" *ngIf="form.esNuevo">
+    <input
+      type="checkbox"
+      [(ngModel)]="aceptaTratamientoDatos"
+      [ngModelOptions]="{ standalone: true }"
+      [disabled]="solicitudBloqueada">
+    <span>
+      Declaro haber leído la cláusula informativa sobre tratamiento de datos personales y otorgo mi
+      consentimiento expreso para el tratamiento de mis datos personales conforme a lo indicado.
+    </span>
+  </label>
+
+  <div class="error-texto" *ngIf="intentoEnviar && form.esNuevo && !aceptaTratamientoDatos">
+    Debe aceptar el tratamiento de datos personales para continuar.
+  </div>
 </section>
 
-  <section class="fecha-declaracion">
-    <p>Fecha de Suscripción de la Declaración Jurada</p>
-    <div>
-      <span>Día: <strong>{{ diaDeclaracion }}</strong></span>
-      <span>Mes: <strong>{{ mesDeclaracion }}</strong></span>
-    </div>
-  </section>
 
 
+
+  <!-- ALERTA IMPORTANTE -->
   <div class="alerta-importante">
     <strong>Importante:</strong>
     Luego de generar los documentos, deberá imprimirlos, firmarlos manuscritamente,
     escanearlos y cargarlos en la siguiente sección.
   </div>
 
-  <div class="botonera-pasos">
-  <button
-    type="button"
-    class="btn-secundario"
-    *ngIf="!documentosGenerados"
-    (click)="volverPaso()">
-    Volver
-  </button>
+  <!-- ALERTA DE REVISIÓN FINAL -->
+  <div
+    class="alerta-revision-final"
+    *ngIf="hayBeneficiariosRegistrados(); else alertaSoloAutorizacion">
+    <strong>⚠️ Revise cuidadosamente toda la información registrada antes de generar los documentos.</strong>
+    <span>
+      Una vez generados el Formulario 6012 y la Autorización de Descuento, los datos quedarán bloqueados y no podrán modificarse para esta solicitud.
+    </span>
+  </div>
 
-  <button
-    type="button"
-    class="btn-success"
-    *ngIf="!documentosGenerados"
-    (click)="generarDocumentos()">
-    {{ textoBotonGenerarDocumentos() }}
-  </button>
-</div>
+  <ng-template #alertaSoloAutorizacion>
+    <div class="alerta-revision-final" *ngIf="!hayBeneficiariosRegistrados()">
+      <strong>⚠️ Revise la información antes de generar el documento.</strong>
+      <span>
+        No se registraron beneficiarios. En esta etapa se generará únicamente la
+        Autorización de Descuento por Planilla. El Formulario 6012 podrá generarse
+        posteriormente si registra beneficiarios.
+      </span>
+      <span>
+        Al generar la autorización, los datos registrados quedarán bloqueados para esta solicitud.
+      </span>
+    </div>
+  </ng-template>
+
+  <!-- BOTONERA -->
+  <div class="botonera-pasos">
+    <button
+      type="button"
+      class="btn-secundario"
+      *ngIf="!documentosGenerados"
+      (click)="volverPaso()">
+      Volver
+    </button>
+
+    <button
+      type="button"
+      class="btn-success"
+      [disabled]="generandoFormulario6012Servicio || generandoFormularioDescuentoServicio"
+      (click)="generarDocumentos()">
+      {{
+        (generandoFormulario6012Servicio || generandoFormularioDescuentoServicio)
+          ? 'Generando documentos...'
+          : textoBotonGenerarDocumentos()
+      }}
+    </button>
+  </div>
 
 </section>
 
@@ -895,15 +1141,11 @@
     <h4>Autorización de Descuento enviada correctamente</h4>
 
     <p>
-      Su Autorización de Descuento por Planilla fue registrada. La afiliación al seguro
-      +Vida se sustenta con el descuento mensual de S/ 5.00 en planilla.
+      Su afiliación al seguro +Vida fue registrada con la Autorización de Descuento por Planilla.
     </p>
 
     <p>
-      Se recomienda registrar beneficiarios para facilitar la identificación de las personas
-      que recibirían la cobertura en caso de siniestro. Si no registra beneficiarios, el pago
-      se realizará conforme a la prelación legal correspondiente, lo que podría requerir
-      trámites adicionales por parte de los herederos legales.
+      Se recomienda registrar beneficiarios para facilitar la identificación de las personas que recibirían la cobertura. Si no los registra, se aplicará la prelación legal correspondiente.
     </p>
 
     <div class="botonera-invitacion">
@@ -911,29 +1153,19 @@
         type="button"
         class="btn-secundario"
         (click)="omitirRegistroBeneficiariosPorAhora()">
-        Omitir por ahora
+        Omitir
       </button>
 
       <button
         type="button"
         class="btn-success"
         (click)="iniciarRegistroBeneficiarios6012()">
-        Registrar beneficiarios y generar Formulario 6012
+        Registrar beneficiarios
       </button>
     </div>
   </section>
 
   <ng-container *ngIf="!mostrarInvitacionBeneficiarios">
-
-    <div class="alerta-validacion-documental">
-      <strong>📌 Importante</strong>
-      <p>
-        Suba el documento generado por el sistema, debidamente firmado y escaneado en formato PDF. El sistema verificará que el archivo corresponda a esta solicitud.
-      </p>
-      <p>
-        Conserve sus documentos para futuras consultas, verificaciones o trámites posteriores.
-      </p>
-    </div>
 
     <section class="documentos-generados">
       <h4>{{ tituloDescargaDocumentos() }}</h4>
@@ -1012,26 +1244,96 @@
       </div>
     </section>
 
+    <div class="alerta-validacion-documental">
+      <strong>📌 Importante</strong>
+      <p>
+        Suba el documento generado por el sistema, debidamente firmado y escaneado en formato PDF. El sistema verificará que el archivo corresponda a esta solicitud.
+      </p>
+      <p>
+        Conserve sus documentos para futuras consultas, verificaciones o trámites posteriores.
+      </p>
+    </div>
+
     <div class="botonera-pasos">
-      <button type="button" class="btn-success" (click)="enviarDocumentosFirmados()">
-        {{ textoBotonEnvioDocumentos() }}
+      <button
+        type="button"
+        class="btn-success"
+        [disabled]="
+          cargandoDocumentosFirmadosBackend
+          || validandoDocumentosBackend
+          || cerrandoDocumentosBackend
+          || documentosCerradosBackend
+        "
+        (click)="enviarDocumentosFirmados()">
+
+        {{
+          cargandoDocumentosFirmadosBackend
+            ? 'Cargando documentos...'
+            : validandoDocumentosBackend
+              ? 'Validando documentos...'
+              : cerrandoDocumentosBackend
+                ? 'Sellando y publicando...'
+                : documentosCerradosBackend
+                  ? 'Documentos publicados'
+                  : textoBotonEnvioDocumentos()
+        }}
+
       </button>
+
+      <div
+        class="archivo-ok"
+        *ngIf="
+          documentosFirmadosCargadosBackend
+          && !documentosValidadosBackend
+        ">
+
+        ✅ Documentos cargados.
+        Ejecutando validación documental...
+
+      </div>
+
+      <div
+        class="archivo-ok"
+        *ngIf="
+          documentosValidadosBackend
+          && !documentosCerradosBackend
+        ">
+
+        ✅ Validación documental aprobada.
+        Sellando y publicando documentos...
+
+      </div>
+
+      <div
+        class="archivo-ok"
+        *ngIf="documentosCerradosBackend">
+
+        ✅ Documentos validados, sellados y publicados.
+
+      </div>
+
+      <div
+        class="error-texto"
+        *ngIf="mensajeErrorCierre">
+
+        {{ mensajeErrorCierre }}
+
+      </div>
     </div>
 
   </ng-container>
 
   
+  
 </section>
+
+<!-- PASO 7: DOCUMENTOS RECEPCIONADOS / PUBLICADOS -->
 
 <!-- PASO 7: DOCUMENTOS RECEPCIONADOS / PUBLICADOS -->
 <section *ngIf="pasoActual === 'publicacion'">
 
-  <div class="paso-header">
-    <h4>7. Documentos Recepcionados</h4>
-    <p>
-      Los documentos validados son sellados con constancia de recepción y quedan disponibles
-      para consulta en la plataforma.
-    </p>
+  <div class="paso-header paso-header-simple">
+    <h4>7. Documentos recepcionados</h4>
   </div>
 
   <section class="estado-documento">
@@ -1048,129 +1350,271 @@
 
   <section class="documentos-publicados-grid">
 
-    <article class="documento-publicado-card" *ngIf="autorizacionDescuentoSellada">
+    <!-- AUTORIZACIÓN DE DESCUENTO -->
+    <article
+      class="documento-publicado-card"
+      *ngIf="autorizacionDescuentoSellada">
+
       <div class="documento-publicado-header">
         <div>
           <h4>Autorización de Descuento</h4>
-          <p>Documento recepcionado y sellado.</p>
+
+          <p>
+            Documento validado, sellado y publicado.
+          </p>
         </div>
 
         <div class="sello-viva">
-          <span class="sello-viva-logo">VIVA</span>
-          <span>RECEPCIONADO</span>
+          <span class="sello-viva-logo">
+            VIVA
+          </span>
+
+          <span>
+            PUBLICADO
+          </span>
         </div>
       </div>
 
       <div class="metadatos-documento">
-        <span><strong>Archivo:</strong> {{ archivoAutorizacionDescuento.nombre || 'Autorización de Descuento firmada.pdf' }}</span>
-        <span><strong>Fecha:</strong> {{ fechaRecepcionDocumentos }}</span>
-        <span><strong>Estado:</strong> Publicado en plataforma</span>
+        <span>
+          <strong>Documento publicado:</strong>
+
+          Autorización de Descuento sellada
+        </span>
+
+        <span>
+          <strong>Estado:</strong>
+
+          Publicado en plataforma
+        </span>
+
+        <span *ngIf="idDocumentoPublicadoAutorizacion">
+          <strong>ID de publicación:</strong>
+
+          {{ idDocumentoPublicadoAutorizacion }}
+        </span>
       </div>
 
       <div class="acciones-publicacion">
+
         <button
           type="button"
           class="btn-secundario"
-          (click)="verDocumentoSelladoSimulado('autorizacionDescuento')">
-          Visualizar
+          [disabled]="
+            consultandoDocumentoPublicado ===
+            'autorizacionDescuento'
+          "
+          (click)="
+            verDocumentoPublicado(
+              'autorizacionDescuento'
+            )
+          ">
+
+          {{
+            consultandoDocumentoPublicado ===
+            'autorizacionDescuento'
+              ? 'Cargando documento...'
+              : 'Visualizar'
+          }}
+
         </button>
 
         <button
           type="button"
           class="btn-success"
-          (click)="descargarDocumentoSelladoSimulado('autorizacionDescuento')">
-          Descargar sellado
+          [disabled]="
+            consultandoDocumentoPublicado ===
+            'autorizacionDescuento'
+          "
+          (click)="
+            descargarDocumentoPublicado(
+              'autorizacionDescuento'
+            )
+          ">
+
+          {{
+            consultandoDocumentoPublicado ===
+            'autorizacionDescuento'
+              ? 'Cargando documento...'
+              : 'Descargar sellado'
+          }}
+
         </button>
+
       </div>
     </article>
 
-    <article class="documento-publicado-card" *ngIf="formulario6012Sellado">
+    <!-- FORMULARIO 6012 -->
+    <article
+      class="documento-publicado-card"
+      *ngIf="formulario6012Sellado">
+
       <div class="documento-publicado-header">
         <div>
           <h4>Formulario 6012</h4>
-          <p>Documento recepcionado y sellado.</p>
+
+          <p>
+            Documento validado, sellado y publicado.
+          </p>
         </div>
 
         <div class="sello-viva">
-          <span class="sello-viva-logo">VIVA</span>
-          <span>RECEPCIONADO</span>
+          <span class="sello-viva-logo">
+            VIVA
+          </span>
+
+          <span>
+            PUBLICADO
+          </span>
         </div>
       </div>
 
       <div class="metadatos-documento">
-        <span><strong>Archivo:</strong> {{ archivoFormulario6012.nombre || 'Formulario 6012 firmado.pdf' }}</span>
-        <span><strong>Fecha:</strong> {{ fechaRecepcionDocumentos }}</span>
-        <span><strong>Estado:</strong> Publicado en plataforma</span>
+        <span>
+          <strong>Documento publicado:</strong>
+
+          Formulario 6012 sellado
+        </span>
+
+        <span>
+          <strong>Estado:</strong>
+
+          Publicado en plataforma
+        </span>
+
+        <span *ngIf="idDocumentoPublicadoFormulario6012">
+          <strong>ID de publicación:</strong>
+
+          {{ idDocumentoPublicadoFormulario6012 }}
+        </span>
       </div>
 
       <div class="acciones-publicacion">
+
         <button
           type="button"
           class="btn-secundario"
-          (click)="verDocumentoSelladoSimulado('formulario6012')">
-          Visualizar
+          [disabled]="
+            consultandoDocumentoPublicado ===
+            'formulario6012'
+          "
+          (click)="
+            verDocumentoPublicado(
+              'formulario6012'
+            )
+          ">
+
+          {{
+            consultandoDocumentoPublicado ===
+            'formulario6012'
+              ? 'Cargando documento...'
+              : 'Visualizar'
+          }}
+
         </button>
 
         <button
           type="button"
           class="btn-success"
-          (click)="descargarDocumentoSelladoSimulado('formulario6012')">
-          Descargar sellado
+          [disabled]="
+            consultandoDocumentoPublicado ===
+            'formulario6012'
+          "
+          (click)="
+            descargarDocumentoPublicado(
+              'formulario6012'
+            )
+          ">
+
+          {{
+            consultandoDocumentoPublicado ===
+            'formulario6012'
+              ? 'Cargando documento...'
+              : 'Descargar sellado'
+          }}
+
         </button>
+
       </div>
     </article>
 
   </section>
 
-  <section class="invitacion-beneficiarios" *ngIf="mostrarInvitacionBeneficiarios">
-    <div class="icono-invitacion">✅</div>
+  <!-- INVITACIÓN PARA REGISTRAR BENEFICIARIOS -->
+  <section
+    class="invitacion-beneficiarios"
+    *ngIf="mostrarInvitacionBeneficiarios">
 
-    <h4>Autorización de Descuento enviada correctamente</h4>
+    <div class="icono-invitacion">
+      ✅
+    </div>
+
+    <h4>
+      Autorización de Descuento enviada correctamente
+    </h4>
 
     <p>
-      Su Autorización de Descuento por Planilla fue registrada. La afiliación al seguro
-      +Vida se sustenta con el descuento mensual de S/ 5.00 en planilla.
+      Su Autorización de Descuento por Planilla fue registrada.
+      La afiliación al seguro +Vida se sustenta con el descuento
+      mensual de S/ 5.00 en planilla.
     </p>
 
     <p>
-      Se recomienda registrar beneficiarios para facilitar la identificación de las personas
-      que recibirían la cobertura en caso de siniestro. Si no registra beneficiarios, el pago
-      se realizará conforme a la prelación legal correspondiente, lo que podría requerir
-      trámites adicionales por parte de los herederos legales.
+      Se recomienda registrar beneficiarios para facilitar la
+      identificación de las personas que recibirían la cobertura
+      en caso de siniestro. Si no registra beneficiarios, el pago
+      se realizará conforme a la prelación legal correspondiente,
+      lo que podría requerir trámites adicionales por parte de los
+      herederos legales.
     </p>
 
     <div class="botonera-invitacion">
+
       <button
         type="button"
         class="btn-secundario"
         (click)="omitirRegistroBeneficiariosPorAhora()">
+
         Omitir por ahora
+
       </button>
 
       <button
         type="button"
         class="btn-success"
         (click)="iniciarRegistroBeneficiarios6012()">
+
         Registrar beneficiarios y generar Formulario 6012
+
       </button>
+
     </div>
   </section>
 
-  <div class="botonera-pasos" *ngIf="!mostrarInvitacionBeneficiarios">
+  <!-- BOTONERA FINAL -->
+  <div
+    class="botonera-pasos"
+    *ngIf="!mostrarInvitacionBeneficiarios">
+
     <button
       type="button"
       class="btn-secundario"
       *ngIf="formulario6012Sellado"
       (click)="iniciarActualizacionBeneficiarios6012()">
+
       Actualizar beneficiarios del Formulario 6012
+
     </button>
 
     <button
       type="button"
       class="btn-success"
       (click)="finalizarPublicacionDocumentos()">
+
       Finalizar
+
     </button>
+
   </div>
 
 </section>
@@ -1190,13 +1634,16 @@
       El Formulario 6012 quedará pendiente y podrá generarse posteriormente cuando registre
       sus beneficiarios.
     </p>
+    <p>
+      ¿Desea continuar sin registrar beneficiarios?
+    </p>
 
     <div class="botonera-modal">
       <button
         type="button"
         class="btn-secundario"
         (click)="cancelarContinuarSinBeneficiarios()">
-        No, registrar beneficiarios
+        No, permanecer y registrar beneficiarios
       </button>
 
       <button
@@ -1209,46 +1656,23 @@
   </div>
 </div>
 
-  <div class="modal-fondo" *ngIf="documentoPdfVisible">
-  <div class="modal-pdf">
-    <div class="modal-pdf-header">
-      <div>
-        <h2>{{ tituloDocumentoPdf }}</h2>
-        <p>Vista previa del PDF cargado. En el entorno real, este documento se mostraría con sello de recepción VIVA.</p>
-      </div>
-
-      <button
-        type="button"
-        class="btn-secundario"
-        (click)="cerrarVistaPreviaPdf()">
-        Cerrar
-      </button>
-    </div>
-
-    <iframe
-      *ngIf="urlDocumentoPdf"
-      [src]="urlDocumentoPdf"
-      title="Vista previa del documento PDF">
-    </iframe>
-  </div>
-</div>
 
   <div class="modal-fondo" *ngIf="vista === 'exito'">
     <div class="modal-exito">
       <div class="check">✅</div>
-      <h2>¡Documentos enviados!</h2>
+      <h2>¡Afiliación procesada correctamente!</h2>
       <p *ngIf="tipoGeneracionDocumentos === 'soloAutorizacion'">
-        La Autorización de Descuento fue registrada correctamente. Podrá registrar beneficiarios posteriormente
-        para generar el Formulario 6012.
+        La Autorización de Descuento fue validada, sellada y publicada correctamente.
+        Podrá registrar beneficiarios posteriormente para generar el Formulario 6012.
       </p>
 
       <p *ngIf="tipoGeneracionDocumentos === 'soloFormulario6012'">
-        El Formulario 6012 fue recibido correctamente. En el entorno real, el sistema validará el documento cargado.
+        El Formulario 6012 fue validado, sellado y publicado correctamente.
       </p>
 
       <p *ngIf="tipoGeneracionDocumentos === 'completa'">
-        La maqueta recibió correctamente los documentos firmados.
-        En el entorno real, el sistema validará los archivos y registrará el expediente en SAS.
+        La Autorización de Descuento y el Formulario 6012 fueron validados,
+        sellados y publicados correctamente.
       </p>
 
       <button type="button" class="btn-principal" (click)="cerrarExito()">
