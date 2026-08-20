@@ -40,6 +40,9 @@ export interface RespuestaPersonaContactoApi {
 }
 
 export interface PersonaConyugeConcubinoApi {
+  tpDocumento: string | null;
+  nrDocumento: string | null;
+
   nombre: string | null;
   apellidoPaterno: string | null;
   apellidoMaterno: string | null;
@@ -66,6 +69,29 @@ interface RespuestaListaEmpresasApi {
 
 export interface DatosAseguradoApi {
   DGACTAS?: string | null;
+
+  [key: string]: unknown;
+}
+
+export interface TipoAseguradoApi {
+  codEmodalidadCobertura:
+    string | null;
+
+  descripcion:
+    string | null;
+}
+
+export interface SustentoSeguroComplementarioApi {
+  txtDescripcCorto: string;
+  codElementoTabla: string;
+}
+
+interface RespuestaSustentosSeguroComplementarioApi {
+  codigo: number;
+  mensaje: string;
+
+  objeto:
+    SustentoSeguroComplementarioApi[];
 }
 
 export type TipoDocumentoFormulario6012 =
@@ -112,6 +138,263 @@ export interface ApiResponseLocal<T> {
   codResultado: string;
   mensaje: string;
   body: T | null;
+}
+
+export interface IniciarProcesoVidaRequestLocal {
+  registroInternoProceso?: string | null;
+
+  tipoDocumentoTitular: string;
+  descripcionOtroDocumentoTitular?: string | null;
+  numeroDocumentoTitular: string;
+
+  apellidoPaternoTitular: string;
+  apellidoMaternoTitular: string;
+  primerNombreTitular: string;
+  segundoNombreTitular: string;
+}
+
+export interface IniciarProcesoVidaResponseLocal {
+  procesoCreado: boolean;
+  mensajeOperacion: string;
+
+  idSecomasvida: number;
+  registroInternoProceso: string;
+
+  tipoDocumentoTitular: string;
+  numeroDocumentoTitular: string;
+
+  codigoEstadoProceso: string;
+  rutaFrontend: string;
+  estadoOperativo: string;
+
+  fechaRegistro: string;
+  fechaActualizacion: string;
+}
+
+export interface TitularVidaRecuperadoLocal {
+  tipoDocumento: string;
+  descripcionOtroDocumento: string | null;
+  numeroDocumento: string;
+
+  apellidoPaterno: string;
+  apellidoMaterno: string;
+  primerNombre: string;
+  segundoNombre: string | null;
+
+  correo: string | null;
+  celular: string | null;
+  tipoAsegurado: string | null;
+
+  notificacionesCorreo: string | null;
+}
+
+export interface DatosComplementariosVidaRecuperadosLocal {
+  codigoPlanilla: string | null;
+  decretoLegislativo: string | null;
+  convenioCgbvp: string | null;
+
+  rucEmpleador: string | null;
+  razonSocial: string | null;
+}
+
+export interface ConyugeVidaRecuperadoLocal {
+  tipoDocumento: string;
+  descripcionOtroDocumento: string | null;
+  numeroDocumento: string;
+
+  apellidoPaterno: string;
+  apellidoMaterno: string;
+  primerNombre: string;
+  segundoNombre: string | null;
+
+  tipoRelacion: string | null;
+}
+
+export interface BeneficiarioVidaRecuperadoLocal {
+  orden: number;
+
+  tipoDocumento: string;
+  descripcionOtroDocumento: string | null;
+  numeroDocumento: string;
+
+  apellidoPaterno: string;
+  apellidoMaterno: string;
+  primerNombre: string;
+  segundoNombre: string | null;
+
+  porcentaje: number | null;
+}
+
+export interface AceptacionLegalVidaRecuperadaLocal {
+  idAceptacion: string;
+
+  aceptaDeclaracionJurada: boolean;
+  fechaHoraAceptacionDeclaracionJurada:
+    string | null;
+
+  aceptaTratamientoDatosPersonales:
+    boolean;
+
+  fechaHoraAceptacionTratamientoDatosPersonales:
+    string | null;
+
+  versionTextoDeclaracionJurada:
+    string | null;
+
+  versionTextoTratamientoDatos:
+    string | null;
+
+  referenciaPoliticaPrivacidad:
+    string | null;
+}
+
+export interface FormularioVidaRecuperadoLocal {
+  titular:
+    TitularVidaRecuperadoLocal;
+
+  datosComplementarios:
+    DatosComplementariosVidaRecuperadosLocal;
+
+  conyuge:
+    ConyugeVidaRecuperadoLocal | null;
+
+  beneficiarios:
+    BeneficiarioVidaRecuperadoLocal[];
+
+  aceptacionLegal:
+    AceptacionLegalVidaRecuperadaLocal | null;
+
+  beneficiarioBorradorAbierto: boolean;
+}
+
+export interface RecuperarAvanceProcesoResponseLocal {
+  procesoEncontrado: boolean;
+  expedienteEncontrado: boolean;
+
+  registroInternoProceso: string;
+
+  codigoEstadoProceso: string | null;
+  rutaFrontend: string | null;
+  codigoEstadoNavegacion: string | null;
+  rutaFrontendNavegacion: string | null;
+  estadoOperativo: string | null;
+  tipoFlujo: string | null;
+
+  fechaRegistroProceso: string | null;
+  fechaActualizacionProceso: string | null;
+
+  formularioVida:
+    FormularioVidaRecuperadoLocal | null;
+
+  mensajeConsulta: string | null;
+  mensajeUsuario: string | null;
+}
+
+export interface GuardarTitularProgresoRequestLocal {
+  tipoDocumentoTitular: string;
+  descripcionOtroDocumentoTitular?: string | null;
+  numeroDocumentoTitular: string;
+
+  apellidoPaternoTitular: string;
+  apellidoMaternoTitular: string;
+  primerNombreTitular: string;
+  segundoNombreTitular: string;
+
+  correo: string;
+  celular: string;
+  tipoAsegurado: TipoAseguradoBackendLocal;
+}
+
+export interface GuardarBorradorTitularRequestLocal {
+  correo: string;
+  celular: string;
+}
+
+export interface GuardarProgresoVidaResponseLocal {
+  registroInternoProceso: string;
+
+  codigoEstadoProceso: string;
+  rutaFrontend: string;
+
+  codigoEstadoNavegacion: string;
+  rutaFrontendNavegacion: string;
+
+  estadoOperativo: string;
+  fechaActualizacion: string;
+  mensajeOperacion: string;
+}
+
+export interface ActualizarNavegacionProgresoRequestLocal {
+  codigoEstadoNavegacion: string;
+}
+
+export interface GuardarDatosComplementariosProgresoRequestLocal {
+  codigoPlanilla: string;
+  decretoLegislativo: string;
+  convenioCgbvp: 'SI' | 'NO';
+
+  rucEmpleador: string;
+  razonSocial: string;
+}
+
+export interface GuardarBorradorDatosComplementariosRequestLocal {
+  codigoPlanilla: string;
+  decretoLegislativo: string;
+  convenioCgbvp: 'SI' | 'NO';
+
+  rucEmpleador: string;
+  razonSocial: string;
+}
+
+export interface GuardarConyugeProgresoRequestLocal {
+  tipoDocumentoConyuge: string | null;
+  descripcionOtroDocumentoConyuge: string | null;
+  numeroDocumentoConyuge: string | null;
+
+  apellidoPaternoConyuge: string | null;
+  apellidoMaternoConyuge: string | null;
+  primerNombreConyuge: string | null;
+  segundoNombreConyuge: string | null;
+
+  tipoRelacion: string | null;
+}
+
+export interface BeneficiarioProgresoRequestLocal {
+  tipoDocumento: string;
+  descripcionOtroDocumento: string | null;
+  numeroDocumento: string;
+
+  apellidoPaterno: string;
+  apellidoMaterno: string;
+  primerNombre: string;
+  segundoNombre: string;
+
+  porcentaje: number;
+}
+
+export interface GuardarBeneficiariosProgresoRequestLocal {
+  beneficiarios: BeneficiarioProgresoRequestLocal[];
+}
+
+export interface BeneficiarioBorradorRequestLocal {
+  tipoDocumento: string;
+  descripcionOtroDocumento: string | null;
+  numeroDocumento: string;
+
+  apellidoPaterno: string;
+  apellidoMaterno: string;
+  primerNombre: string;
+  segundoNombre: string;
+
+  porcentaje: number | null;
+}
+
+export interface GuardarBorradorBeneficiariosRequestLocal {
+  beneficiarios:
+    BeneficiarioBorradorRequestLocal[];
+
+  beneficiarioBorradorAbierto:
+    boolean;
 }
 
 export interface RegistrarAvanceExpedienteRequest {
@@ -220,13 +503,40 @@ export type TipoDocumentoCargaLocal =
   | 'AUTORIZACION_DESCUENTO';
 
 export interface DocumentoCargadoLocalResponse {
-  idDocumentoCargado: string;
+  cargado: boolean;
 
-  hashDocumento?: string;
-  numeroPaginas?: number;
-  nombreArchivo?: string;
-  tipoDocumento?: string;
-  registroInternoProceso?: string;
+  idDocumentoCargado:
+    string | null;
+
+  idRechazoDocumental?:
+    string | null;
+
+  estadoValidacionDocumental?:
+    string;
+
+  mensajeCarga?:
+    string;
+
+  permiteNuevaCarga?:
+    boolean;
+
+  observaciones?:
+    string[];
+
+  hashDocumento?:
+    string | null;
+
+  numeroPaginas?:
+    number;
+
+  nombreArchivoOriginal?:
+    string;
+
+  tipoDocumento?:
+    string;
+
+  registroInternoProceso?:
+    string;
 
   [key: string]: unknown;
 }
@@ -287,8 +597,44 @@ export interface CierreDocumentalCompletoResponseLocal {
   [key: string]: unknown;
 }
 
-export interface DatosAseguradoApi {
-  DGACTAS?: string | null;
+export interface DocumentoPublicadoResumenLocal {
+  canalPublicacion?: string;
+
+  contentType?: string;
+
+  disponibleParaUsuario: boolean;
+
+  estadoPublicacionDocumental: string;
+
+  fechaHoraPublicacion:
+    string | null;
+
+  hashSha256DocumentoPublicado?:
+    string | null;
+
+  idDocumentoPublicado: string;
+
+  idDocumentoSellado?:
+    string | null;
+
+  mensajePublicacion?: string;
+
+  nombreArchivo: string;
+
+  numeroDocumentoTrabajador: string;
+
+  publicado: boolean;
+
+  publicadoPor?: string;
+
+  registroInternoProceso: string;
+
+  tipoDocumento:
+    TipoDocumentoCargaLocal;
+
+  urlVisualizacionSimulada?:
+    string | null;
+
   [key: string]: unknown;
 }
 
@@ -305,6 +651,713 @@ export class VidaApiService {
   'http://localhost/api/v1';
 
   constructor(private http: HttpClient) {}
+
+  iniciarProcesoVida(
+  payload: IniciarProcesoVidaRequestLocal
+): Observable<IniciarProcesoVidaResponseLocal> {
+  return this.http
+    .post<
+      ApiResponseLocal<IniciarProcesoVidaResponseLocal>
+    >(
+      `${this.baseUrlBackendLocal}/procesos/progreso/iniciar`,
+      payload
+    )
+    .pipe(
+      map(respuesta => {
+        const operacionCorrecta =
+          String(respuesta.codResultado).trim() === '1';
+
+        const registroInternoProceso =
+          respuesta.body
+            ?.registroInternoProceso
+            ?.trim()
+          || '';
+
+        if (
+          !operacionCorrecta
+          || !respuesta.body
+          || !registroInternoProceso
+        ) {
+          throw new Error(
+            respuesta.mensaje
+            || 'No fue posible iniciar el proceso +Vida.'
+          );
+        }
+
+        return respuesta.body;
+      }),
+
+      catchError((error: unknown) => {
+        console.error(
+          'Error iniciando proceso +Vida:',
+          error
+        );
+
+        return throwError(() => error);
+      })
+    );
+}
+
+recuperarAvanceProceso(
+  registroInternoProceso: string
+): Observable<RecuperarAvanceProcesoResponseLocal> {
+
+  const registro =
+    registroInternoProceso.trim();
+
+  if (!registro) {
+    return throwError(
+      () => new Error(
+        'El registro interno del proceso es obligatorio para recuperar el avance.'
+      )
+    );
+  }
+
+  const url =
+    `${this.baseUrlBackendLocal}`
+    + `/procesos/avance/registro/`
+    + `${encodeURIComponent(registro)}`;
+
+  return this.http
+    .get<
+      ApiResponseLocal<
+        RecuperarAvanceProcesoResponseLocal
+      >
+    >(url)
+    .pipe(
+      map(respuesta => {
+        const operacionCorrecta =
+          String(
+            respuesta.codResultado
+          ).trim() === '1';
+
+        if (
+          !operacionCorrecta
+          || !respuesta.body
+          || respuesta.body.procesoEncontrado
+            !== true
+        ) {
+          throw new Error(
+            respuesta.mensaje
+            || 'No fue posible recuperar el avance del proceso +Vida.'
+          );
+        }
+
+        return respuesta.body;
+      }),
+
+      catchError((error: unknown) => {
+        console.error(
+          'Error recuperando avance del proceso +Vida:',
+          error
+        );
+
+        return throwError(() => error);
+      })
+    );
+}
+
+actualizarNavegacionProceso(
+  registroInternoProceso: string,
+  codigoEstadoNavegacion: string
+): Observable<GuardarProgresoVidaResponseLocal> {
+
+  const registro =
+    registroInternoProceso.trim();
+
+  const estado =
+    codigoEstadoNavegacion.trim();
+
+  if (!registro) {
+    return throwError(
+      () => new Error(
+        'El registro interno del proceso es obligatorio.'
+      )
+    );
+  }
+
+  if (!estado) {
+    return throwError(
+      () => new Error(
+        'La sección actual del trámite es obligatoria.'
+      )
+    );
+  }
+
+  const payload:
+    ActualizarNavegacionProgresoRequestLocal = {
+      codigoEstadoNavegacion: estado
+    };
+
+  const url =
+    `${this.baseUrlBackendLocal}`
+    + `/procesos/progreso/`
+    + `${encodeURIComponent(registro)}`
+    + `/navegacion`;
+
+  return this.http
+    .put<
+      ApiResponseLocal<
+        GuardarProgresoVidaResponseLocal
+      >
+    >(
+      url,
+      payload
+    )
+    .pipe(
+      map(respuesta => {
+
+        const operacionCorrecta =
+          String(
+            respuesta.codResultado
+          ).trim() === '1';
+
+        if (
+          !operacionCorrecta
+          || !respuesta.body
+        ) {
+          throw new Error(
+            respuesta.mensaje
+            || 'No fue posible actualizar la sección actual del trámite.'
+          );
+        }
+
+        return respuesta.body;
+      }),
+
+      catchError((error: unknown) => {
+
+        console.error(
+          'Error actualizando navegación del trámite:',
+          error
+        );
+
+        return throwError(() => error);
+      })
+    );
+}
+
+guardarTitularProgreso(
+  registroInternoProceso: string,
+  payload: GuardarTitularProgresoRequestLocal
+): Observable<GuardarProgresoVidaResponseLocal> {
+  const registro =
+    registroInternoProceso.trim();
+
+  if (!registro) {
+    return throwError(
+      () => new Error(
+        'El registro interno del proceso es obligatorio.'
+      )
+    );
+  }
+
+  return this.http
+    .put<
+      ApiResponseLocal<GuardarProgresoVidaResponseLocal>
+    >(
+      `${this.baseUrlBackendLocal}`
+      + `/procesos/progreso/`
+      + `${encodeURIComponent(registro)}`
+      + `/titular`,
+      payload
+    )
+    .pipe(
+      map(respuesta => {
+        const operacionCorrecta =
+          String(respuesta.codResultado).trim() === '1';
+
+        if (
+          !operacionCorrecta
+          || !respuesta.body
+        ) {
+          throw new Error(
+            respuesta.mensaje
+            || 'No fue posible guardar los datos del titular.'
+          );
+        }
+
+        return respuesta.body;
+      }),
+
+      catchError((error: unknown) => {
+        console.error(
+          'Error guardando progreso del titular:',
+          error
+        );
+
+        return throwError(() => error);
+      })
+    );
+}
+
+obtenerTipoAsegurado(
+  tipoDocumento: string,
+  numeroDocumento: string
+): Observable<TipoAseguradoApi> {
+
+  const params =
+    new HttpParams()
+      .set(
+        'tpDocument',
+        tipoDocumento
+      )
+      .set(
+        'numDocument',
+        numeroDocumento
+      );
+
+  return this.http
+    .get<TipoAseguradoApi>(
+      `${this.baseUrl}`
+      + `/informacion-titular/get-tp-seguro`,
+      {
+        params
+      }
+    )
+    .pipe(
+      catchError(
+        (error: unknown) => {
+
+          console.error(
+            'Error obteniendo tipo de asegurado:',
+            error
+          );
+
+          return throwError(
+            () => error
+          );
+        }
+      )
+    );
+}
+
+obtenerSustentosSeguroComplementario(
+  codigoClasificacionCobertura: string
+): Observable<SustentoSeguroComplementarioApi[]> {
+
+  const codigo =
+    (
+      codigoClasificacionCobertura
+      || ''
+    ).trim();
+
+  if (!codigo) {
+    return throwError(
+      () => new Error(
+        'El código de clasificación de cobertura es obligatorio.'
+      )
+    );
+  }
+
+  const url =
+    `${this.baseUrl}`
+    + `/informacion-general`
+    + `/get-list-sustento-seg-complement`
+    + `/${encodeURIComponent(codigo)}`;
+
+  return this.http
+    .get<
+      RespuestaSustentosSeguroComplementarioApi
+    >(url)
+    .pipe(
+      map(respuesta => {
+
+        const operacionCorrecta =
+          Number(respuesta.codigo) === 0;
+
+        if (!operacionCorrecta) {
+          throw new Error(
+            respuesta.mensaje
+            || 'No fue posible obtener los documentos de sustento.'
+          );
+        }
+
+        return respuesta.objeto || [];
+      }),
+
+      catchError((error: unknown) => {
+
+        console.error(
+          'Error obteniendo sustentos del seguro complementario:',
+          error
+        );
+
+        return throwError(
+          () => error
+        );
+      })
+    );
+}
+
+guardarDatosComplementariosProgreso(
+  registroInternoProceso: string,
+  payload:
+    GuardarDatosComplementariosProgresoRequestLocal
+): Observable<GuardarProgresoVidaResponseLocal> {
+
+  const registro =
+    registroInternoProceso.trim();
+
+  if (!registro) {
+    return throwError(
+      () => new Error(
+        'El registro interno del proceso es obligatorio.'
+      )
+    );
+  }
+
+  return this.http
+    .put<
+      ApiResponseLocal<GuardarProgresoVidaResponseLocal>
+    >(
+      `${this.baseUrlBackendLocal}`
+      + `/procesos/progreso/`
+      + `${encodeURIComponent(registro)}`
+      + `/datos-complementarios`,
+      payload
+    )
+    .pipe(
+      map(respuesta => {
+        const operacionCorrecta =
+          String(
+            respuesta.codResultado
+          ).trim() === '1';
+
+        if (
+          !operacionCorrecta
+          || !respuesta.body
+        ) {
+          throw new Error(
+            respuesta.mensaje
+            || 'No fue posible guardar los datos complementarios.'
+          );
+        }
+
+        return respuesta.body;
+      }),
+
+      catchError((error: unknown) => {
+        console.error(
+          'Error guardando progreso de datos complementarios:',
+          error
+        );
+
+        return throwError(() => error);
+      })
+    );
+}
+
+guardarConyugeProgreso(
+  registroInternoProceso: string,
+  payload: GuardarConyugeProgresoRequestLocal
+): Observable<GuardarProgresoVidaResponseLocal> {
+
+  const registro =
+    registroInternoProceso.trim();
+
+  if (!registro) {
+    return throwError(
+      () => new Error(
+        'El registro interno del proceso es obligatorio.'
+      )
+    );
+  }
+
+  return this.http
+    .put<
+      ApiResponseLocal<GuardarProgresoVidaResponseLocal>
+    >(
+      `${this.baseUrlBackendLocal}`
+      + `/procesos/progreso/`
+      + `${encodeURIComponent(registro)}`
+      + `/conyuge`,
+      payload
+    )
+    .pipe(
+      map(respuesta => {
+        const operacionCorrecta =
+          String(
+            respuesta.codResultado
+          ).trim() === '1';
+
+        if (
+          !operacionCorrecta
+          || !respuesta.body
+        ) {
+          throw new Error(
+            respuesta.mensaje
+            || 'No fue posible guardar los datos del cónyuge o concubino.'
+          );
+        }
+
+        return respuesta.body;
+      }),
+
+      catchError((error: unknown) => {
+        console.error(
+          'Error guardando progreso del cónyuge o concubino:',
+          error
+        );
+
+        return throwError(() => error);
+      })
+    );
+}
+
+guardarBeneficiariosProgreso(
+  registroInternoProceso: string,
+  payload: GuardarBeneficiariosProgresoRequestLocal
+): Observable<GuardarProgresoVidaResponseLocal> {
+
+  const registro =
+    registroInternoProceso.trim();
+
+  if (!registro) {
+    return throwError(
+      () => new Error(
+        'El registro interno del proceso es obligatorio.'
+      )
+    );
+  }
+
+  return this.http
+    .put<
+      ApiResponseLocal<GuardarProgresoVidaResponseLocal>
+    >(
+      `${this.baseUrlBackendLocal}`
+      + `/procesos/progreso/`
+      + `${encodeURIComponent(registro)}`
+      + `/beneficiarios`,
+      payload
+    )
+    .pipe(
+      map(respuesta => {
+        const operacionCorrecta =
+          String(
+            respuesta.codResultado
+          ).trim() === '1';
+
+        if (
+          !operacionCorrecta
+          || !respuesta.body
+        ) {
+          throw new Error(
+            respuesta.mensaje
+            || 'No fue posible guardar los beneficiarios.'
+          );
+        }
+
+        return respuesta.body;
+      }),
+
+      catchError((error: unknown) => {
+        console.error(
+          'Error guardando progreso de beneficiarios:',
+          error
+        );
+
+        return throwError(() => error);
+      })
+    );
+}
+
+guardarBorradorTitular(
+  registroInternoProceso: string,
+  payload:
+    GuardarBorradorTitularRequestLocal
+): Observable<GuardarProgresoVidaResponseLocal> {
+
+  const registro =
+    registroInternoProceso.trim();
+
+  if (!registro) {
+    return throwError(
+      () => new Error(
+        'El registro interno del proceso es obligatorio.'
+      )
+    );
+  }
+
+  const url =
+    `${this.baseUrlBackendLocal}`
+    + `/procesos/progreso/`
+    + `${encodeURIComponent(registro)}`
+    + `/borrador/titular`;
+
+  return this.http
+    .put<
+      ApiResponseLocal<
+        GuardarProgresoVidaResponseLocal
+      >
+    >(
+      url,
+      payload
+    )
+    .pipe(
+      map(respuesta => {
+
+        const operacionCorrecta =
+          String(
+            respuesta.codResultado
+          ).trim() === '1';
+
+        if (
+          !operacionCorrecta
+          || !respuesta.body
+        ) {
+          throw new Error(
+            respuesta.mensaje
+            || 'No fue posible guardar el borrador del titular.'
+          );
+        }
+
+        return respuesta.body;
+      }),
+
+      catchError((error: unknown) => {
+
+        console.error(
+          'Error guardando borrador del titular:',
+          error
+        );
+
+        return throwError(() => error);
+      })
+    );
+}
+
+
+guardarBorradorDatosComplementarios(
+  registroInternoProceso: string,
+  payload:
+    GuardarBorradorDatosComplementariosRequestLocal
+): Observable<GuardarProgresoVidaResponseLocal> {
+
+  const registro =
+    registroInternoProceso.trim();
+
+  if (!registro) {
+    return throwError(
+      () => new Error(
+        'El registro interno del proceso es obligatorio.'
+      )
+    );
+  }
+
+  const url =
+    `${this.baseUrlBackendLocal}`
+    + `/procesos/progreso/`
+    + `${encodeURIComponent(registro)}`
+    + `/borrador/datos-complementarios`;
+
+  return this.http
+    .put<
+      ApiResponseLocal<
+        GuardarProgresoVidaResponseLocal
+      >
+    >(
+      url,
+      payload
+    )
+    .pipe(
+      map(respuesta => {
+
+        const operacionCorrecta =
+          String(
+            respuesta.codResultado
+          ).trim() === '1';
+
+        if (
+          !operacionCorrecta
+          || !respuesta.body
+        ) {
+          throw new Error(
+            respuesta.mensaje
+            || 'No fue posible guardar el borrador de datos complementarios.'
+          );
+        }
+
+        return respuesta.body;
+      }),
+
+      catchError((error: unknown) => {
+
+        console.error(
+          'Error guardando borrador de datos complementarios:',
+          error
+        );
+
+        return throwError(() => error);
+      })
+    );
+}
+
+
+guardarBorradorBeneficiarios(
+  registroInternoProceso: string,
+  payload:
+    GuardarBorradorBeneficiariosRequestLocal
+): Observable<GuardarProgresoVidaResponseLocal> {
+
+  const registro =
+    registroInternoProceso.trim();
+
+  if (!registro) {
+    return throwError(
+      () => new Error(
+        'El registro interno del proceso es obligatorio.'
+      )
+    );
+  }
+
+  const url =
+    `${this.baseUrlBackendLocal}`
+    + `/procesos/progreso/`
+    + `${encodeURIComponent(registro)}`
+    + `/borrador/beneficiarios`;
+
+  return this.http
+    .put<
+      ApiResponseLocal<
+        GuardarProgresoVidaResponseLocal
+      >
+    >(
+      url,
+      payload
+    )
+    .pipe(
+      map(respuesta => {
+
+        const operacionCorrecta =
+          String(
+            respuesta.codResultado
+          ).trim() === '1';
+
+        if (
+          !operacionCorrecta
+          || !respuesta.body
+        ) {
+          throw new Error(
+            respuesta.mensaje
+            || 'No fue posible guardar el borrador de beneficiarios.'
+          );
+        }
+
+        return respuesta.body;
+      }),
+
+      catchError((error: unknown) => {
+
+        console.error(
+          'Error guardando borrador de beneficiarios:',
+          error
+        );
+
+        return throwError(() => error);
+      })
+    );
+}
 
   registrarAvanceExpediente(
     payload: RegistrarAvanceExpedienteRequest
@@ -691,26 +1744,42 @@ cargarDocumentoFirmado(
     )
     .pipe(
       map(respuesta => {
-        const operacionCorrecta =
-          String(respuesta.codResultado).trim() === '1';
 
-        const idDocumentoCargado =
-          respuesta.body?.idDocumentoCargado?.trim()
-          || '';
-
-        if (
-          !operacionCorrecta
-          || !respuesta.body
-          || !idDocumentoCargado
-        ) {
+        if (!respuesta.body) {
           throw new Error(
             respuesta.mensaje
-            || 'El backend no devolvió el identificador del documento cargado.'
+            || 'No fue posible procesar el documento.'
+          );
+        }
+
+        /*
+        * Un rechazo técnico del PDF es una respuesta
+        * funcional válida.
+        *
+        * En ese caso:
+        * - cargado = false
+        * - idDocumentoCargado = null
+        * - existe idRechazoDocumental
+        * - el usuario puede volver a cargar
+        */
+        if (respuesta.body.cargado === false) {
+          return respuesta.body;
+        }
+
+        const idDocumentoCargado =
+          respuesta.body
+            .idDocumentoCargado
+            ?.trim()
+          || '';
+
+        if (!idDocumentoCargado) {
+          throw new Error(
+            'No fue posible completar el registro del documento.'
           );
         }
 
         console.log(
-          'Documento firmado registrado en backend:',
+          'Documento firmado registrado:',
           respuesta
         );
 
@@ -937,6 +2006,76 @@ procesarCierreDocumental(
     );
 }
 
+listarDocumentosPublicados(
+  registroInternoProceso: string,
+  numeroDocumentoTrabajador: string
+): Observable<
+  DocumentoPublicadoResumenLocal[]
+> {
+
+  const registro =
+    registroInternoProceso.trim();
+
+  const numeroDocumento =
+    numeroDocumentoTrabajador.trim();
+
+  if (!registro) {
+    return throwError(
+      () => new Error(
+        'El registro interno del proceso es obligatorio.'
+      )
+    );
+  }
+
+  if (!numeroDocumento) {
+    return throwError(
+      () => new Error(
+        'El número de documento del trabajador es obligatorio.'
+      )
+    );
+  }
+
+  const url =
+    `${this.baseUrlBackendLocal}`
+    + `/documentos/publicacion/proceso/`
+    + `${encodeURIComponent(registro)}`
+    + `/trabajador/`
+    + `${encodeURIComponent(numeroDocumento)}`;
+
+  return this.http
+    .get<
+      ApiResponseLocal<
+        DocumentoPublicadoResumenLocal[]
+      >
+    >(url)
+    .pipe(
+      map(respuesta => {
+        const operacionCorrecta =
+          String(
+            respuesta.codResultado
+          ).trim() === '1';
+
+        if (!operacionCorrecta) {
+          throw new Error(
+            respuesta.mensaje
+            || 'No fue posible recuperar los documentos publicados.'
+          );
+        }
+
+        return respuesta.body || [];
+      }),
+
+      catchError((error: unknown) => {
+        console.error(
+          'Error recuperando documentos publicados:',
+          error
+        );
+
+        return throwError(() => error);
+      })
+    );
+}
+
 obtenerDocumentoPublicado(
   idDocumentoPublicado: string
 ): Observable<Blob> {
@@ -1022,29 +2161,6 @@ private convertirBase64ABlob(
     [bytes],
     {
       type: contentType || 'application/pdf'
-    }
-  );
-}
-
-private descargarDocumentoGenerado(
-  idDocumentoGenerado: string
-): Observable<Blob> {
-  const idSeguro = encodeURIComponent(
-    idDocumentoGenerado.trim()
-  );
-
-  const urlDescarga =
-    `${this.baseUrlBackendLocal}/documentos/generados/${idSeguro}/archivo`;
-
-  console.log(
-    'Descargando documento generado:',
-    urlDescarga
-  );
-
-  return this.http.get(
-    urlDescarga,
-    {
-      responseType: 'blob'
     }
   );
 }

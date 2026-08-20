@@ -1,0 +1,378 @@
+<section>
+
+  <div class="paso-header">
+
+    <h4>
+      6. Subir Documentos Firmados
+    </h4>
+
+  </div>
+
+  <section class="estado-documento">
+
+    <div>
+
+      <strong>
+        Código de solicitud:
+      </strong>
+
+      <span>
+        {{ codigoSolicitud }}
+      </span>
+
+    </div>
+
+    <div>
+
+      <strong>
+        Fecha de preparación:
+      </strong>
+
+      <span>
+        {{ fechaGeneracionDocumentos }}
+      </span>
+
+    </div>
+
+  </section>
+
+  <section
+    class="invitacion-beneficiarios"
+    *ngIf="mostrarInvitacionBeneficiarios">
+
+    <div class="icono-invitacion">
+      ✅
+    </div>
+
+    <h4>
+      Autorización de Descuento enviada
+      correctamente
+    </h4>
+
+    <p>
+      Su afiliación al seguro +Vida fue registrada
+      con la Autorización de Descuento por Planilla.
+    </p>
+
+    <p>
+      Se recomienda registrar beneficiarios para
+      facilitar la identificación de las personas
+      que recibirían la cobertura. Si no los
+      registra, se aplicará la prelación legal
+      correspondiente.
+    </p>
+
+    <div class="botonera-invitacion">
+
+      <button
+        type="button"
+        class="btn-secundario"
+        (click)="omitirBeneficiarios.emit()">
+
+        Omitir
+
+      </button>
+
+      <button
+        type="button"
+        class="btn-success"
+        (click)="registrarBeneficiarios.emit()">
+
+        Registrar beneficiarios
+
+      </button>
+
+    </div>
+
+  </section>
+
+  <ng-container
+    *ngIf="!mostrarInvitacionBeneficiarios">
+
+    <section class="documentos-generados">
+
+      <h4>
+        {{ tituloDescargaDocumentos }}
+      </h4>
+
+      <p>
+        {{ descripcionDescargaDocumentos }}
+      </p>
+
+      <button
+        type="button"
+        class="btn-success"
+        [disabled]="
+          descargandoDocumentos
+          || generandoFormulario6012Servicio
+          || generandoFormularioDescuentoServicio
+        "
+        (click)="descargar.emit()">
+
+        {{
+          descargandoDocumentos
+            ? 'Generando y descargando documentos...'
+            : textoBotonDescargaDocumentos
+        }}
+
+      </button>
+
+    </section>
+
+    <section class="zona-carga">
+
+      <h4>
+        Subir documentos firmados
+      </h4>
+
+      <div
+        class="upload-card documento-bloqueado"
+        *ngIf="autorizacionFirmadaBloqueada">
+
+        <div>
+
+          <strong>
+            Autorización de Descuento por Planilla
+            firmada
+          </strong>
+
+          <p>
+            Este documento ya fue cargado, validado
+            para esta solicitud y quedó bloqueado.
+          </p>
+
+        </div>
+
+        <div class="archivo-ok">
+
+          ✅
+
+          {{
+            archivoAutorizacionDescuento.nombre
+            || 'Autorización de Descuento registrada'
+          }}
+
+          <span
+            *ngIf="
+              archivoAutorizacionDescuento.tamanioMB
+            ">
+
+            —
+            {{
+              archivoAutorizacionDescuento.tamanioMB
+            }}
+            MB
+
+          </span>
+
+        </div>
+
+      </div>
+
+      <div
+        class="upload-card"
+        *ngIf="formulario6012Generado">
+
+        <div>
+
+          <strong>
+            Formulario 6012 firmado
+          </strong>
+
+          <p>
+            Adjunte el Formulario 6012 impreso,
+            firmado manuscritamente y escaneado en
+            formato PDF.
+          </p>
+
+        </div>
+
+        <input
+          type="file"
+          accept="application/pdf"
+          (change)="
+            archivoSeleccionado.emit({
+                evento: $event,
+                tipoDocumento: 'formulario6012'
+            })
+            ">
+
+        <div
+          class="archivo-ok"
+          *ngIf="archivoFormulario6012.cargado">
+
+          ✅
+          {{ archivoFormulario6012.nombre }}
+          —
+          {{ archivoFormulario6012.tamanioMB }}
+          MB
+
+        </div>
+
+        <div
+          class="error-texto"
+          *ngIf="archivoFormulario6012.error">
+
+          {{ archivoFormulario6012.error }}
+
+        </div>
+
+      </div>
+
+      <div
+        class="upload-card"
+        *ngIf="
+          autorizacionDescuentoGenerada
+          && !autorizacionFirmadaBloqueada
+        ">
+
+        <div>
+
+          <strong>
+            Autorización de Descuento por Planilla
+            firmada
+          </strong>
+
+          <p>
+            Adjunte la Autorización de Descuento por
+            Planilla impresa, firmada
+            manuscritamente y escaneada en formato
+            PDF.
+          </p>
+
+        </div>
+
+        <input
+          type="file"
+          accept="application/pdf"
+          (change)="
+            archivoSeleccionado.emit({
+                evento: $event,
+                tipoDocumento: 'autorizacionDescuento'
+            })
+            ">
+
+        <div
+          class="archivo-ok"
+          *ngIf="
+            archivoAutorizacionDescuento.cargado
+          ">
+
+          ✅
+          {{ archivoAutorizacionDescuento.nombre }}
+          —
+          {{
+            archivoAutorizacionDescuento.tamanioMB
+          }}
+          MB
+
+        </div>
+
+        <div
+          class="error-texto"
+          *ngIf="
+            archivoAutorizacionDescuento.error
+          ">
+
+          {{ archivoAutorizacionDescuento.error }}
+
+        </div>
+
+      </div>
+
+    </section>
+
+    <div class="alerta-validacion-documental">
+
+      <strong>
+        📌 Importante
+      </strong>
+
+      <p>
+        Suba el documento generado por el sistema,
+        debidamente firmado y escaneado en formato
+        PDF. El sistema verificará que el archivo
+        corresponda a esta solicitud.
+      </p>
+
+      <p>
+        Conserve sus documentos para futuras
+        consultas, verificaciones o trámites
+        posteriores.
+      </p>
+
+    </div>
+
+    <div class="botonera-pasos">
+
+      <button
+        type="button"
+        class="btn-success"
+        [disabled]="
+          cargandoDocumentosFirmadosBackend
+          || validandoDocumentosBackend
+          || cerrandoDocumentosBackend
+          || documentosCerradosBackend
+        "
+        (click)="enviar.emit()">
+
+        {{
+          cargandoDocumentosFirmadosBackend
+            ? 'Cargando documentos...'
+            : validandoDocumentosBackend
+              ? 'Validando documentos...'
+              : cerrandoDocumentosBackend
+                ? 'Sellando y publicando...'
+                : documentosCerradosBackend
+                  ? 'Documentos publicados'
+                  : textoBotonEnvioDocumentos
+        }}
+
+      </button>
+
+      <div
+        class="archivo-ok"
+        *ngIf="
+          documentosFirmadosCargadosBackend
+          && !documentosValidadosBackend
+        ">
+
+        ✅ Documentos cargados.
+        Ejecutando validación documental...
+
+      </div>
+
+      <div
+        class="archivo-ok"
+        *ngIf="
+          documentosValidadosBackend
+          && !documentosCerradosBackend
+        ">
+
+        ✅ Validación documental aprobada.
+        Sellando y publicando documentos...
+
+      </div>
+
+      <div
+        class="archivo-ok"
+        *ngIf="documentosCerradosBackend">
+
+        ✅ Documentos validados, sellados y
+        publicados.
+
+      </div>
+
+      <div
+        class="error-texto"
+        *ngIf="mensajeErrorCierre">
+
+        {{ mensajeErrorCierre }}
+
+      </div>
+
+    </div>
+
+  </ng-container>
+
+</section>

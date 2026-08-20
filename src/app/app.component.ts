@@ -1,10 +1,10 @@
 import { Component } from '@angular/core';
-import { VidaFormComponent } from './seguros-complementarios/vida/vida-form/vida-form.component';
+import { RouterOutlet } from '@angular/router';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [VidaFormComponent],
+  imports: [RouterOutlet],
   templateUrl: './app.component.html',
   styleUrl: './app.component.css'
 })

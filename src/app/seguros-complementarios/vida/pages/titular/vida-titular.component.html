@@ -1,0 +1,230 @@
+<section
+  (input)="borradorModificado.emit()">
+
+  <div class="paso-header">
+    <h4>1. Información del Asegurado Titular</h4>
+  </div>
+
+  <div
+    class="alerta-info"
+    *ngIf="cargandoDatosTitular">
+    Cargando información del trabajador titular...
+  </div>
+
+  <div
+    class="alerta-bloqueo-comunicacion"
+    *ngIf="errorDatosTitular">
+    <strong>
+      No se pudo cargar la información del titular.
+    </strong>
+
+    <span>
+      {{ errorDatosTitular }}
+    </span>
+  </div>
+
+  <div
+    class="alerta-bloqueo-comunicacion"
+    *ngIf="errorTipoAsegurado">
+    <strong>
+      No se pudo cargar el tipo de asegurado.
+    </strong>
+
+    <span>
+      {{ errorTipoAsegurado }}
+    </span>
+  </div>
+
+  <div
+    class="alerta-bloqueo-comunicacion"
+    *ngIf="titularTieneSeguroComplementario">
+    <strong>
+      No corresponde una nueva afiliación.
+    </strong>
+
+    <span>
+      {{ mensajeSeguroComplementario }}
+    </span>
+  </div>
+
+  <div
+    class="alerta-bloqueo-comunicacion"
+    *ngIf="errorValidacionSeguroComplementario">
+    <strong>
+      No se pudo validar +Vida Seguro de Accidentes.
+    </strong>
+
+    <span>
+      {{ errorValidacionSeguroComplementario }}
+    </span>
+  </div>
+
+  <div class="layout-titular-pc">
+
+    <section
+      class="seccion-dinamica bloque-titular-formulario">
+
+      <div class="grid-2">
+
+        <div class="campo">
+          <label>
+            Tipo Documento de Identidad
+          </label>
+
+          <input
+            type="text"
+            [value]="descripcionTipoDocumento"
+            readonly
+            class="bg-light">
+        </div>
+
+        <div class="campo">
+          <label>
+            Nro. Documento de Identidad
+          </label>
+
+          <input
+            type="text"
+            [value]="form.titular.numeroDocumento"
+            readonly
+            class="bg-light">
+        </div>
+
+      </div>
+
+      <div class="campo">
+        <label>
+          Apellidos y Nombres
+        </label>
+
+        <input
+          type="text"
+          [value]="nombreCompletoTitular"
+          readonly
+          class="bg-light forzar-mayusculas"
+          [class.is-invalid]="
+            intentoEnviar
+            && nombresTitularInvalidos
+          ">
+
+        <div
+          class="error-texto"
+          *ngIf="
+            intentoEnviar
+            && nombresTitularInvalidos
+          ">
+          No se pudo cargar la información del titular.
+        </div>
+      </div>
+
+      <div class="grid-3">
+
+        <div class="campo">
+          <label class="fw-primary">
+            Correo electrónico <span>*</span>
+          </label>
+
+          <input
+            type="email"
+            placeholder="Ingrese correo electrónico"
+            [(ngModel)]="form.correoViva"
+            [ngModelOptions]="{ standalone: true }"
+            readonly
+            class="bg-light"
+            [class.is-invalid]="
+              intentoEnviar
+              && correoTitularInvalido
+            ">
+
+          <small class="ayuda">
+            Correo registrado.
+          </small>
+
+          <div
+            class="error-texto"
+            *ngIf="
+              intentoEnviar
+              && correoTitularVacio
+            ">
+            Este campo es obligatorio.
+          </div>
+
+          <div
+            class="error-texto"
+            *ngIf="
+              intentoEnviar
+              && !correoTitularVacio
+              && correoTitularInvalido
+            ">
+            Ingrese un correo electrónico válido.
+          </div>
+        </div>
+
+        <div class="campo">
+          <label class="fw-primary">
+            Teléfono / Celular <span>*</span>
+          </label>
+
+          <input
+            type="text"
+            inputmode="numeric"
+            maxlength="9"
+            placeholder="Ingrese número de contacto"
+            [(ngModel)]="form.celular"
+            [ngModelOptions]="{ standalone: true }"
+            (input)="celularModificado.emit()"
+            [readonly]="solicitudBloqueada"
+            [class.bg-light]="solicitudBloqueada"
+            [class.is-invalid]="
+              intentoEnviar
+              && celularTitularVacio
+            ">
+
+          <div
+            class="error-texto"
+            *ngIf="
+              intentoEnviar
+              && celularTitularVacio
+            ">
+            Este campo es obligatorio.
+          </div>
+        </div>
+
+        <div class="campo">
+          <label>
+            Tipo de Asegurado
+          </label>
+
+          <input
+            type="text"
+            [value]="textoTipoAsegurado"
+            readonly
+            class="bg-light">
+
+          <small class="ayuda">
+            Dato oficial obtenido de EsSalud. No editable.
+          </small>
+        </div>
+
+      </div>
+
+    </section>
+
+    <aside class="panel-imagen-vida">
+      <img
+        src="/Imagenes/vida.png"
+        alt="Seguro +Vida contra Accidentes - S/ 5 al mes">
+    </aside>
+
+  </div>
+
+  <div class="botonera-pasos">
+    <button
+      type="button"
+      class="btn-success"
+      (click)="continuar.emit()">
+      Siguiente
+    </button>
+  </div>
+
+</section>

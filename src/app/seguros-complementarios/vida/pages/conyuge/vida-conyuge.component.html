@@ -1,0 +1,231 @@
+<section>
+
+  <div class="paso-header">
+    <h4>
+      3. Información del Cónyuge o Concubina(o)
+      Registrada(o)
+    </h4>
+  </div>
+
+  <div
+    class="alerta-info"
+    *ngIf="cargandoConyuge">
+
+    Consultando información de cónyuge o
+    concubina(o)...
+
+  </div>
+
+  <div
+    class="alerta-bloqueo-comunicacion"
+    *ngIf="errorConyuge">
+
+    <strong>
+      No se pudo completar la consulta.
+    </strong>
+
+    <span>
+      {{ errorConyuge }}
+    </span>
+
+    <button
+      type="button"
+      class="btn-secundario"
+      [disabled]="cargandoConyuge"
+      (click)="reintentarConsulta.emit()">
+
+      Reintentar consulta
+
+    </button>
+
+  </div>
+
+  <ng-container
+    *ngIf="
+      conyugeConsultado
+      && !cargandoConyuge
+      && !errorConyuge
+    ">
+
+    <section
+      *ngIf="
+        form.conyuge as conyuge;
+        else sinConyuge
+      "
+      class="seccion-dinamica">
+
+      <div class="titulo-con-accion">
+        <h4>
+          Datos del Cónyuge o Concubina(o)
+        </h4>
+      </div>
+
+      <div class="alerta-info">
+        🔒 Información obtenida desde las bases
+        institucionales de aseguramiento.
+        No editable.
+      </div>
+
+      <div class="grid-2 mt-2">
+
+        <div class="campo">
+
+          <label>
+            Tipo de Documento de Identidad
+          </label>
+
+          <input
+            type="text"
+            [value]="
+              descripcionTipoDocumentoConyuge
+            "
+            readonly
+            class="bg-light">
+
+        </div>
+
+        <div class="campo">
+
+          <label>
+            Nro. Documento de Identidad
+          </label>
+
+          <input
+            type="text"
+            [value]="conyuge.numeroDocumento"
+            readonly
+            class="bg-light">
+
+        </div>
+
+      </div>
+
+      <div class="campo">
+
+        <label>
+          Tipo de relación
+        </label>
+
+        <input
+          type="text"
+          [value]="conyuge.tipoRelacion"
+          readonly
+          class="bg-light">
+
+      </div>
+
+      <div class="grid-4 mt-2">
+
+        <div class="campo">
+
+          <label>
+            Apellido Paterno
+          </label>
+
+          <input
+            type="text"
+            [value]="conyuge.apellidoPaterno"
+            readonly
+            class="bg-light">
+
+        </div>
+
+        <div class="campo">
+
+          <label>
+            Apellido Materno
+          </label>
+
+          <input
+            type="text"
+            [value]="conyuge.apellidoMaterno"
+            readonly
+            class="bg-light">
+
+        </div>
+
+        <div class="campo">
+
+          <label>
+            Primer Nombre
+          </label>
+
+          <input
+            type="text"
+            [value]="conyuge.primerNombre"
+            readonly
+            class="bg-light">
+
+        </div>
+
+        <div class="campo">
+
+          <label>
+            Segundo Nombre
+          </label>
+
+          <input
+            type="text"
+            [value]="conyuge.segundoNombre"
+            readonly
+            class="bg-light">
+
+        </div>
+
+      </div>
+
+      <div class="alerta-neutral mt-2">
+        Si la información mostrada no es correcta,
+        deberá realizar la actualización de datos
+        personales y situación civil mediante la
+        OSPE.
+      </div>
+
+    </section>
+
+    <ng-template #sinConyuge>
+
+      <section class="seccion-dinamica">
+
+        <div class="alerta-info">
+          No se encontró información registrada de
+          cónyuge o concubina(o) en las bases
+          institucionales.
+
+          Puede continuar con el proceso de
+          afiliación. Si considera que esta
+          información debe actualizarse, deberá
+          realizar el trámite correspondiente
+          mediante la OSPE.
+        </div>
+
+      </section>
+
+    </ng-template>
+
+  </ng-container>
+
+  <div class="botonera-pasos">
+
+    <button
+      type="button"
+      class="btn-secundario"
+      (click)="volver.emit()">
+
+      Volver
+
+    </button>
+
+    <button
+      type="button"
+      class="btn-success"
+      [disabled]="continuarDeshabilitado"
+      (click)="continuar.emit()">
+
+      Siguiente
+
+    </button>
+
+  </div>
+
+</section>

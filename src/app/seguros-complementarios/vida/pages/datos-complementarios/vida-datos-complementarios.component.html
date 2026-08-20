@@ -1,0 +1,387 @@
+<section
+  (input)="borradorModificado.emit()"
+  (change)="borradorModificado.emit()">
+
+  <div class="paso-header">
+    <h4>
+      2. Datos Laborales e Información Complementaria
+    </h4>
+  </div>
+
+  <div
+    class="alerta-info"
+    *ngIf="cargandoEmpleador">
+
+    Consultando empleador del titular...
+
+  </div>
+
+  <div
+    class="alerta-neutral"
+    *ngIf="errorEmpleador">
+
+    {{ errorEmpleador }}
+
+  </div>
+
+  <div
+    class="campo"
+    *ngIf="empresasEmpleador.length > 1">
+
+    <label>
+      Empleador encontrado <span>*</span>
+    </label>
+
+    <select
+      [ngModel]="empresasEmpleador[0]"
+      [ngModelOptions]="{ standalone: true }"
+      [compareWith]="compararEmpleadorPorId"
+      (ngModelChange)="empleadorSeleccionado.emit($event)"
+      [disabled]="solicitudBloqueada">
+
+      <option
+        *ngFor="let empresa of empresasEmpleador"
+        [ngValue]="empresa">
+
+        {{ empresa.RUC }}
+        -
+        {{ empresa.RAZON_SOCIAL }}
+
+      </option>
+
+    </select>
+
+    <small class="ayuda">
+      Se encontró más de un empleador para el titular.
+      Seleccione el que corresponde.
+    </small>
+
+  </div>
+
+  <section class="seccion-dinamica">
+
+    <div class="grid-3">
+
+      <div class="campo">
+
+        <label>
+          Cód. Planilla <span>*</span>
+        </label>
+
+        <input
+          type="text"
+          class="forzar-mayusculas bg-light"
+          [(ngModel)]="form.codigoPlanilla"
+          [ngModelOptions]="{ standalone: true }"
+          readonly
+          [class.is-invalid]="
+            intentoEnviar
+            && codigoPlanillaVacio
+          ">
+
+        <small class="ayuda">
+          Dato obtenido de EsSalud. No editable.
+        </small>
+
+        <div
+          class="error-texto"
+          *ngIf="
+            intentoEnviar
+            && codigoPlanillaVacio
+          ">
+
+          Obligatorio.
+
+        </div>
+
+      </div>
+
+      <div class="campo">
+
+        <label>
+          D. Legislativo <span>*</span>
+        </label>
+
+        <select
+          class="bg-light"
+          [(ngModel)]="form.decretoLegislativo"
+          [ngModelOptions]="{ standalone: true }"
+          disabled
+          [class.is-invalid]="
+            intentoEnviar
+            && decretoLegislativoVacio
+          ">
+
+          <option value="">
+            Seleccione...
+          </option>
+
+          <option
+            *ngFor="
+              let decreto
+              of decretosLegislativos
+            "
+            [value]="decreto">
+
+            {{ decreto }}
+
+          </option>
+
+        </select>
+
+        <small class="ayuda">
+          Dato obtenido de EsSalud. No editable.
+        </small>
+
+        <div
+          class="error-texto"
+          *ngIf="
+            intentoEnviar
+            && decretoLegislativoVacio
+          ">
+
+          Obligatorio.
+
+        </div>
+
+      </div>
+
+      <div class="campo campo-con-ayuda">
+
+        <div class="label-con-ayuda">
+
+          <label>
+            Convenio CGBVP <span>*</span>
+          </label>
+
+          <button
+            type="button"
+            class="btn-ayuda-campo"
+            (click)="ayudaCgbvpAlternada.emit()"
+            aria-label="
+              Ver ayuda sobre Convenio CGBVP
+            ">
+
+            ¿Qué es?
+
+          </button>
+
+        </div>
+
+        <select
+          [(ngModel)]="form.convenioCGBVP"
+          [ngModelOptions]="{ standalone: true }"
+          [class.is-invalid]="
+            intentoEnviar
+            && convenioCgbvpVacio
+          ">
+
+          <option value="">
+            Seleccione...
+          </option>
+
+          <option value="NO">
+            No
+          </option>
+
+          <option value="SI">
+            Sí, cuenta con convenio
+          </option>
+
+        </select>
+
+        <div
+          class="ayuda-flotante-campo"
+          *ngIf="mostrarAyudaCgbvp">
+
+          <div class="ayuda-flotante-header">
+
+            <strong>
+              Convenio CGBVP
+            </strong>
+
+            <button
+              type="button"
+              class="btn-cerrar-ayuda"
+              (click)="ayudaCgbvpCerrada.emit()"
+              aria-label="Cerrar ayuda">
+
+              ×
+
+            </button>
+
+          </div>
+
+          <p>
+            CGBVP significa
+            <strong>
+              Cuerpo General de Bomberos
+              Voluntarios del Perú
+            </strong>.
+          </p>
+
+          <p>
+            Seleccione <strong>“Sí”</strong>
+            solo si el trabajador pertenece a dicho
+            convenio. En caso contrario, seleccione
+            <strong>“No”</strong>.
+          </p>
+
+          <button
+            type="button"
+            class="btn-entendido-ayuda"
+            (click)="ayudaCgbvpCerrada.emit()">
+
+            Entendido
+
+          </button>
+
+        </div>
+
+      </div>
+
+    </div>
+
+    <div
+      class="grid-2"
+      *ngIf="mostrarRuc">
+
+      <div class="campo">
+
+        <label>
+          RUC Empleador <span>*</span>
+        </label>
+
+        <input
+          type="text"
+          [(ngModel)]="form.rucEmpleador"
+          [ngModelOptions]="{ standalone: true }"
+          (input)="rucModificado.emit()"
+          [readonly]="
+            form.rucDesdeBase
+            || solicitudBloqueada
+          "
+          [class.bg-light]="
+            form.rucDesdeBase
+            || solicitudBloqueada
+          "
+          [class.is-invalid]="
+            intentoEnviar
+            && rucInvalido
+          ">
+
+        <small
+          class="ayuda"
+          *ngIf="form.rucDesdeBase">
+
+          Dato obtenido de EsSalud. No editable.
+
+        </small>
+
+        <small
+          class="ayuda"
+          *ngIf="!form.rucDesdeBase">
+
+          No se encontró RUC registrado.
+          Debe ingresarse manualmente.
+
+        </small>
+
+        <div
+          class="error-texto"
+          *ngIf="
+            intentoEnviar
+            && rucVacio
+          ">
+
+          Este campo es obligatorio.
+
+        </div>
+
+        <div
+          class="error-texto"
+          *ngIf="
+            intentoEnviar
+            && !rucVacio
+            && rucInvalido
+          ">
+
+          El RUC debe tener 11 dígitos.
+
+        </div>
+
+      </div>
+
+      <div class="campo">
+
+        <label>
+          Razón Social / Institución
+          <span>*</span>
+        </label>
+
+        <input
+          type="text"
+          [(ngModel)]="form.razonSocial"
+          [ngModelOptions]="{ standalone: true }"
+          class="forzar-mayusculas"
+          [readonly]="
+            form.razonSocialDesdeBase
+            || solicitudBloqueada
+          "
+          [class.bg-light]="
+            form.razonSocialDesdeBase
+            || solicitudBloqueada
+          "
+          [class.is-invalid]="
+            intentoEnviar
+            && razonSocialInvalida
+          ">
+
+        <small
+          class="ayuda"
+          *ngIf="form.razonSocialDesdeBase">
+
+          Dato obtenido de EsSalud. No editable.
+
+        </small>
+
+        <div
+          class="error-texto"
+          *ngIf="
+            intentoEnviar
+            && razonSocialInvalida
+          ">
+
+          Este campo es obligatorio.
+
+        </div>
+
+      </div>
+
+    </div>
+
+  </section>
+
+  <div class="botonera-pasos">
+
+    <button
+      type="button"
+      class="btn-secundario"
+      (click)="volver.emit()">
+
+      Volver
+
+    </button>
+
+    <button
+      type="button"
+      class="btn-success"
+      (click)="continuar.emit()">
+
+      Siguiente
+
+    </button>
+
+  </div>
+
+</section>

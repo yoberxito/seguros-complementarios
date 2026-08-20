@@ -1,0 +1,637 @@
+<section>
+
+  <div class="paso-header">
+    <h4>
+      5. Declaración Jurada y Generación de
+      Documentos
+    </h4>
+  </div>
+
+  <!-- RESUMEN DE LA SOLICITUD -->
+  <section class="bloque-resumen resumen-final">
+
+    <h4>
+      Resumen completo de la solicitud
+    </h4>
+
+    <div class="grupo-resumen">
+
+      <h5>
+        👤 Datos del Titular
+      </h5>
+
+      <p>
+        <strong>
+          Apellidos y nombres:
+        </strong>
+
+        {{
+          nombreCompletoPersona(
+            form.titular
+          )
+        }}
+      </p>
+
+      <p>
+        <strong>
+          Documento:
+        </strong>
+
+        {{
+          getDescripcionTipoDocumento(
+            form.titular.tipoDocumento
+          )
+        }}
+
+        -
+
+        {{ form.titular.numeroDocumento }}
+      </p>
+
+      <p>
+        <strong>
+          Correo VIVA:
+        </strong>
+
+        {{ form.correoViva }}
+      </p>
+
+      <p>
+        <strong>
+          Celular:
+        </strong>
+
+        {{ form.celular }}
+      </p>
+
+      <p>
+        <strong>
+          Tipo de asegurado:
+        </strong>
+
+        {{ form.tipoAsegurado }}
+      </p>
+
+    </div>
+
+    <div class="grupo-resumen">
+
+      <h5>
+        📋 Datos Laborales e Información
+        Complementaria
+      </h5>
+
+      <p>
+        <strong>
+          Cód. Planilla:
+        </strong>
+
+        {{ form.codigoPlanilla }}
+      </p>
+
+      <p>
+        <strong>
+          D. Legislativo:
+        </strong>
+
+        {{ form.decretoLegislativo }}
+      </p>
+
+      <p>
+        <strong>
+          Convenio CGBVP:
+        </strong>
+
+        {{ form.convenioCGBVP }}
+      </p>
+
+      <p *ngIf="mostrarRuc">
+        <strong>
+          RUC Empleador:
+        </strong>
+
+        {{ form.rucEmpleador }}
+      </p>
+
+      <p *ngIf="mostrarRazonSocial">
+        <strong>
+          Razón Social / Institución:
+        </strong>
+
+        {{ form.razonSocial }}
+      </p>
+
+    </div>
+
+    <div class="grupo-resumen">
+
+      <h5>
+        ❤️ Cónyuge o Concubina(o)
+      </h5>
+
+      <ng-container
+        *ngIf="
+          form.conyuge as conyuge;
+          else sinConyugeResumen
+        ">
+
+        <p *ngIf="conyuge.tipoRelacion">
+
+          <strong>
+            Tipo de relación:
+          </strong>
+
+          {{ conyuge.tipoRelacion }}
+
+        </p>
+
+        <p
+          *ngIf="
+            conyuge.tipoDocumento
+            && conyuge.numeroDocumento
+          ">
+
+          <strong>
+            Documento:
+          </strong>
+
+          {{
+            getDescripcionTipoDocumento(
+              conyuge.tipoDocumento
+            )
+          }}
+
+          -
+
+          {{ conyuge.numeroDocumento }}
+
+        </p>
+
+        <p>
+          <strong>
+            Apellidos y nombres:
+          </strong>
+
+          {{
+            nombreCompletoPersona(
+              conyuge
+            )
+          }}
+        </p>
+
+        <p
+          *ngIf="form.conyugeDesdeBase"
+          class="texto-bloqueado">
+
+          Información obtenida de EsSalud.
+          No editable.
+
+        </p>
+
+      </ng-container>
+
+      <ng-template #sinConyugeResumen>
+
+        <p>
+          No se registró cónyuge o
+          concubina(o).
+        </p>
+
+      </ng-template>
+
+    </div>
+
+    <div class="grupo-resumen">
+
+      <h5>
+        👨‍👩‍👧‍👦 Beneficiarios
+      </h5>
+
+      <ng-container
+        *ngIf="
+          hayBeneficiariosRegistrados;
+          else sinBeneficiariosResumen
+        ">
+
+        <ul class="lista-resumen">
+
+          <li
+            *ngFor="
+              let beneficiario
+              of beneficiariosRegistrados;
+              let i = index
+            ">
+
+            <strong>
+              Beneficiario #{{ i + 1 }}:
+            </strong>
+
+            {{
+              getDescripcionTipoDocumento(
+                beneficiario.tipoDocumento
+              )
+            }}
+
+            -
+
+            {{ beneficiario.numeroDocumento }}
+
+            |
+
+            {{
+              nombreCompletoPersona(
+                beneficiario
+              )
+            }}
+
+            <strong>
+              ({{ beneficiario.porcentaje }}%)
+            </strong>
+
+          </li>
+
+        </ul>
+
+        <p class="total-beneficiarios">
+
+          <strong>
+            Total asignado:
+          </strong>
+
+          {{ sumaPorcentajes }}%
+
+        </p>
+
+      </ng-container>
+
+      <ng-template #sinBeneficiariosResumen>
+
+        <p class="sin-beneficiarios-resumen">
+          No se han registrado beneficiarios.
+        </p>
+
+      </ng-template>
+
+    </div>
+
+  </section>
+
+  <!-- DECLARACIÓN Y AUTORIZACIONES -->
+  <section
+    class="
+      seccion-declaracion
+      declaracion-institucional
+    ">
+
+    <div class="encabezado-seccion-legal">
+
+      <h4>
+        Declaración jurada y autorizaciones
+      </h4>
+
+      <p>
+        Lea cuidadosamente las declaraciones y
+        autorizaciones antes de continuar con la
+        generación documental.
+      </p>
+
+    </div>
+
+    <div class="contenedor-clausulas-legales">
+
+      <div class="clausula-legal">
+
+        <h5>
+          Declaración de veracidad
+        </h5>
+
+        <p>
+          Declaro bajo juramento que la información
+          consignada en el presente formulario es
+          verdadera, no es adulterada, sujeta al
+          principio de veracidad y fiscalización
+          posterior establecido en la Ley N.° 27444,
+          Ley del Procedimiento Administrativo
+          General.
+        </p>
+
+        <p>
+          Asimismo, declaro tener conocimiento de
+          que, de comprobarse falsedad en la
+          declaración, información o documentación
+          presentada, me encontraré obligado(a) a
+          resarcir los daños ocasionados, así como
+          a asumir la responsabilidad penal a que
+          hubiera lugar.
+        </p>
+
+      </div>
+
+      <div
+        class="clausula-legal"
+        *ngIf="
+          hayBeneficiariosRegistrados;
+          else declaracionSoloAutorizacion
+        ">
+
+        <h5>
+          Autorización para la generación de
+          documentos
+        </h5>
+
+        <p>
+          En señal de conformidad, autorizo la
+          generación del Formulario 6012 y de la
+          Autorización de Descuento por Planilla
+          correspondiente a la prima mensual de
+          S/ 5.00 del seguro +Vida contra
+          Accidentes.
+        </p>
+
+      </div>
+
+      <ng-template #declaracionSoloAutorizacion>
+
+        <div class="clausula-legal">
+
+          <h5>
+            Autorización para la generación de
+            documento
+          </h5>
+
+          <p>
+            En señal de conformidad, autorizo la
+            generación de la Autorización de
+            Descuento por Planilla correspondiente
+            a la prima mensual de S/ 5.00 del
+            seguro +Vida contra Accidentes.
+          </p>
+
+        </div>
+
+      </ng-template>
+
+      <div
+        class="clausula-legal"
+        *ngIf="form.esNuevo">
+
+        <h5>
+          Notificaciones al correo electrónico
+        </h5>
+
+        <p>
+          Autorizo que las comunicaciones y
+          notificaciones relacionadas con esta
+          solicitud sean remitidas al correo
+          electrónico registrado.
+        </p>
+
+      </div>
+
+      <div
+        class="
+          clausula-legal
+          clausula-datos-personales
+        "
+        *ngIf="form.esNuevo">
+
+        <h5>
+          Protección de datos personales
+        </h5>
+
+        <p>
+          Declaro haber sido informado(a) y otorgo
+          mi consentimiento expreso para que mis
+          datos personales sean tratados por el
+          Seguro Social de Salud - EsSalud,
+          conforme a la Ley N.° 29733, su
+          Reglamento vigente y la Política de
+          Privacidad institucional aplicable.
+        </p>
+
+        <p>
+          Los datos serán utilizados con la
+          finalidad de gestionar mi afiliación,
+          validar mi información, generar los
+          documentos correspondientes, verificar
+          mi cobertura y atender las acciones
+          vinculadas al +Vida Seguro de
+          Accidentes.
+        </p>
+
+        <p>
+          Declaro conocer que mis datos podrán ser
+          transferidos a los consorcios
+          aseguradores del +Vida Seguro de
+          Accidentes y demás entidades autorizadas,
+          únicamente para los fines vinculados al
+          presente proceso. Asimismo, podré ejercer
+          mis derechos de acceso, rectificación,
+          cancelación y oposición, así como revocar
+          el consentimiento otorgado, conforme a
+          los canales establecidos por EsSalud.
+        </p>
+
+        <div class="referencia-politica">
+
+          <span>
+            Política de Privacidad para el
+            Tratamiento de Datos Personales de
+            EsSalud:
+          </span>
+
+          <a
+            href="https://www.gob.pe/institucion/essalud/informes-publicaciones/4852903-politica-de-privacidad-para-el-tratamiento-de-datos-personales-essalud"
+            target="_blank"
+            rel="noopener noreferrer">
+
+            Ver documento
+
+          </a>
+
+        </div>
+
+      </div>
+
+    </div>
+
+  </section>
+
+  <!-- ACEPTACIÓN -->
+  <section class="seccion-aceptacion-declaracion">
+
+    <h4>
+      Aceptación
+    </h4>
+
+    <label
+      class="
+        check-linea
+        check-final-declaracion
+      ">
+
+      <input
+        type="checkbox"
+        [ngModel]="aceptaTerminosDeclaracion"
+        [ngModelOptions]="{ standalone: true }"
+        (ngModelChange)="
+        aceptaTerminosDeclaracionChange.emit($event)
+        "
+        [disabled]="solicitudBloqueada">
+
+      <span>
+        He leído y acepto los términos de la
+        declaración jurada, incluyendo la
+        declaración de veracidad, la autorización
+        para la generación de documentos y la
+        autorización de notificaciones al correo
+        electrónico registrado.
+      </span>
+
+    </label>
+
+    <div
+      class="error-texto"
+      *ngIf="
+        intentoEnviar
+        && !aceptaTerminosDeclaracion
+      ">
+
+      Debe aceptar los términos de la declaración
+      jurada para continuar.
+
+    </div>
+
+    <label
+      class="
+        check-linea
+        check-final-declaracion
+      "
+      *ngIf="form.esNuevo">
+
+      <input
+        type="checkbox"
+        [ngModel]="aceptaTratamientoDatos"
+        [ngModelOptions]="{ standalone: true }"
+        (ngModelChange)="
+        aceptaTratamientoDatosChange.emit($event)
+        "
+        [disabled]="solicitudBloqueada">
+
+      <span>
+        Declaro haber leído la cláusula informativa
+        sobre tratamiento de datos personales y
+        otorgo mi consentimiento expreso para el
+        tratamiento de mis datos personales
+        conforme a lo indicado.
+      </span>
+
+    </label>
+
+    <div
+      class="error-texto"
+      *ngIf="
+        intentoEnviar
+        && form.esNuevo
+        && !aceptaTratamientoDatos
+      ">
+
+      Debe aceptar el tratamiento de datos
+      personales para continuar.
+
+    </div>
+
+  </section>
+
+  <div class="alerta-importante">
+
+    <strong>
+      Importante:
+    </strong>
+
+    Luego de generar los documentos, deberá
+    imprimirlos, firmarlos manuscritamente,
+    escanearlos y cargarlos en la siguiente
+    sección.
+
+  </div>
+
+  <div
+    class="alerta-revision-final"
+    *ngIf="
+      hayBeneficiariosRegistrados;
+      else alertaSoloAutorizacion
+    ">
+
+    <strong>
+      ⚠️ Revise cuidadosamente toda la información
+      registrada antes de generar los documentos.
+    </strong>
+
+    <span>
+      Una vez generados el Formulario 6012 y la
+      Autorización de Descuento, los datos quedarán
+      bloqueados y no podrán modificarse para esta
+      solicitud.
+    </span>
+
+  </div>
+
+  <ng-template #alertaSoloAutorizacion>
+
+    <div
+      class="alerta-revision-final"
+      *ngIf="!hayBeneficiariosRegistrados">
+
+      <strong>
+        ⚠️ Revise la información antes de generar
+        el documento.
+      </strong>
+
+      <span>
+        No se registraron beneficiarios. En esta
+        etapa se generará únicamente la Autorización
+        de Descuento por Planilla. El Formulario
+        6012 podrá generarse posteriormente si
+        registra beneficiarios.
+      </span>
+
+      <span>
+        Al generar la autorización, los datos
+        registrados quedarán bloqueados para esta
+        solicitud.
+      </span>
+
+    </div>
+
+  </ng-template>
+
+  <div class="botonera-pasos">
+
+    <button
+      type="button"
+      class="btn-secundario"
+      *ngIf="!documentosGenerados"
+      (click)="volver.emit()">
+
+      Volver
+
+    </button>
+
+    <button
+      type="button"
+      class="btn-success"
+      [disabled]="preparandoProcesoBackendLocal"
+      (click)="generar.emit()">
+
+      {{
+        preparandoProcesoBackendLocal
+          ? 'Preparando solicitud...'
+          : textoBotonGenerarDocumentos
+      }}
+
+    </button>
+
+  </div>
+
+</section>

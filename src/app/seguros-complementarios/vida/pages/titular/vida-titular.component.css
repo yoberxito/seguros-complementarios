@@ -1,0 +1,258 @@
+:host,
+:host * {
+  box-sizing: border-box;
+}
+
+:host {
+  display: block;
+}
+
+/* Encabezado de sección */
+
+.paso-header {
+  margin: 26px 0 20px;
+  padding: 22px 24px;
+  background: var(--card, #ffffff);
+  border: 1px solid var(--borde, #dde3ea);
+  border-left: 3px solid var(--azul, #0088c7);
+  border-radius: var(--radius, 12px);
+  box-shadow: var(
+    --shadow-sm,
+    0 1px 2px rgba(15, 23, 42, .05)
+  );
+}
+
+.paso-header h4 {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  color: var(--azul-tinta, #005f8f);
+  font-family: var(
+    --font-display,
+    Georgia,
+    serif
+  );
+  font-size: 1.32rem;
+  font-weight: 600;
+}
+
+/* Alertas */
+
+.alerta-info,
+.alerta-bloqueo-comunicacion {
+  margin-bottom: 14px;
+  padding: 15px 18px;
+  border-radius: 10px;
+  box-shadow: none;
+  font-size: .9rem;
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+.alerta-info {
+  background: #ffffff;
+  border: 1px solid var(--borde, #dde3ea);
+  border-left: 3px solid var(--azul, #0088c7);
+  color: #37465a;
+}
+
+.alerta-bloqueo-comunicacion {
+  display: grid;
+  gap: 4px;
+  background: #fbf0f0;
+  border: 1px solid #e6bfc0;
+  border-left: 3px solid var(--rojo, #e5405a);
+  color: #6e2024;
+}
+
+/* Distribución titular */
+
+.layout-titular-pc {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  gap: 24px;
+  align-items: stretch;
+}
+
+.seccion-dinamica {
+  margin-bottom: 18px;
+  padding: 24px;
+  background: var(--card, #ffffff);
+  border: 1px solid var(--borde, #dde3ea);
+  border-radius: var(--radius, 12px);
+  box-shadow: var(
+    --shadow-sm,
+    0 1px 2px rgba(15, 23, 42, .05)
+  );
+}
+
+.grid-2,
+.grid-3 {
+  display: grid;
+  gap: 16px;
+}
+
+.grid-2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.grid-3 {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+/* Campos */
+
+.campo {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 16px;
+}
+
+.campo label {
+  margin-bottom: 7px;
+  color: #212e40;
+  font-size: .82rem;
+  font-weight: 600;
+}
+
+.campo label span,
+.fw-primary span {
+  color: var(--rojo, #e5405a);
+}
+
+input {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 14px;
+  border: 1px solid #cfd8e2;
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--texto, #1a2330);
+  font-family: inherit;
+  font-size: .95rem;
+  outline: none;
+  transition:
+    border-color .16s ease,
+    box-shadow .16s ease;
+}
+
+input:focus {
+  border-color: var(--azul-tinta, #005f8f);
+  box-shadow:
+    0 0 0 3px rgba(0, 95, 143, .10);
+}
+
+input:hover:not([readonly]) {
+  border-color: #a9bbcc;
+}
+
+input[readonly],
+.bg-light {
+  background: #f2f4f7 !important;
+  color: #4a5768;
+  opacity: 1;
+}
+
+.forzar-mayusculas {
+  text-transform: uppercase;
+}
+
+.fw-primary {
+  color: var(--azul, #0088c7);
+}
+
+.ayuda {
+  margin-top: 7px;
+  color: var(--muted, #5c6b7c);
+  font-size: .76rem;
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+.error-texto {
+  margin-top: 6px;
+  color: var(--rojo, #e5405a);
+  font-size: .78rem;
+  font-weight: 700;
+}
+
+.is-invalid {
+  border-color: var(--rojo, #e5405a) !important;
+  box-shadow:
+    0 0 0 3px rgba(156, 43, 48, .12) !important;
+}
+
+/* Imagen */
+
+.panel-imagen-vida {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 16px;
+  background: #f7fafc;
+  border: 1px solid var(--borde, #dde3ea);
+  border-radius: var(--radius-lg, 16px);
+}
+
+.panel-imagen-vida img {
+  display: block;
+  width: 100%;
+  max-height: 520px;
+  border-radius: 10px;
+  object-fit: contain;
+}
+
+/* Navegación */
+
+.botonera-pasos {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 26px;
+  padding: 17px;
+  background: #fafbfc;
+  border: 1px solid var(--borde, #dde3ea);
+  border-radius: var(--radius, 12px);
+}
+
+.btn-success {
+  min-height: 42px;
+  padding: 10px 22px;
+  border: 1px solid var(--azul-tinta, #005f8f);
+  border-radius: 10px;
+  background: var(--azul-tinta, #005f8f);
+  color: #ffffff;
+  font-family: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow:
+    0 2px 8px rgba(12, 58, 92, .14);
+}
+
+.btn-success:hover {
+  background: #0a4a70;
+  box-shadow:
+    0 3px 10px rgba(12, 58, 92, .18);
+}
+
+/* Responsive */
+
+@media (max-width: 900px) {
+  .layout-titular-pc,
+  .grid-2,
+  .grid-3 {
+    grid-template-columns: 1fr;
+  }
+
+  .panel-imagen-vida {
+    display: none;
+  }
+
+  .botonera-pasos {
+    flex-direction: column;
+  }
+
+  .botonera-pasos button {
+    width: 100%;
+  }
+}

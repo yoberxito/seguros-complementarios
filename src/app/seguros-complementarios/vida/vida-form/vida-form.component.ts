@@ -1,207 +1,296 @@
 import { CommonModule } from '@angular/common';
-import { Component } from '@angular/core';
-import { FormsModule } from '@angular/forms';
-import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
+import {
+  Component,
+  OnDestroy
+} from '@angular/core';
+import {
+  DomSanitizer
+} from '@angular/platform-browser';
+import {
+  ActivatedRoute,
+  Router
+} from '@angular/router';
+
+import {
+  Subscription
+} from 'rxjs';
 import {
   VidaApiService,
   RepresentanteDtoApi,
   RespuestaPersonaContactoApi,
   RespuestaConyugeConcubinoApi,
-  DatosAseguradoApi,
+  TipoAseguradoApi,
   EmpresaEmpleadorApi,
+  SustentoSeguroComplementarioApi,
   TipoDocumentoCargaLocal,
   DocumentoCargadoLocalResponse,
   ValidacionDocumentalCompletaResponseLocal,
-  CierreDocumentalCompletoResponseLocal,
   RegistrarAvanceExpedienteRequest,
   RegistrarAceptacionRequest,
   DocumentoGeneradoDescargadoLocal,
   GenerarFormulario6012Request,
   GenerarFormularioDescuentoRequest,
+  IniciarProcesoVidaRequestLocal,
+  IniciarProcesoVidaResponseLocal,
+  RecuperarAvanceProcesoResponseLocal,
+  GuardarTitularProgresoRequestLocal,
+  GuardarProgresoVidaResponseLocal,
+  GuardarDatosComplementariosProgresoRequestLocal,
+  GuardarConyugeProgresoRequestLocal,
+  BeneficiarioProgresoRequestLocal,
+  GuardarBeneficiariosProgresoRequestLocal,
+  DocumentoPublicadoResumenLocal,
+  GuardarBorradorTitularRequestLocal,
+  GuardarBorradorDatosComplementariosRequestLocal,
+  BeneficiarioBorradorRequestLocal,
+  GuardarBorradorBeneficiariosRequestLocal,
   TipoDocumentoFormulario6012
 } from '../services/vida-api.service';
 
-type Vista = 'formulario' | 'resumen' | 'exito';
+import {
+  AvisoFlotante,
+  Beneficiario,
+  ContextoConsultaPersona,
+  FormularioVida,
+  PasoFormulario,
+  PersonaDocumento,
+  TipoAsegurado,
+  TipoAviso,
+  TipoDocumento,
+  TipoDocumentoFirmado,
+  TipoGeneracionDocumentos,
+  Vista
+} from '../models/vida-form.models';
 
-type TipoAviso = 'info' | 'exito' | 'advertencia' | 'error';
+import {
+  ArchivoDocumentoFirmado
+} from '../models/vida-documentos.models';
 
-type ContextoConsultaPersona = 'titular' | 'conyuge' | 'beneficiario';
+import {
+  VidaTramiteStateService
+} from '../services/vida-tramite-state.service';
 
-interface AvisoFlotante {
-  tipo: TipoAviso;
-  titulo: string;
-  mensaje: string;
-  persistente: boolean;
-}
+import {
+  VidaTitularComponent
+} from '../pages/titular/vida-titular.component';
 
-type PasoFormulario =
-  | 'titular'
-  | 'trabajo'
-  | 'conyuge'
-  | 'beneficiarios'
-  | 'declaracion'
-  | 'documentos'
-  | 'publicacion';
-type TipoDocumentoFirmado = 'formulario6012' | 'autorizacionDescuento';
+import {
+  VidaDatosComplementariosComponent
+} from '../pages/datos-complementarios/vida-datos-complementarios.component';
 
-type TipoGeneracionDocumentos =
-  | 'completa'
-  | 'soloAutorizacion'
-  | 'soloFormulario6012'
-  | null;
+import {
+  VidaConyugeComponent
+} from '../pages/conyuge/vida-conyuge.component';
 
-type TipoAsegurado = 'Regular' | 'Agrario' | 'Potestativo';
+import {
+  VidaBeneficiariosComponent
+} from '../pages/beneficiarios/vida-beneficiarios.component';
 
-interface TipoDocumento {
-  codigo: string;
-  descripcion: string;
-  longitud?: number;
-}
+import {
+  VidaDeclaracionComponent
+} from '../pages/declaracion/vida-declaracion.component';
 
-interface PersonaDocumento {
-  tipoDocumento: string;
-  otroTipoDocumento?: string;
-  numeroDocumento: string;
+import {
+  VidaDocumentosComponent
+} from '../pages/documentos/vida-documentos.component';
 
-
-  nombres?: string;
-
-  apellidoPaterno: string;
-  apellidoMaterno: string;
-  primerNombre: string;
-  segundoNombre: string;
-}
-
-interface PersonaDocumento {
-  tipoDocumento: string;
-  otroTipoDocumento?: string;
-  numeroDocumento: string;
-
-  nombres?: string;
-
-  apellidoPaterno: string;
-  apellidoMaterno: string;
-  primerNombre: string;
-  segundoNombre: string;
-
-  tipoRelacion?: string;
-}
-
-interface Beneficiario extends PersonaDocumento {
-  porcentaje: string;
-}
-
-interface PasoVida {
-  codigo: PasoFormulario;
-  numero: number;
-  titulo: string;
-  descripcion: string;
-}
-
-interface ArchivoDocumentoFirmado {
-  archivo: File | null;
-  nombre: string;
-  tamanioMB: string;
-  cargado: boolean;
-  error: string;
-  urlTemporal: string;
-  urlVistaPrevia: SafeResourceUrl | null;
-}
-
-interface FormularioVida {
-  esNuevo: boolean;
-
-  titular: PersonaDocumento;
-  correoViva: string;
-
-  celular: string;
-  tipoAsegurado: TipoAsegurado;
-
-  codigoPlanilla: string;
-  decretoLegislativo: string;
-  convenioCGBVP: string;
-
-  notificacionesCorreo: string;
-
-  rucEmpleador: string;
-  razonSocial: string;
-  rucDesdeBase: boolean;
-  razonSocialDesdeBase: boolean;
-
-  conyuge: PersonaDocumento | null;
-  conyugeDesdeBase: boolean;
-
-  beneficiarios: Beneficiario[];
-}
+import {
+  VidaFinalizacionComponent
+} from '../pages/finalizacion/vida-finalizacion.component';
 
 @Component({
   selector: 'app-vida-form',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [
+    CommonModule,
+    VidaTitularComponent,
+    VidaDatosComplementariosComponent,
+    VidaConyugeComponent,
+    VidaBeneficiariosComponent,
+    VidaDeclaracionComponent,
+    VidaDocumentosComponent,
+    VidaFinalizacionComponent
+  ],
   templateUrl: './vida-form.component.html',
   styleUrl: './vida-form.component.css'
 })
 
 
-export class VidaFormComponent {
+export class VidaFormComponent
+  implements OnDestroy {
+
+private suscripcionRuta:
+  Subscription | null = null;
+private aplicandoRecuperacionVisual =
+  false;
+
+private readonly demoraAutosaveBorradorMs =
+  600;
+
+private temporizadorBorradorTitular:
+  ReturnType<typeof setTimeout> | null =
+    null;
+
+private temporizadorBorradorDatosComplementarios:
+  ReturnType<typeof setTimeout> | null =
+    null;
+
+private temporizadorBorradorBeneficiarios:
+  ReturnType<typeof setTimeout> | null =
+    null;
+private readonly rutaPorPaso:
+  Record<PasoFormulario, string> = {
+    titular: 'titular',
+    trabajo: 'datos-complementarios',
+    conyuge: 'conyuge',
+    beneficiarios: 'beneficiarios',
+    declaracion: 'declaracion',
+    documentos: 'documentos',
+    publicacion: 'finalizacion'
+  };
+
+private readonly estadoBackendPorPaso:
+  Record<PasoFormulario, string> = {
+
+    titular:
+      'DATOS_TITULAR',
+
+    trabajo:
+      'DATOS_COMPLEMENTARIOS',
+
+    conyuge:
+      'CONYUGE_CONCUBINO',
+
+    beneficiarios:
+      'BENEFICIARIOS',
+
+    declaracion:
+      'DECLARACION_JURADA',
+
+    documentos:
+      'DOCUMENTOS',
+
+    publicacion:
+      'FINALIZACION'
+  };
+
+get form(): FormularioVida {
+  return this.vidaTramiteStateService.form;
+}
+
+set form(valor: FormularioVida) {
+  this.vidaTramiteStateService.form =
+    valor;
+}
+
+get pasoActual(): PasoFormulario {
+  return this.vidaTramiteStateService.pasoActual;
+}
+
+set pasoActual(valor: PasoFormulario) {
+  this.vidaTramiteStateService.pasoActual =
+    valor;
+
+  /*
+   * Durante la rehidratación desde Oracle
+   * podemos recorrer internamente distintos
+   * estados para reconstruir las banderas,
+   * pero no debemos navegar por cada uno.
+   *
+   * La ruta definitiva se sincroniza una sola
+   * vez al terminar la recuperación.
+   */
+  if (this.aplicandoRecuperacionVisual) {
+    return;
+  }
+
+  this.sincronizarRutaConPaso(
+    valor
+  );
+}
+
+get seccionesGrabadas():
+  Record<PasoFormulario, boolean> {
+  return this.vidaTramiteStateService
+    .seccionesGrabadas;
+}
+
+set seccionesGrabadas(
+  valor: Record<PasoFormulario, boolean>
+) {
+  this.vidaTramiteStateService
+    .seccionesGrabadas = valor;
+}
+
+get documentosGenerados(): boolean {
+  return this.vidaTramiteStateService
+    .documentosGenerados;
+}
+
+set documentosGenerados(valor: boolean) {
+  this.vidaTramiteStateService
+    .documentosGenerados = valor;
+}
+
+get solicitudBloqueada(): boolean {
+  return this.vidaTramiteStateService
+    .solicitudBloqueada;
+}
+
+set solicitudBloqueada(valor: boolean) {
+  this.vidaTramiteStateService
+    .solicitudBloqueada = valor;
+}
+
+get pendienteBeneficiariosPara6012():
+  boolean {
+  return this.vidaTramiteStateService
+    .pendienteBeneficiariosPara6012;
+}
+
+set pendienteBeneficiariosPara6012(
+  valor: boolean
+) {
+  this.vidaTramiteStateService
+    .pendienteBeneficiariosPara6012 =
+      valor;
+}
+
+get documentosPublicados(): boolean {
+  return this.vidaTramiteStateService
+    .documentosPublicados;
+}
+
+set documentosPublicados(valor: boolean) {
+  this.vidaTramiteStateService
+    .documentosPublicados = valor;
+}
 
 vista: Vista = 'formulario';
 intentoEnviar = false;
 avisoFlotante: AvisoFlotante | null = null;
 temporizadorAviso: ReturnType<typeof setTimeout> | null = null;
 
-pasoActual: PasoFormulario = 'titular';
+private readonly ordenPasos:
+  PasoFormulario[] = [
+    'titular',
+    'trabajo',
+    'conyuge',
+    'beneficiarios',
+    'declaracion',
+    'documentos',
+    'publicacion'
+  ];
 
-pasosFormulario: PasoVida[] = [
-  {
-    codigo: 'titular',
-    numero: 1,
-    titulo: 'Titular',
-    descripcion: 'Datos principales del asegurado'
-  },
-  {
-    codigo: 'trabajo',
-    numero: 2,
-    titulo: 'Datos laborales',
-    descripcion: 'Planilla, decreto, convenio y empleador'
-  },
-  {
-  codigo: 'conyuge',
-  numero: 3,
-  titulo: 'Cónyuge',
-  descripcion: 'Consulta automática desde base institucional'
-  },
-  {
-    codigo: 'beneficiarios',
-    numero: 4,
-    titulo: 'Beneficiarios',
-    descripcion: 'Registro opcional con porcentajes'
-  },
-  {
-    codigo: 'declaracion',
-    numero: 5,
-    titulo: 'Declaración',
-    descripcion: 'Aceptación y generación de documentos'
-  },
-  {
-    codigo: 'documentos',
-    numero: 6,
-    titulo: 'Documentos',
-    descripcion: 'Carga de PDFs firmados'
-  },
-  {
-    codigo: 'publicacion',
-    numero: 7,
-    titulo: 'Recepción',
-    descripcion: 'Documentos sellados y publicados'
-  }
-];
+get codigoSolicitud(): string {
+  return this.vidaTramiteStateService
+    .registroInternoProceso;
+}
 
-seccionesGrabadas: Record<PasoFormulario, boolean> = this.crearEstadoSecciones();
-
-documentosGenerados = false;
-solicitudBloqueada = false;
-codigoSolicitud = '';
+set codigoSolicitud(valor: string) {
+  this.vidaTramiteStateService
+    .registroInternoProceso = valor;
+}
 fechaGeneracionDocumentos = '';
 
 tipoGeneracionDocumentos: TipoGeneracionDocumentos = null;
@@ -210,13 +299,8 @@ autorizacionDescuentoGenerada = false;
 formulario6012Generado = false;
 autorizacionFirmadaBloqueada = false;
 
-pendienteBeneficiariosPara6012 = false;
 mostrarConfirmacionSinBeneficiarios = false;
 mostrarInvitacionBeneficiarios = false;
-actualizandoBeneficiarios6012 = false;
-aceptaVeracidad = false;
-aceptaAfiliacion = false;
-aceptaNotificacionesDeclaracion = true;
 
 cargandoTipoAsegurado = false;
 tipoAseguradoValidado = false;
@@ -226,8 +310,6 @@ aceptaTratamientoDatos = false;
 aceptaTerminosDeclaracion = false;
 
 mostrarAyudaCgbvp = false;
-
-modoRetornoPendiente = false;
 
 archivoFormulario6012: ArchivoDocumentoFirmado = this.crearArchivoVacio();
 archivoAutorizacionDescuento: ArchivoDocumentoFirmado = this.crearArchivoVacio();
@@ -244,74 +326,53 @@ documentosValidadosBackend = false;
 cerrandoDocumentosBackend = false;
 documentosCerradosBackend = false;
 
-idDocumentoSelladoAutorizacion = '';
 idDocumentoPublicadoAutorizacion = '';
 
-idDocumentoSelladoFormulario6012 = '';
 idDocumentoPublicadoFormulario6012 = '';
-
-resultadoCierreAutorizacion:
-  CierreDocumentalCompletoResponseLocal | null = null;
-
-resultadoCierreFormulario6012:
-  CierreDocumentalCompletoResponseLocal | null = null;
 
 mensajeErrorCierre = '';
 
 autorizacionValidadaBackend = false;
 formulario6012ValidadoBackend = false;
 
-resultadoValidacionAutorizacion:
-  ValidacionDocumentalCompletaResponseLocal | null = null;
-
-resultadoValidacionFormulario6012:
-  ValidacionDocumentalCompletaResponseLocal | null = null;
-
 mensajeRechazoValidacion = '';
-documentosPublicados = false;
 fechaRecepcionDocumentos = '';
-correoEnvioDocumentos = '';
 
 consultandoDocumentoPublicado:
   TipoDocumentoFirmado | null = null;
-
+recuperandoDocumentosPublicadosFinalizacion =
+  false;
 preparandoProcesoBackendLocal = false;
 procesoBackendPreparado = false;
-errorPreparacionBackendLocal = '';
 
+iniciandoProcesoVida = false;
+procesoVidaInicializado = false;
+recuperandoAvanceProceso = false;
+
+guardandoTitularProgreso = false;
+guardandoDatosComplementariosProgreso =
+  false;
+guardandoConyugeProgreso = false;
+guardandoBeneficiariosProgreso = false;
 generandoFormulario6012Servicio = false;
 
-idDocumentoGeneradoFormulario6012 = '';
-
-blobFormulario6012Generado:
-  Blob | null = null;
-
-urlFormulario6012Generado:
-  string | null = null;
-
 generandoFormularioDescuentoServicio = false;
-
-idDocumentoGeneradoAutorizacion = '';
-
-blobFormularioDescuentoGenerado: Blob | null = null;
-urlFormularioDescuentoGenerado: string | null = null;
+descargandoDocumentos = false;
 
 formulario6012Sellado = false;
 autorizacionDescuentoSellada = false;
-documentoPdfVisible = false;
-tituloDocumentoPdf = '';
-urlDocumentoPdf: SafeResourceUrl | null = null;
-
-diaDeclaracion = '';
-mesDeclaracion = '';
-
-/*
-    MAQUETA LOCAL:
-    Esta lista simula el servicio que luego Tecnología te pasará.
-    Después se reemplaza por una llamada real al servicio de tipos de documento de EsSalud.
-*/
 
 tiposDocumento: TipoDocumento[] = [];
+
+sustentosSeguroComplementario:
+  SustentoSeguroComplementarioApi[] =
+    [];
+
+cargandoSustentosSeguroComplementario =
+  false;
+
+errorSustentosSeguroComplementario =
+  '';
 
 tiposDocumentoRespaldo: TipoDocumento[] = [
   { codigo: '01', descripcion: '01-DNI' },
@@ -324,10 +385,6 @@ tiposDocumentoRespaldo: TipoDocumento[] = [
   { codigo: '29', descripcion: '29-CPP' }
 ];
 
-cargandoTiposDocumento = false;
-errorTiposDocumento = '';
-
-validandoSeguroComplementario = false;
 seguroComplementarioValidado = false;
 titularTieneSeguroComplementario = false;
 mensajeSeguroComplementario = '';
@@ -348,14 +405,669 @@ cargandoConyuge = false;
 conyugeConsultado = false;
 errorConyuge = '';
 
-form: FormularioVida = this.crearCasoNuevo();
-
 constructor(
   private sanitizer: DomSanitizer,
-  private vidaApiService: VidaApiService
+  private vidaApiService: VidaApiService,
+  private vidaTramiteStateService:
+    VidaTramiteStateService,
+  private activatedRoute:
+    ActivatedRoute,
+  private router:
+    Router
 ) {
-  this.establecerFechaActual();
-  this.cargarCasoNuevo();
+  if (
+    !this.vidaTramiteStateService
+      .estaInicializado()
+  ) {
+    this.cargarCasoNuevo();
+  }
+
+  this.escucharPasoDesdeRuta();
+}
+
+private escucharPasoDesdeRuta(): void {
+  this.suscripcionRuta =
+    this.activatedRoute.paramMap
+      .subscribe(parametros => {
+        const pasoDesdeRuta =
+          this.obtenerPasoDesdeRuta(
+            parametros.get('paso')
+          );
+
+        if (!pasoDesdeRuta) {
+          this.sincronizarRutaConPaso(
+            this.pasoActual
+          );
+
+          return;
+        }
+
+        if (
+          !this.puedeAccederPasoDesdeRuta(
+            pasoDesdeRuta
+          )
+        ) {
+          this.sincronizarRutaConPaso(
+            this.pasoActual
+          );
+
+          return;
+        }
+
+        if (
+          this.vidaTramiteStateService
+            .pasoActual === pasoDesdeRuta
+        ) {
+          return;
+        }
+
+        /*
+         * Se actualiza directamente el servicio
+         * para no iniciar otra navegación desde
+         * el setter de pasoActual.
+         */
+        this.vidaTramiteStateService
+          .pasoActual = pasoDesdeRuta;
+
+        this.persistirNavegacionActual(
+          pasoDesdeRuta
+        );
+
+        this.intentoEnviar = false;
+
+        if (pasoDesdeRuta === 'conyuge') {
+          this.consultarConyugeConcubino();
+        }
+
+        this.scrollArriba();
+      });
+}
+
+private sincronizarRutaConPaso(
+  paso: PasoFormulario
+): void {
+  const segmento =
+    this.rutaPorPaso[paso];
+
+  const rutaEsperada =
+    `/vida/${segmento}`;
+
+  if (this.router.url === rutaEsperada) {
+    return;
+  }
+
+  void this.router.navigate([
+    '/vida',
+    segmento
+  ]);
+}
+
+private obtenerPasoDesdeRuta(
+  segmento: string | null
+): PasoFormulario | null {
+  if (segmento === 'titular') {
+    return 'titular';
+  }
+
+  if (segmento === 'datos-complementarios') {
+    return 'trabajo';
+  }
+
+  if (segmento === 'conyuge') {
+    return 'conyuge';
+  }
+
+  if (segmento === 'beneficiarios') {
+    return 'beneficiarios';
+  }
+
+  if (segmento === 'declaracion') {
+    return 'declaracion';
+  }
+
+  if (segmento === 'documentos') {
+    return 'documentos';
+  }
+
+  if (segmento === 'finalizacion') {
+    return 'publicacion';
+  }
+
+  return null;
+}
+
+private obtenerPasoDesdeEstadoBackend(
+  codigoEstado?: string | null
+): PasoFormulario | null {
+
+  const estado =
+    (codigoEstado || '')
+      .trim()
+      .toUpperCase();
+
+  if (estado === 'DATOS_TITULAR') {
+    return 'titular';
+  }
+
+  if (estado === 'DATOS_COMPLEMENTARIOS') {
+    return 'trabajo';
+  }
+
+  if (estado === 'CONYUGE_CONCUBINO') {
+    return 'conyuge';
+  }
+
+  if (estado === 'BENEFICIARIOS') {
+    return 'beneficiarios';
+  }
+
+  if (estado === 'DECLARACION_JURADA') {
+    return 'declaracion';
+  }
+
+  if (estado === 'DOCUMENTOS') {
+    return 'documentos';
+  }
+
+  if (estado === 'FINALIZACION') {
+    return 'publicacion';
+  }
+
+  return null;
+}
+
+private puedeAccederPasoDesdeRuta(
+  paso: PasoFormulario
+): boolean {
+  if (this.solicitudBloqueada) {
+    if (paso === 'declaracion') {
+      return true;
+    }
+
+    if (paso === 'documentos') {
+      return this.documentosGenerados;
+    }
+
+    if (paso === 'publicacion') {
+      return this.documentosPublicados;
+    }
+
+    if (paso === 'beneficiarios') {
+      return this.pendienteBeneficiariosPara6012;
+    }
+
+    return false;
+  }
+
+  if (paso === 'titular') {
+    return true;
+  }
+
+  if (paso === 'trabajo') {
+    return this.seccionesGrabadas.titular;
+  }
+
+  if (paso === 'conyuge') {
+    return this.seccionesGrabadas.titular
+      && this.seccionesGrabadas.trabajo;
+  }
+
+  if (paso === 'beneficiarios') {
+    return this.seccionesGrabadas.titular
+      && this.seccionesGrabadas.trabajo
+      && this.seccionesGrabadas.conyuge;
+  }
+
+  if (paso === 'declaracion') {
+    return this.seccionesGrabadas.titular
+      && this.seccionesGrabadas.trabajo
+      && this.seccionesGrabadas.conyuge
+      && this.seccionesGrabadas.beneficiarios;
+  }
+
+  if (paso === 'documentos') {
+    return this.documentosGenerados;
+  }
+
+  if (paso === 'publicacion') {
+    return this.documentosPublicados;
+  }
+
+  return false;
+}
+
+private persistirNavegacionActual(
+  paso: PasoFormulario
+): void {
+
+  /*
+   * En fase documental la navegación editable
+   * ya no debe modificarse.
+   */
+  if (this.solicitudBloqueada) {
+    return;
+  }
+
+  const registro =
+    this.codigoSolicitud.trim();
+
+  if (!registro) {
+    return;
+  }
+
+  const codigoEstadoNavegacion =
+    this.estadoBackendPorPaso[paso];
+
+  if (!codigoEstadoNavegacion) {
+    return;
+  }
+
+  this.vidaApiService
+    .actualizarNavegacionProceso(
+      registro,
+      codigoEstadoNavegacion
+    )
+    .subscribe({
+      next: respuesta => {
+
+        console.log(
+          'Navegación del trámite persistida:',
+          {
+            paso,
+            codigoEstadoProceso:
+              respuesta.codigoEstadoProceso,
+            codigoEstadoNavegacion:
+              respuesta.codigoEstadoNavegacion
+          }
+        );
+      },
+
+      error: (error: unknown) => {
+
+        console.error(
+          'No fue posible persistir la navegación actual:',
+          error
+        );
+
+        this.mostrarAviso(
+          'La pantalla cambió correctamente, pero no fue posible guardar la ubicación actual del trámite.',
+          'advertencia',
+          'Ubicación no guardada'
+        );
+      }
+    });
+}
+
+programarGuardadoBorradorTitular():
+  void {
+
+  if (
+    this.solicitudBloqueada
+    || this.aplicandoRecuperacionVisual
+  ) {
+    return;
+  }
+
+  if (!this.codigoSolicitud.trim()) {
+    return;
+  }
+
+  if (this.temporizadorBorradorTitular) {
+    clearTimeout(
+      this.temporizadorBorradorTitular
+    );
+  }
+
+  this.temporizadorBorradorTitular =
+    setTimeout(
+      () => {
+        this.temporizadorBorradorTitular =
+          null;
+
+        this.guardarBorradorTitularAhora();
+      },
+      this.demoraAutosaveBorradorMs
+    );
+}
+
+
+private guardarBorradorTitularAhora():
+  void {
+
+  const registro =
+    this.codigoSolicitud.trim();
+
+  if (
+    !registro
+    || this.solicitudBloqueada
+  ) {
+    return;
+  }
+
+  const payload:
+    GuardarBorradorTitularRequestLocal = {
+
+    correo:
+      this.form.correoViva,
+
+    celular:
+      this.form.celular
+  };
+
+  this.vidaApiService
+    .guardarBorradorTitular(
+      registro,
+      payload
+    )
+    .subscribe({
+      next: respuesta => {
+
+        console.log(
+          'Borrador del titular guardado:',
+          {
+            codigoEstadoProceso:
+              respuesta.codigoEstadoProceso,
+
+            codigoEstadoNavegacion:
+              respuesta
+                .codigoEstadoNavegacion
+          }
+        );
+      },
+
+      error: (error: unknown) => {
+
+        console.error(
+          'No fue posible guardar automáticamente el borrador del titular:',
+          error
+        );
+      }
+    });
+}
+
+
+programarGuardadoBorradorDatosComplementarios():
+  void {
+
+  if (
+    this.solicitudBloqueada
+    || this.aplicandoRecuperacionVisual
+  ) {
+    return;
+  }
+
+  if (!this.codigoSolicitud.trim()) {
+    return;
+  }
+
+  if (
+    this
+      .temporizadorBorradorDatosComplementarios
+  ) {
+    clearTimeout(
+      this
+        .temporizadorBorradorDatosComplementarios
+    );
+  }
+
+  this
+    .temporizadorBorradorDatosComplementarios =
+      setTimeout(
+        () => {
+
+          this
+            .temporizadorBorradorDatosComplementarios =
+              null;
+
+          this
+            .guardarBorradorDatosComplementariosAhora();
+        },
+        this.demoraAutosaveBorradorMs
+      );
+}
+
+
+private guardarBorradorDatosComplementariosAhora():
+  void {
+
+  const registro =
+    this.codigoSolicitud.trim();
+
+  if (
+    !registro
+    || this.solicitudBloqueada
+  ) {
+    return;
+  }
+
+  const payload:
+    GuardarBorradorDatosComplementariosRequestLocal = {
+
+    codigoPlanilla:
+      this.form.codigoPlanilla,
+
+    decretoLegislativo:
+      this.form.decretoLegislativo,
+
+    convenioCgbvp:
+      this.form.convenioCGBVP === 'SI'
+        ? 'SI'
+        : 'NO',
+
+    rucEmpleador:
+      this.form.rucEmpleador,
+
+    razonSocial:
+      this.form.razonSocial
+  };
+
+  this.vidaApiService
+    .guardarBorradorDatosComplementarios(
+      registro,
+      payload
+    )
+    .subscribe({
+      next: respuesta => {
+
+        console.log(
+          'Borrador de datos complementarios guardado:',
+          {
+            codigoEstadoProceso:
+              respuesta.codigoEstadoProceso,
+
+            codigoEstadoNavegacion:
+              respuesta
+                .codigoEstadoNavegacion
+          }
+        );
+      },
+
+      error: (error: unknown) => {
+
+        console.error(
+          'No fue posible guardar automáticamente el borrador de datos complementarios:',
+          error
+        );
+      }
+    });
+}
+
+
+programarGuardadoBorradorBeneficiarios():
+  void {
+
+  if (
+    this.solicitudBloqueada
+    || this.aplicandoRecuperacionVisual
+  ) {
+    return;
+  }
+
+  if (!this.codigoSolicitud.trim()) {
+    return;
+  }
+
+  if (
+    this.temporizadorBorradorBeneficiarios
+  ) {
+    clearTimeout(
+      this.temporizadorBorradorBeneficiarios
+    );
+  }
+
+  this.temporizadorBorradorBeneficiarios =
+    setTimeout(
+      () => {
+
+        this.temporizadorBorradorBeneficiarios =
+          null;
+
+        this
+          .guardarBorradorBeneficiariosAhora();
+      },
+      this.demoraAutosaveBorradorMs
+    );
+}
+
+
+private guardarBorradorBeneficiariosAhora():
+  void {
+
+  const registro =
+    this.codigoSolicitud.trim();
+
+  if (
+    !registro
+    || this.solicitudBloqueada
+  ) {
+    return;
+  }
+
+  const beneficiariosPayload:
+    BeneficiarioBorradorRequestLocal[] =
+      this.form.beneficiarios.map(
+        beneficiario => {
+
+          const tipoDocumento =
+            (
+              beneficiario.tipoDocumento
+              || ''
+            ).trim();
+
+          const descripcionOtroDocumento =
+            tipoDocumento !== '01'
+            && tipoDocumento !== '04'
+              ? (
+                  beneficiario
+                    .otroTipoDocumento
+                  || this
+                    .getDescripcionTipoDocumento(
+                      tipoDocumento
+                    )
+                )
+              : null;
+
+          const porcentajeTexto =
+            (
+              beneficiario.porcentaje
+              || ''
+            ).trim();
+
+          const porcentajeNumero =
+            Number(
+              porcentajeTexto
+            );
+
+          const porcentaje:
+            number | null =
+              porcentajeTexto === ''
+              || Number.isNaN(
+                porcentajeNumero
+              )
+                ? null
+                : porcentajeNumero;
+
+          return {
+            tipoDocumento,
+
+            descripcionOtroDocumento:
+              descripcionOtroDocumento
+              || null,
+
+            numeroDocumento:
+              beneficiario.numeroDocumento
+              || '',
+
+            apellidoPaterno:
+              beneficiario.apellidoPaterno
+              || '',
+
+            apellidoMaterno:
+              beneficiario.apellidoMaterno
+              || '',
+
+            primerNombre:
+              beneficiario.primerNombre
+              || '',
+
+            segundoNombre:
+              beneficiario.segundoNombre
+              || '',
+
+            porcentaje
+          };
+        }
+      );
+
+  const beneficiarioBorradorAbierto =
+    this.form.beneficiarios.some(
+      beneficiario =>
+        !this.beneficiarioTieneDatos(
+          beneficiario
+        )
+    );
+
+  const payload:
+    GuardarBorradorBeneficiariosRequestLocal = {
+
+    beneficiarios:
+      beneficiariosPayload,
+
+    beneficiarioBorradorAbierto
+  };
+
+  this.vidaApiService
+    .guardarBorradorBeneficiarios(
+      registro,
+      payload
+    )
+    .subscribe({
+      next: respuesta => {
+
+        console.log(
+          'Borrador de beneficiarios guardado:',
+          {
+            cantidadEnFormulario:
+              beneficiariosPayload.length,
+
+            codigoEstadoProceso:
+              respuesta.codigoEstadoProceso,
+
+            codigoEstadoNavegacion:
+              respuesta
+                .codigoEstadoNavegacion
+          }
+        );
+      },
+
+      error: (error: unknown) => {
+
+        console.error(
+          'No fue posible guardar automáticamente el borrador de beneficiarios:',
+          error
+        );
+      }
+    });
 }
 
 obtenerDocumentoEmpleadoAutenticado(): { tipoDocumento: string; numeroDocumento: string } {
@@ -363,7 +1075,7 @@ obtenerDocumentoEmpleadoAutenticado(): { tipoDocumento: string; numeroDocumento:
   // Luego esto se reemplaza por la integración real.
   return {
     tipoDocumento: '01',
-    numeroDocumento: '73380348'
+    numeroDocumento: '03700150'
   };
 }
 
@@ -372,11 +1084,21 @@ cargarCasoNuevo(): void {
   this.intentoEnviar = false;
   this.cerrarAviso();
 
-  this.form = this.crearCasoNuevo();
+  this.form =
+  this.vidaTramiteStateService
+    .crearCasoNuevo();
 
   this.reiniciarFlujoPorPasos();
+
+  this.vidaTramiteStateService
+    .marcarInicializado();
+
   this.cargarTiposDocumentoDesdeServicio();
+
+  this.cargarSustentosVidaDesdeServicio();
+
   this.cargarTitularDesdeSistemaEmpleado();
+
   this.scrollArriba();
 }
 
@@ -444,26 +1166,19 @@ cargarTitularDesdeSistemaEmpleado(): void {
         );
 
         /*
-          TEMPORAL:
-          Estas validaciones permanecen simuladas mientras trabajamos
-          únicamente en la reconexión del servicio de titular y contacto.
+        * Se valida institucionalmente si el titular
+        * ya cuenta con +Vida Seguro de Accidentes.
         */
+        this.validarSeguroComplementarioTitular();
 
-        this.validandoSeguroComplementario = false;
-        this.seguroComplementarioValidado = true;
-        this.titularTieneSeguroComplementario = false;
-        this.mensajeSeguroComplementario =
-          'El titular no cuenta con +Vida Seguro de Accidentes registrado. Puede continuar con la afiliación.';
-        this.errorValidacionSeguroComplementario = '';
-
-        this.cargandoTipoAsegurado = false;
-        this.tipoAseguradoValidado = true;
-        this.errorTipoAsegurado = '';
-        this.form.tipoAsegurado = 'Regular';
+        this
+        .obtenerTipoAseguradoTitularDesdeServicio();
 
         // Se mantienen temporales los datos laborales y el empleador.
         this.precargarDatosLaboralesSimulados();
         this.precargarEmpleadorEssalud();
+
+        this.iniciarORecuperarProcesoVida();
 
         this.mostrarAviso(
           'Los datos del titular y de contacto fueron cargados correctamente.',
@@ -571,28 +1286,40 @@ consultarConyugeConcubino(
           return;
         }
 
-        const apellidoPaterno =
-          this.normalizarTextoServicio(
-            respuesta.persona.apellidoPaterno
-          );
+        const tipoDocumentoConyuge =
+        this.normalizarTextoServicio(
+          respuesta.persona.tpDocumento
+        );
 
-        const apellidoMaterno =
-          this.normalizarTextoServicio(
-            respuesta.persona.apellidoMaterno
-          );
+      const numeroDocumentoConyuge =
+        this.normalizarTextoServicio(
+          respuesta.persona.nrDocumento
+        );
 
-        const nombres =
-          this.normalizarTextoServicio(
-            respuesta.persona.nombre
-          );
+      const apellidoPaterno =
+        this.normalizarTextoServicio(
+          respuesta.persona.apellidoPaterno
+        );
 
-        const tipoRelacion =
-          this.normalizarTextoServicio(
-            respuesta.persona.tipoRelacion
-          );
+      const apellidoMaterno =
+        this.normalizarTextoServicio(
+          respuesta.persona.apellidoMaterno
+        );
+
+      const nombres =
+        this.normalizarTextoServicio(
+          respuesta.persona.nombre
+        );
+
+      const tipoRelacion =
+        this.normalizarTextoServicio(
+          respuesta.persona.tipoRelacion
+        );
 
         if (
-          !apellidoPaterno
+          !tipoDocumentoConyuge
+          || !numeroDocumentoConyuge
+          || !apellidoPaterno
           || !apellidoMaterno
           || !nombres
           || !tipoRelacion
@@ -611,12 +1338,11 @@ consultarConyugeConcubino(
             .filter(parte => parte !== '');
 
         this.form.conyuge = {
-          /*
-           * Estos datos permanecerán vacíos hasta que el servicio
-           * institucional los incorpore.
-           */
-          tipoDocumento: '',
-          numeroDocumento: '',
+        tipoDocumento:
+          tipoDocumentoConyuge,
+
+        numeroDocumento:
+          numeroDocumentoConyuge,
 
           nombres: [
             apellidoPaterno,
@@ -677,37 +1403,150 @@ precargarDatosLaboralesSimulados(): void {
 }
 
 cargarTiposDocumentoDesdeServicio(): void {
-  this.cargandoTiposDocumento = true;
-  this.errorTiposDocumento = '';
+  this.vidaApiService
+    .obtenerTiposDocumentos()
+    .subscribe({
+      next: tipos => {
+        this.tiposDocumento =
+          tipos.map(tipo => ({
+            codigo:
+              tipo.idtipodocumento.trim(),
 
-  this.vidaApiService.obtenerTiposDocumentos().subscribe({
-    next: tipos => {
-      this.tiposDocumento = tipos.map(tipo => ({
-        codigo: tipo.idtipodocumento.trim(),
-        descripcion: tipo.descripcion.trim()
-      }));
+            descripcion:
+              tipo.descripcion.trim()
+          }));
 
-      this.cargandoTiposDocumento = false;
-      console.log('Tipos de documento cargados:', this.tiposDocumento);
-    },
-    error: () => {
-      this.tiposDocumento = [...this.tiposDocumentoRespaldo];
-      this.errorTiposDocumento = '';
-      this.cargandoTiposDocumento = false;
+        console.log(
+          'Tipos de documento cargados:',
+          this.tiposDocumento
+        );
+      },
 
-      this.mostrarAviso(
-        'No se pudo conectar con el catálogo oficial. Se usará una lista temporal de documentos.',
-        'advertencia'
-      );
-    }
-  });
+      error: () => {
+        this.tiposDocumento = [
+          ...this.tiposDocumentoRespaldo
+        ];
+
+        this.mostrarAviso(
+          'No se pudo conectar con el catálogo oficial. Se usará una lista temporal de documentos.',
+          'advertencia'
+        );
+      }
+    });
+}
+
+cargarSustentosVidaDesdeServicio():
+  void {
+
+  if (
+    this
+      .cargandoSustentosSeguroComplementario
+  ) {
+    return;
+  }
+
+  this
+    .cargandoSustentosSeguroComplementario =
+      true;
+
+  this
+    .errorSustentosSeguroComplementario =
+      '';
+
+  this
+    .sustentosSeguroComplementario =
+      [];
+
+  this.vidaApiService
+    .obtenerSustentosSeguroComplementario(
+      '0600'
+    )
+    .subscribe({
+
+      next: (
+        sustentos:
+          SustentoSeguroComplementarioApi[]
+      ) => {
+
+        this
+          .cargandoSustentosSeguroComplementario =
+            false;
+
+        this
+          .sustentosSeguroComplementario =
+            sustentos;
+
+        console.log(
+          'Sustentos institucionales de +Vida:',
+          sustentos
+        );
+
+        const formulario6012 =
+          sustentos.find(
+            sustento =>
+              sustento
+                .codElementoTabla
+                ?.trim()
+              === '244'
+          );
+
+        const autorizacionDescuento =
+          sustentos.find(
+            sustento =>
+              sustento
+                .codElementoTabla
+                ?.trim()
+              === '247'
+          );
+
+        console.log(
+          'Catálogo documental +Vida interpretado:',
+          {
+            formulario6012,
+            autorizacionDescuento
+          }
+        );
+
+        if (
+          !formulario6012
+          || !autorizacionDescuento
+        ) {
+          this
+            .errorSustentosSeguroComplementario =
+              'El catálogo institucional de +Vida no devolvió todos los tipos de sustento esperados.';
+
+          console.warn(
+            this
+              .errorSustentosSeguroComplementario
+          );
+        }
+      },
+
+      error: (
+        error: unknown
+      ) => {
+
+        this
+          .cargandoSustentosSeguroComplementario =
+            false;
+
+        this
+          .errorSustentosSeguroComplementario =
+            'No fue posible consultar los tipos de sustento de +Vida.';
+
+        console.error(
+          this
+            .errorSustentosSeguroComplementario,
+          error
+        );
+      }
+    });
 }
 
 validarSeguroComplementarioTitular(): void {
   const tipoDocumento = this.form.titular.tipoDocumento;
   const numeroDocumento = this.form.titular.numeroDocumento;
 
-  this.validandoSeguroComplementario = true;
   this.seguroComplementarioValidado = false;
   this.titularTieneSeguroComplementario = false;
   this.mensajeSeguroComplementario = '';
@@ -717,7 +1556,6 @@ validarSeguroComplementarioTitular(): void {
     next: respuesta => {
       this.titularTieneSeguroComplementario = respuesta.tieneSeguro;
       this.seguroComplementarioValidado = true;
-      this.validandoSeguroComplementario = false;
 
       if (respuesta.tieneSeguro) {
         this.mensajeSeguroComplementario =
@@ -737,7 +1575,6 @@ validarSeguroComplementarioTitular(): void {
     },
     error: () => {
       this.seguroComplementarioValidado = false;
-      this.validandoSeguroComplementario = false;
       this.errorValidacionSeguroComplementario =
         'No fue posible validar si el titular cuenta con +Vida Seguro de Accidentes. Verifique la conexión o intente nuevamente.';
 
@@ -752,42 +1589,6 @@ validarSeguroComplementarioTitular(): void {
     }
   });
 }
-
- crearCasoNuevo(): FormularioVida {
-  return {
-
-      esNuevo: true,
-      titular: {
-        tipoDocumento: '01',
-        numeroDocumento: '',
-        nombres: '',
-        apellidoPaterno: '',
-        apellidoMaterno: '',
-        primerNombre: '',
-        segundoNombre: ''
-      },
-      correoViva: '',
-
-      celular: '',
-      tipoAsegurado: 'Regular',
-
-      codigoPlanilla: '',
-      decretoLegislativo: '',
-      convenioCGBVP: 'NO',
-
-      notificacionesCorreo: '',
-
-      rucEmpleador: '',
-      rucDesdeBase: false,
-      razonSocial: '',
-      razonSocialDesdeBase: false,
-
-      conyuge: null,
-      conyugeDesdeBase: false,
-
-      beneficiarios: []
-    };
-  }
 
   get tituloFormulario(): string {
   return 'Afiliación al +Vida Seguro de Accidentes';
@@ -816,44 +1617,6 @@ validarSeguroComplementarioTitular(): void {
   get porcentajeCorrecto(): boolean {
     if (this.form.beneficiarios.length === 0) return true;
     return this.sumaPorcentajes === 100;
-  }
-
-  get textoEstadoPorcentaje(): string {
-    if (this.form.beneficiarios.length === 0) {
-      return 'No se registraron beneficiarios.';
-    }
-
-    if (this.sumaPorcentajes === 100) {
-      return 'Porcentaje distribuido correctamente.';
-    }
-
-    if (this.sumaPorcentajes < 100) {
-      return `Falta asignar ${100 - this.sumaPorcentajes}%.`;
-    }
-
-    return `El porcentaje excede el 100% por ${this.sumaPorcentajes - 100}%.`;
-  }
-
-  agregarConyuge(): void {
-    if (this.form.conyuge) return;
-
-    this.form.conyuge = {
-      tipoDocumento: '',
-      otroTipoDocumento: '',
-      numeroDocumento: '',
-      nombres: '',
-      apellidoPaterno: '',
-      apellidoMaterno: '',
-      primerNombre: '',
-      segundoNombre: ''
-    };
-
-    this.form.conyugeDesdeBase = false;
-  }
-
-  quitarConyuge(): void {
-    if (this.form.conyugeDesdeBase) return;
-    this.form.conyuge = null;
   }
 
 crearBeneficiarioVacio(): Beneficiario {
@@ -890,15 +1653,6 @@ hayBeneficiariosIniciados(): boolean {
   );
 }
 
-mostrarErrorPorcentajeBeneficiario(beneficiario: Beneficiario): boolean {
-  if (this.intentoEnviar && this.porcentajeBeneficiarioInvalido(beneficiario)) {
-    return true;
-  }
-
-  return !this.campoVacio(beneficiario.porcentaje)
-    && this.porcentajeBeneficiarioInvalido(beneficiario);
-}
-
 beneficiarioRegistradoCompleto(beneficiario: Beneficiario): boolean {
   return !this.tipoDocumentoVacio(beneficiario)
     && !this.numeroDocumentoInvalido(beneficiario)
@@ -921,45 +1675,59 @@ beneficiariosRegistrados(): Beneficiario[] {
 }
 
   agregarBeneficiario(): void {
-  this.form.beneficiarios.push(this.crearBeneficiarioVacio());
-  }
 
-  quitarBeneficiario(index: number): void {
-  this.form.beneficiarios.splice(index, 1);
+    /*
+    * No necesitamos múltiples formularios
+    * completamente vacíos abiertos.
+    */
+    const yaExisteFormularioVacio =
+      this.form.beneficiarios.some(
+        beneficiario =>
+          !this.beneficiarioTieneDatos(
+            beneficiario
+          )
+      );
 
-  if (this.form.beneficiarios.length === 0 && this.pasoActual === 'beneficiarios') {
-    this.asegurarBeneficiarioInicial();
-  }
-  }
-
-  alCambiarTipoDocumento(persona: PersonaDocumento): void {
-    if (persona.tipoDocumento !== 'Otro') {
-      persona.otroTipoDocumento = '';
+    if (yaExisteFormularioVacio) {
+      return;
     }
+
+    this.form.beneficiarios.push(
+      this.crearBeneficiarioVacio()
+    );
+
+    /*
+    * El click no genera un evento input,
+    * por eso persistimos explícitamente
+    * el estado visual del borrador.
+    */
+    this
+      .programarGuardadoBorradorBeneficiarios();
   }
 
-  convertirMayusculas(valor: string): string {
-    return (valor || '').toUpperCase();
+  quitarBeneficiario(
+    index: number
+  ): void {
+
+    this.form.beneficiarios.splice(
+      index,
+      1
+    );
+
+    if (
+      this.form.beneficiarios.length === 0
+      && this.pasoActual ===
+        'beneficiarios'
+    ) {
+      this.asegurarBeneficiarioInicial();
+    }
+
+    this
+      .programarGuardadoBorradorBeneficiarios();
   }
 
   soloNumeros(valor: string): string {
     return (valor || '').replace(/\D/g, '');
-  }
-
-  limpiarDocumento(persona: PersonaDocumento): void {
-    if (persona.tipoDocumento === '01') {
-      persona.numeroDocumento = this.soloNumeros(persona.numeroDocumento);
-      return;
-    }
-
-    if (persona.tipoDocumento === '04') {
-      persona.numeroDocumento = this.soloNumeros(persona.numeroDocumento);
-      return;
-    }
-
-    persona.numeroDocumento = (persona.numeroDocumento || '')
-      .toUpperCase()
-      .replace(/[^A-Z0-9]/g, '');
   }
 
   limpiarRuc(): void {
@@ -968,15 +1736,6 @@ beneficiariosRegistrados(): Beneficiario[] {
 
   limpiarCelular(): void {
     this.form.celular = this.soloNumeros(this.form.celular);
-  }
-
-  limpiarPorcentaje(beneficiario: Beneficiario): void {
-    beneficiario.porcentaje = this.soloNumeros(beneficiario.porcentaje);
-  }
-
-  getMaxLengthDocumento(tipoDocumento: string): number {
-    const tipo = this.tiposDocumento.find(t => t.codigo === tipoDocumento);
-    return tipo?.longitud || 20;
   }
 
   getDescripcionTipoDocumento(codigo?: string): string {
@@ -992,21 +1751,6 @@ beneficiariosRegistrados(): Beneficiario[] {
     return tipo?.descripcion || codigoLimpio;
   }
 
-alCambiarTipoDocumentoTitular(): void {
-  this.alCambiarTipoDocumento(this.form.titular);
-  this.form.titular.numeroDocumento = '';
-  this.limpiarDatosTitularConsultados();
-  this.resetearValidacionSeguroComplementario();
-  this.limpiarDatosEmpleador();
-}
-
-alCambiarDocumentoTitular(): void {
-  this.limpiarDocumento(this.form.titular);
-  this.limpiarDatosTitularConsultados();
-  this.resetearValidacionSeguroComplementario();
-  this.limpiarDatosEmpleador();
-}
-
 limpiarDatosTitularConsultados(): void {
   this.form.titular.nombres = '';
   this.form.titular.apellidoPaterno = '';
@@ -1019,21 +1763,10 @@ limpiarDatosTitularConsultados(): void {
 }
 
 resetearValidacionSeguroComplementario(): void {
-  this.validandoSeguroComplementario = false;
   this.seguroComplementarioValidado = false;
   this.titularTieneSeguroComplementario = false;
   this.mensajeSeguroComplementario = '';
   this.errorValidacionSeguroComplementario = '';
-}
-
-limpiarDatosEmpleador(): void {
-  this.empresasEmpleador = [];
-  this.errorEmpleador = '';
-
-  this.form.rucEmpleador = '';
-  this.form.razonSocial = '';
-  this.form.rucDesdeBase = false;
-  this.form.razonSocialDesdeBase = false;
 }
 
 obtenerEmpleadorTitularDesdeServicio(): void {
@@ -1128,59 +1861,124 @@ resetearTipoAseguradoTitular(): void {
   this.errorTipoAsegurado = '';
 }
 
-obtenerTipoAseguradoTitularDesdeServicio(): void {
+obtenerTipoAseguradoTitularDesdeServicio():
+  void {
+
   if (
-    this.tipoDocumentoVacio(this.form.titular)
-    || this.numeroDocumentoInvalido(this.form.titular)
+    this.tipoDocumentoVacio(
+      this.form.titular
+    )
+    || this.numeroDocumentoInvalido(
+      this.form.titular
+    )
   ) {
     return;
   }
 
-  this.cargandoTipoAsegurado = true;
-  this.tipoAseguradoValidado = false;
-  this.errorTipoAsegurado = '';
+  this.cargandoTipoAsegurado =
+    true;
+
+  this.tipoAseguradoValidado =
+    false;
+
+  this.errorTipoAsegurado =
+    '';
 
   this.vidaApiService
-    .obtenerDatosAsegurado(
-      this.form.titular.tipoDocumento,
-      this.form.titular.numeroDocumento
+    .obtenerTipoAsegurado(
+      this.form.titular
+        .tipoDocumento,
+
+      this.form.titular
+        .numeroDocumento
     )
     .subscribe({
-      next: (respuesta: DatosAseguradoApi) => {
-        this.cargandoTipoAsegurado = false;
 
-        const tipoAsegurado = this.normalizarTipoAseguradoDesdeServicio(
-          respuesta.DGACTAS
+      next: (
+        respuesta:
+          TipoAseguradoApi
+      ) => {
+
+        this.cargandoTipoAsegurado =
+          false;
+
+        console.log(
+          'Tipo de asegurado institucional:',
+          respuesta
         );
 
+        const tipoAsegurado =
+          this
+            .normalizarTipoAseguradoDesdeServicio(
+              respuesta.descripcion
+            );
+
         if (!tipoAsegurado) {
-          this.tipoAseguradoValidado = false;
+
+          this.tipoAseguradoValidado =
+            false;
+
           this.errorTipoAsegurado =
-            'No se pudo obtener el tipo de asegurado del titular.';
+            'El servicio devolvió un tipo de asegurado que no pudo ser interpretado.';
+
+          this.mostrarAviso(
+            this.errorTipoAsegurado,
+            'advertencia',
+            'Tipo de asegurado no reconocido'
+          );
+
           return;
         }
 
-        this.form.tipoAsegurado = tipoAsegurado;
-        this.tipoAseguradoValidado = true;
-        this.errorTipoAsegurado = '';
+        this.form.tipoAsegurado =
+          tipoAsegurado;
 
-        console.log('Tipo de asegurado cargado:', respuesta);
+        this.tipoAseguradoValidado =
+          true;
+
+        this.errorTipoAsegurado =
+          '';
+
+        console.log(
+          'Tipo de asegurado aplicado al formulario:',
+          {
+            codEmodalidadCobertura:
+              respuesta
+                .codEmodalidadCobertura,
+
+            descripcion:
+              respuesta.descripcion,
+
+            tipoFormulario:
+              this.form.tipoAsegurado
+          }
+        );
       },
-      error: () => {
-        this.cargandoTipoAsegurado = false;
 
-        // Fallback temporal mientras se habilita token para el servicio de datos maestros.
-        this.form.tipoAsegurado = 'Regular';
-        this.tipoAseguradoValidado = true;
-        this.errorTipoAsegurado = '';
+      error: (
+        error: unknown
+      ) => {
 
-        this.mostrarAviso(
-          'No se pudo consultar el tipo de asegurado. Se usará Regular temporalmente.',
-          'advertencia',
-          'Tipo de asegurado temporal'
+        this.cargandoTipoAsegurado =
+          false;
+
+        this.tipoAseguradoValidado =
+          false;
+
+        this.errorTipoAsegurado =
+          'No fue posible consultar el tipo de asegurado del titular.';
+
+        console.error(
+          'No fue posible consultar get-tp-seguro:',
+          error
         );
 
-        console.warn('Tipo de asegurado asignado temporalmente como Regular por falta de token.');
+        this.mostrarAviso(
+          this.errorTipoAsegurado,
+          'error',
+          'Tipo de asegurado no disponible',
+          true
+        );
       }
     });
 }
@@ -1213,13 +2011,6 @@ textoTipoAseguradoTitular(): string {
   }
 
   return this.form.tipoAsegurado;
-}
-
-compararEmpleadorPorId(
-  empresaA: EmpresaEmpleadorApi | null,
-  empresaB: EmpresaEmpleadorApi | null
-): boolean {
-  return empresaA?.IDE_NUMERICO_ENTIDAD === empresaB?.IDE_NUMERICO_ENTIDAD;
 }
 
   consultarInformacionPersona(
@@ -1255,10 +2046,24 @@ compararEmpleadorPorId(
         this.asignarDatosPersonaDesdeServicio(persona, respuesta.representanteDto);
 
         if (contexto === 'titular') {
-          this.actualizarContactoTitularDesdeServicio(respuesta.representanteDto);
+
+          this.actualizarContactoTitularDesdeServicio(
+            respuesta.representanteDto
+          );
+
           this.validarSeguroComplementarioTitular();
+
+          this
+            .obtenerTipoAseguradoTitularDesdeServicio();
+
           this.obtenerEmpleadorTitularDesdeServicio();
+
           return;
+        }
+
+        if (contexto === 'beneficiario') {
+          this
+            .programarGuardadoBorradorBeneficiarios();
         }
 
         this.mostrarAviso(
@@ -1314,6 +2119,1718 @@ actualizarContactoTitularDesdeServicio(datos: RepresentanteDtoApi): void {
   if (celular) {
     this.form.celular = celular.slice(0, 9);
   }
+}
+
+iniciarORecuperarProcesoVida(): void {
+  if (this.iniciandoProcesoVida) {
+    return;
+  }
+
+  if (
+    this.procesoVidaInicializado
+    && this.codigoSolicitud.trim()
+  ) {
+    return;
+  }
+
+  const payload:
+    IniciarProcesoVidaRequestLocal = {
+
+    tipoDocumentoTitular:
+      this.form.titular.tipoDocumento,
+
+    descripcionOtroDocumentoTitular:
+      this.form.titular.otroTipoDocumento
+      || null,
+
+    numeroDocumentoTitular:
+      this.form.titular.numeroDocumento,
+
+    apellidoPaternoTitular:
+      this.form.titular.apellidoPaterno,
+
+    apellidoMaternoTitular:
+      this.form.titular.apellidoMaterno,
+
+    primerNombreTitular:
+      this.form.titular.primerNombre,
+
+    segundoNombreTitular:
+      this.form.titular.segundoNombre
+  };
+
+  this.iniciandoProcesoVida = true;
+
+  console.log(
+    'Iniciando o recuperando proceso +Vida:',
+    payload
+  );
+
+  this.vidaApiService
+    .iniciarProcesoVida(payload)
+    .subscribe({
+      next: (
+        respuesta:
+          IniciarProcesoVidaResponseLocal
+      ) => {
+        this.iniciandoProcesoVida = false;
+
+        this.codigoSolicitud =
+          respuesta.registroInternoProceso;
+
+        this.procesoVidaInicializado = true;
+
+        console.log(
+          'Proceso +Vida disponible:',
+          {
+            procesoCreado:
+              respuesta.procesoCreado,
+
+            registroInternoProceso:
+              respuesta.registroInternoProceso,
+
+            codigoEstadoProceso:
+              respuesta.codigoEstadoProceso,
+
+            rutaFrontend:
+              respuesta.rutaFrontend
+          }
+        );
+        /*
+          * Si el backend reutilizó un proceso existente,
+          * recuperamos desde Oracle todo el estado
+          * persistido antes de permitir continuar.
+          */
+          if (respuesta.procesoCreado === false) {
+            this.recuperarProcesoVidaPersistido(
+              respuesta.registroInternoProceso
+            );
+
+            return;
+          }
+      },
+
+      error: (error: unknown) => {
+        this.iniciandoProcesoVida = false;
+        this.procesoVidaInicializado = false;
+
+        console.error(
+          'No fue posible iniciar o recuperar el proceso +Vida:',
+          error
+        );
+
+        this.mostrarAviso(
+          'No fue posible preparar el guardado del trámite. Intente nuevamente.',
+          'error',
+          'Proceso no disponible',
+          true
+        );
+      }
+    });
+}
+
+private recuperarProcesoVidaPersistido(
+  registroInternoProceso: string
+): void {
+
+  if (this.recuperandoAvanceProceso) {
+    return;
+  }
+
+  const registro =
+    registroInternoProceso.trim();
+
+  if (!registro) {
+    return;
+  }
+
+  this.recuperandoAvanceProceso =
+    true;
+
+  console.log(
+    'Recuperando proceso +Vida persistido:',
+    registro
+  );
+
+  this.vidaApiService
+    .recuperarAvanceProceso(registro)
+    .subscribe({
+      next: (
+        recupero:
+          RecuperarAvanceProcesoResponseLocal
+      ) => {
+        this.recuperandoAvanceProceso =
+          false;
+
+        console.log(
+          'Proceso +Vida recuperado desde Oracle:',
+          recupero
+        );
+
+        this.aplicarProcesoVidaRecuperado(
+          recupero
+        );
+      },
+
+      error: (error: unknown) => {
+        this.recuperandoAvanceProceso =
+          false;
+
+        console.error(
+          'No fue posible recuperar el avance persistido:',
+          error
+        );
+
+        this.mostrarAviso(
+          'El proceso existe, pero no fue posible recuperar su avance guardado. Intente nuevamente.',
+          'error',
+          'Recuperación no disponible',
+          true
+        );
+      }
+    });
+}
+
+private aplicarProcesoVidaRecuperado(
+  recupero:
+    RecuperarAvanceProcesoResponseLocal
+): void {
+
+  const formulario =
+    recupero.formularioVida;
+
+  if (!formulario) {
+    this.mostrarAviso(
+      'El backend encontró el proceso, pero no devolvió los datos necesarios para reconstruir el trámite.',
+      'error',
+      'Recuperación incompleta',
+      true
+    );
+
+    return;
+  }
+
+  const titular =
+    formulario.titular;
+
+  /*
+   * Titular
+   */
+  this.form.titular = {
+    tipoDocumento:
+      titular.tipoDocumento || '01',
+
+    otroTipoDocumento:
+      titular.descripcionOtroDocumento
+      || undefined,
+
+    numeroDocumento:
+      titular.numeroDocumento || '',
+
+    apellidoPaterno:
+      titular.apellidoPaterno || '',
+
+    apellidoMaterno:
+      titular.apellidoMaterno || '',
+
+    primerNombre:
+      titular.primerNombre || '',
+
+    segundoNombre:
+      titular.segundoNombre || '',
+
+    nombres:
+      this.construirNombreRecuperado(
+        titular.apellidoPaterno,
+        titular.apellidoMaterno,
+        titular.primerNombre,
+        titular.segundoNombre
+      )
+  };
+
+  this.form.correoViva =
+    titular.correo?.trim()
+    || '';
+
+  this.form.celular =
+    titular.celular?.trim()
+    || '';
+
+  const tipoAseguradoRecuperado =
+    this.normalizarTipoAseguradoDesdeServicio(
+      titular.tipoAsegurado
+    );
+
+  if (tipoAseguradoRecuperado) {
+    this.form.tipoAsegurado =
+      tipoAseguradoRecuperado;
+  }
+
+  this.form.notificacionesCorreo =
+    titular.notificacionesCorreo?.trim()
+    || '';
+
+  /*
+   * Datos complementarios
+   */
+  const datosComplementarios =
+    formulario.datosComplementarios;
+
+  this.form.codigoPlanilla =
+    datosComplementarios
+      .codigoPlanilla
+      ?.trim()
+    || '';
+
+  this.form.decretoLegislativo =
+    datosComplementarios
+      .decretoLegislativo
+      ?.trim()
+    || '';
+
+  this.form.convenioCGBVP =
+    datosComplementarios
+      .convenioCgbvp
+      ?.trim()
+    || 'NO';
+
+  this.form.rucEmpleador =
+    datosComplementarios
+      .rucEmpleador
+      ?.trim()
+    || '';
+
+  this.form.razonSocial =
+    datosComplementarios
+      .razonSocial
+      ?.trim()
+    || '';
+
+  /*
+   * Estas banderas son únicamente de interfaz.
+   * No se recuperan como datos de negocio.
+   */
+  this.form.rucDesdeBase =
+    !this.campoVacio(
+      this.form.rucEmpleador
+    );
+
+  this.form.razonSocialDesdeBase =
+    !this.campoVacio(
+      this.form.razonSocial
+    );
+
+  /*
+   * Cónyuge / concubino
+   */
+  const conyuge =
+    formulario.conyuge;
+
+  if (conyuge) {
+    this.form.conyuge = {
+      tipoDocumento:
+        conyuge.tipoDocumento || '',
+
+      otroTipoDocumento:
+        conyuge.descripcionOtroDocumento
+        || undefined,
+
+      numeroDocumento:
+        conyuge.numeroDocumento || '',
+
+      apellidoPaterno:
+        conyuge.apellidoPaterno || '',
+
+      apellidoMaterno:
+        conyuge.apellidoMaterno || '',
+
+      primerNombre:
+        conyuge.primerNombre || '',
+
+      segundoNombre:
+        conyuge.segundoNombre || '',
+
+      nombres:
+        this.construirNombreRecuperado(
+          conyuge.apellidoPaterno,
+          conyuge.apellidoMaterno,
+          conyuge.primerNombre,
+          conyuge.segundoNombre
+        ),
+
+      tipoRelacion:
+        conyuge.tipoRelacion || ''
+    };
+
+    this.form.conyugeDesdeBase =
+      true;
+
+  } else {
+    this.form.conyuge =
+      null;
+
+    this.form.conyugeDesdeBase =
+      false;
+  }
+
+  /*
+   * Beneficiarios
+   */
+  this.form.beneficiarios =
+  (formulario.beneficiarios || [])
+    .map(beneficiario => ({
+      tipoDocumento:
+        beneficiario.tipoDocumento
+        || '01',
+
+      otroTipoDocumento:
+        beneficiario
+          .descripcionOtroDocumento
+        || undefined,
+
+      numeroDocumento:
+        beneficiario.numeroDocumento
+        || '',
+
+      apellidoPaterno:
+        beneficiario.apellidoPaterno
+        || '',
+
+      apellidoMaterno:
+        beneficiario.apellidoMaterno
+        || '',
+
+      primerNombre:
+        beneficiario.primerNombre
+        || '',
+
+      segundoNombre:
+        beneficiario.segundoNombre
+        || '',
+
+      nombres:
+        this.construirNombreRecuperado(
+          beneficiario.apellidoPaterno,
+          beneficiario.apellidoMaterno,
+          beneficiario.primerNombre,
+          beneficiario.segundoNombre
+        ),
+
+      porcentaje:
+        String(
+          beneficiario.porcentaje
+          ?? ''
+        )
+    }));
+
+/*
+ * La fila vacía no representa un
+ * beneficiario real y por eso no existe
+ * en BENEFICIARIO.
+ *
+ * Se reconstruye únicamente a partir
+ * del estado temporal del borrador.
+ */
+if (
+  formulario
+    .beneficiarioBorradorAbierto
+  === true
+) {
+  this.form.beneficiarios.push(
+    this.crearBeneficiarioVacio()
+  );
+}
+
+  /*
+   * Aceptaciones.
+   */
+  const aceptacion =
+    formulario.aceptacionLegal;
+
+  this.aceptaTerminosDeclaracion =
+    aceptacion
+      ?.aceptaDeclaracionJurada
+    === true;
+
+  this.aceptaTratamientoDatos =
+    aceptacion
+      ?.aceptaTratamientoDatosPersonales
+    === true;
+
+  /*
+   * Si el trámite ya superó el titular,
+   * no volvemos a exigir las validaciones
+   * transitorias del navegador para poder
+   * reanudarlo.
+   */
+  if (
+    recupero.codigoEstadoProceso
+    !== 'DATOS_TITULAR'
+  ) {
+    this.seguroComplementarioValidado =
+      true;
+
+    this.titularTieneSeguroComplementario =
+      false;
+
+    this.errorValidacionSeguroComplementario =
+      '';
+
+    this.tipoAseguradoValidado =
+      true;
+
+    this.errorTipoAsegurado =
+      '';
+
+    this.errorDatosTitular =
+      '';
+  }
+
+  /*
+ * Durante la reconstrucción no permitimos que
+ * cada cambio interno de paso dispare una
+ * navegación Angular.
+ *
+ * Primero reconstruimos el máximo alcanzado,
+ * luego aplicamos la ubicación persistida y
+ * finalmente sincronizamos una sola ruta.
+ */
+this.aplicandoRecuperacionVisual =
+  true;
+
+try {
+  this.configurarEstadoVisualRecuperado(
+    recupero
+  );
+
+  this.aplicarNavegacionRecuperada(
+    recupero
+  );
+
+} finally {
+  this.aplicandoRecuperacionVisual =
+    false;
+}
+
+/*
+ * En este momento pasoActual ya representa
+ * la ubicación definitiva recuperada.
+ */
+this.sincronizarRutaConPaso(
+  this.pasoActual
+);
+
+  console.log(
+    'Estado Angular rehidratado:',
+    {
+      registroInternoProceso:
+        this.codigoSolicitud,
+
+      codigoEstadoProceso:
+        recupero.codigoEstadoProceso,
+
+      rutaFrontend:
+        recupero.rutaFrontend,
+
+      tipoFlujo:
+        recupero.tipoFlujo,
+
+      pasoActual:
+        this.pasoActual,
+
+      cantidadBeneficiarios:
+        this.form.beneficiarios.length
+    }
+  );
+
+  this.mostrarAviso(
+    'Se recuperó el avance guardado de su trámite.',
+    'exito',
+    'Trámite recuperado'
+  );
+}
+
+private construirNombreRecuperado(
+  apellidoPaterno?: string | null,
+  apellidoMaterno?: string | null,
+  primerNombre?: string | null,
+  segundoNombre?: string | null
+): string {
+
+  return [
+    apellidoPaterno,
+    apellidoMaterno,
+    primerNombre,
+    segundoNombre
+  ]
+    .map(valor =>
+      (valor || '').trim()
+    )
+    .filter(valor =>
+      valor !== ''
+    )
+    .join(' ');
+}
+
+private mapearTipoFlujoRecuperado(
+  tipoFlujo?: string | null
+): TipoGeneracionDocumentos {
+
+  const tipo =
+    (tipoFlujo || '')
+      .trim()
+      .toUpperCase();
+
+  if (tipo === 'COMPLETO') {
+    return 'completa';
+  }
+
+  if (tipo === 'SOLO_AUTORIZACION') {
+    return 'soloAutorizacion';
+  }
+
+  if (
+    tipo ===
+    'FORMULARIO_6012_POSTERIOR'
+  ) {
+    return 'soloFormulario6012';
+  }
+
+  return null;
+}
+
+private configurarEstadoVisualRecuperado(
+  recupero:
+    RecuperarAvanceProcesoResponseLocal
+): void {
+
+  const estado =
+    (recupero.codigoEstadoProceso || '')
+      .trim()
+      .toUpperCase();
+
+  const tipoGeneracion =
+    this.mapearTipoFlujoRecuperado(
+      recupero.tipoFlujo
+    );
+
+  /*
+   * Partimos de un estado visual limpio,
+   * pero conservamos el formulario que
+   * acabamos de reconstruir.
+   */
+  this.seccionesGrabadas =
+    this.vidaTramiteStateService
+      .crearEstadoSecciones();
+
+  this.documentosGenerados =
+    false;
+
+  this.solicitudBloqueada =
+    false;
+
+  this.documentosPublicados =
+    false;
+
+  this.pendienteBeneficiariosPara6012 =
+    false;
+
+  this.mostrarInvitacionBeneficiarios =
+    false;
+
+  this.tipoGeneracionDocumentos =
+    tipoGeneracion;
+
+  this.procesoBackendPreparado =
+    this.formularioTieneAceptacion(
+      recupero
+    );
+
+  /*
+   * DATOS_TITULAR:
+   * todavía no hay una sección confirmada.
+   */
+  if (estado === 'DATOS_TITULAR') {
+    this.conyugeConsultado =
+      false;
+
+    this.pasoActual =
+      'titular';
+
+    return;
+  }
+
+  /*
+   * Desde aquí Titular ya fue confirmado.
+   */
+  this.seccionesGrabadas.titular =
+    true;
+
+  if (estado === 'DATOS_COMPLEMENTARIOS') {
+    this.conyugeConsultado =
+      false;
+
+    this.pasoActual =
+      'trabajo';
+
+    return;
+  }
+
+  this.seccionesGrabadas.trabajo =
+    true;
+
+  if (estado === 'CONYUGE_CONCUBINO') {
+    /*
+     * En esta etapa todavía corresponde
+     * consultar/revisar el cónyuge.
+     */
+    this.conyugeConsultado =
+      false;
+
+    this.pasoActual =
+      'conyuge';
+
+    return;
+  }
+
+  /*
+   * Haber llegado a BENEFICIARIOS implica
+   * que la sección cónyuge ya fue confirmada,
+   * incluso cuando el resultado fue
+   * "sin cónyuge".
+   */
+  this.seccionesGrabadas.conyuge =
+    true;
+
+  this.conyugeConsultado =
+    true;
+
+  if (estado === 'BENEFICIARIOS') {
+    this.asegurarBeneficiarioInicial();
+
+    this.pasoActual =
+      'beneficiarios';
+
+    return;
+  }
+
+  this.seccionesGrabadas.beneficiarios =
+    true;
+
+  if (estado === 'DECLARACION_JURADA') {
+    this.pasoActual =
+      'declaracion';
+
+    return;
+  }
+
+  /*
+   * A partir de DOCUMENTOS el tipo de flujo
+   * debe existir porque determina qué
+   * documentos corresponden al trámite.
+   */
+  if (
+    estado === 'DOCUMENTOS'
+    || estado === 'FINALIZACION'
+  ) {
+    if (!tipoGeneracion) {
+      this.mostrarAviso(
+        'El proceso fue recuperado, pero no tiene definido el tipo de flujo documental.',
+        'error',
+        'Flujo documental no definido',
+        true
+      );
+
+      this.pasoActual =
+        'declaracion';
+
+      return;
+    }
+
+    this.seccionesGrabadas.declaracion =
+      true;
+
+    /*
+     * "documentosGenerados" actualmente
+     * representa que la solicitud quedó
+     * preparada para generación.
+     *
+     * Los PDF reales siguen regenerándose
+     * al pulsar Descargar.
+     */
+    this.documentosGenerados =
+      true;
+
+    this.solicitudBloqueada =
+      true;
+
+    /*
+     * Un F5 no significa que el trabajador
+     * haya descargado físicamente los PDF
+     * en esta nueva sesión del navegador.
+     */
+    this.autorizacionDescuentoGenerada =
+      false;
+
+    this.formulario6012Generado =
+      false;
+
+    if (estado === 'DOCUMENTOS') {
+      this.pasoActual =
+        'documentos';
+
+      return;
+    }
+
+    /*
+    * FINALIZACION.
+    *
+    * La navegación se recupera desde
+    * TEMP_SECOMASVIDA y los documentos
+    * publicados se reconstruyen desde el
+    * repositorio documental persistente.
+    */
+    this.seccionesGrabadas.documentos =
+      true;
+
+    this.seccionesGrabadas.publicacion =
+      true;
+
+    this.documentosPublicados =
+      true;
+
+    this.pasoActual =
+      'publicacion';
+
+    this.recuperarDocumentosPublicadosFinalizacion();
+
+    return;
+  }
+
+  console.error(
+    'Estado de proceso +Vida no reconocido:',
+    recupero.codigoEstadoProceso
+  );
+
+  this.mostrarAviso(
+    'El proceso fue recuperado, pero su etapa no pudo interpretarse.',
+    'error',
+    'Etapa no reconocida',
+    true
+  );
+
+  this.pasoActual =
+    'titular';
+}
+
+private aplicarNavegacionRecuperada(
+  recupero:
+    RecuperarAvanceProcesoResponseLocal
+): void {
+
+  const estadoMaximo =
+    (recupero.codigoEstadoProceso || '')
+      .trim()
+      .toUpperCase();
+
+  /*
+   * DOCUMENTOS y FINALIZACION ya pertenecen
+   * a la fase bloqueada. Allí conservamos la
+   * navegación documental normal.
+   */
+  if (
+    estadoMaximo === 'DOCUMENTOS'
+    || estadoMaximo === 'FINALIZACION'
+  ) {
+    return;
+  }
+
+  const pasoNavegacion =
+    this.obtenerPasoDesdeEstadoBackend(
+      recupero.codigoEstadoNavegacion
+    );
+
+  if (!pasoNavegacion) {
+    return;
+  }
+
+  /*
+   * El máximo avance ya fue reconstruido por
+   * configurarEstadoVisualRecuperado().
+   *
+   * Ahora simplemente colocamos al trabajador
+   * donde realmente dejó el trámite.
+   */
+  if (
+    !this.puedeAccederPasoDesdeRuta(
+      pasoNavegacion
+    )
+  ) {
+    console.warn(
+      'La navegación recuperada no es accesible con el avance persistido:',
+      {
+        codigoEstadoProceso:
+          recupero.codigoEstadoProceso,
+
+        codigoEstadoNavegacion:
+          recupero.codigoEstadoNavegacion
+      }
+    );
+
+    return;
+  }
+
+  this.pasoActual =
+    pasoNavegacion;
+}
+
+private recuperarDocumentosPublicadosFinalizacion():
+  void {
+
+  if (
+    this
+      .recuperandoDocumentosPublicadosFinalizacion
+  ) {
+    return;
+  }
+
+  const registroInternoProceso =
+    this.codigoSolicitud.trim();
+
+  const numeroDocumentoTrabajador =
+    this.form.titular
+      .numeroDocumento
+      .trim();
+
+  if (
+    !registroInternoProceso
+    || !numeroDocumentoTrabajador
+  ) {
+    console.error(
+      'No existen datos suficientes para recuperar los documentos publicados.'
+    );
+
+    return;
+  }
+
+  this.recuperandoDocumentosPublicadosFinalizacion =
+    true;
+
+  console.log(
+    'Recuperando documentos publicados para Finalización:',
+    {
+      registroInternoProceso,
+      numeroDocumentoTrabajador
+    }
+  );
+
+  this.vidaApiService
+    .listarDocumentosPublicados(
+      registroInternoProceso,
+      numeroDocumentoTrabajador
+    )
+    .subscribe({
+      next: (
+        documentos:
+          DocumentoPublicadoResumenLocal[]
+      ) => {
+
+        this.recuperandoDocumentosPublicadosFinalizacion =
+          false;
+
+        const documentosDisponibles =
+          documentos.filter(
+            documento =>
+              documento.publicado === true
+              && documento
+                .disponibleParaUsuario === true
+          );
+
+        const autorizacion =
+          documentosDisponibles.find(
+            documento =>
+              documento.tipoDocumento ===
+              'AUTORIZACION_DESCUENTO'
+          );
+
+        const formulario6012 =
+          documentosDisponibles.find(
+            documento =>
+              documento.tipoDocumento ===
+              'FORMULARIO_6012'
+          );
+
+        /*
+         * IDs publicados.
+         */
+        this.idDocumentoPublicadoAutorizacion =
+          autorizacion
+            ?.idDocumentoPublicado
+            ?.trim()
+          || '';
+
+        this.idDocumentoPublicadoFormulario6012 =
+          formulario6012
+            ?.idDocumentoPublicado
+            ?.trim()
+          || '';
+
+        /*
+         * Flags que utiliza
+         * VidaFinalizacionComponent para
+         * mostrar las tarjetas.
+         */
+        this.autorizacionDescuentoSellada =
+          !!autorizacion;
+
+        this.formulario6012Sellado =
+          !!formulario6012;
+
+        /*
+         * Si estamos recuperando FINALIZACION,
+         * los documentos presentes ya fueron
+         * cerrados/publicados.
+         */
+        this.documentosCerradosBackend =
+          documentosDisponibles.length > 0;
+
+        this.documentosPublicados =
+          documentosDisponibles.length > 0;
+
+        /*
+         * La autorización ya publicada no debe
+         * volver a cargarse.
+         */
+        this.autorizacionFirmadaBloqueada =
+          !!autorizacion;
+
+        /*
+         * La fecha de recepción representa la
+         * finalización de la recepción documental.
+         * Cuando existen varios documentos,
+         * tomamos la publicación más reciente.
+         */
+        const fechasPublicacion =
+          documentosDisponibles
+            .map(documento =>
+              documento.fechaHoraPublicacion
+            )
+            .filter(
+              (
+                fecha
+              ): fecha is string =>
+                !!fecha
+            )
+            .map(fecha => new Date(fecha))
+            .filter(
+              fecha =>
+                !Number.isNaN(
+                  fecha.getTime()
+                )
+            )
+            .sort(
+              (a, b) =>
+                b.getTime()
+                - a.getTime()
+            );
+
+        if (fechasPublicacion.length > 0) {
+          this.fechaRecepcionDocumentos =
+            fechasPublicacion[0]
+              .toLocaleString(
+                'es-PE'
+              );
+        }
+
+        /*
+         * SOLO_AUTORIZACION:
+         * recuperamos también la invitación
+         * que existía antes del F5 para poder
+         * registrar beneficiarios posteriormente.
+         */
+        this.mostrarInvitacionBeneficiarios =
+          this.tipoGeneracionDocumentos ===
+            'soloAutorizacion'
+          && !!autorizacion
+          && !formulario6012;
+
+        console.log(
+          'Documentos publicados recuperados:',
+          {
+            cantidad:
+              documentosDisponibles.length,
+
+            idAutorizacion:
+              this
+                .idDocumentoPublicadoAutorizacion,
+
+            idFormulario6012:
+              this
+                .idDocumentoPublicadoFormulario6012,
+
+            autorizacionSellada:
+              this
+                .autorizacionDescuentoSellada,
+
+            formulario6012Sellado:
+              this.formulario6012Sellado,
+
+            fechaRecepcion:
+              this.fechaRecepcionDocumentos,
+
+            mostrarInvitacionBeneficiarios:
+              this
+                .mostrarInvitacionBeneficiarios
+          }
+        );
+
+        if (
+          documentosDisponibles.length === 0
+        ) {
+          this.mostrarAviso(
+            'El trámite está en Finalización, pero no fue posible encontrar documentos publicados.',
+            'advertencia',
+            'Documentos no encontrados',
+            true
+          );
+        }
+      },
+
+      error: (error: unknown) => {
+
+        this.recuperandoDocumentosPublicadosFinalizacion =
+          false;
+
+        console.error(
+          'No fue posible recuperar los documentos publicados:',
+          error
+        );
+
+        this.mostrarAviso(
+          'El trámite fue recuperado, pero no fue posible consultar los documentos publicados.',
+          'advertencia',
+          'Documentos no disponibles',
+          true
+        );
+      }
+    });
+}
+
+private formularioTieneAceptacion(
+  recupero:
+    RecuperarAvanceProcesoResponseLocal
+): boolean {
+
+  const aceptacion =
+    recupero.formularioVida
+      ?.aceptacionLegal;
+
+  return !!aceptacion
+    && aceptacion
+      .aceptaDeclaracionJurada
+      === true
+    && aceptacion
+      .aceptaTratamientoDatosPersonales
+      === true;
+}
+
+guardarTitularYContinuar(): void {
+  if (this.guardandoTitularProgreso) {
+    return;
+  }
+
+  if (this.temporizadorBorradorTitular) {
+  clearTimeout(
+    this.temporizadorBorradorTitular
+  );
+
+  this.temporizadorBorradorTitular =
+    null;
+}
+
+  const registroInternoProceso =
+    this.codigoSolicitud.trim();
+
+  if (!registroInternoProceso) {
+    this.mostrarAviso(
+      'El trámite todavía se está preparando. Intente continuar nuevamente en unos segundos.',
+      'advertencia',
+      'Proceso en preparación'
+    );
+
+    this.iniciarORecuperarProcesoVida();
+    return;
+  }
+
+  const payload:
+    GuardarTitularProgresoRequestLocal = {
+
+    tipoDocumentoTitular:
+      this.form.titular.tipoDocumento,
+
+    descripcionOtroDocumentoTitular:
+      this.form.titular.otroTipoDocumento
+      || null,
+
+    numeroDocumentoTitular:
+      this.form.titular.numeroDocumento,
+
+    apellidoPaternoTitular:
+      this.form.titular.apellidoPaterno,
+
+    apellidoMaternoTitular:
+      this.form.titular.apellidoMaterno,
+
+    primerNombreTitular:
+      this.form.titular.primerNombre,
+
+    segundoNombreTitular:
+      this.form.titular.segundoNombre,
+
+    correo:
+      this.form.correoViva,
+
+    celular:
+      this.form.celular,
+
+    tipoAsegurado:
+      this.form.tipoAsegurado
+  };
+
+  this.guardandoTitularProgreso = true;
+
+  console.log(
+    'Guardando progreso del titular:',
+    {
+      registroInternoProceso,
+      payload
+    }
+  );
+
+  this.vidaApiService
+    .guardarTitularProgreso(
+      registroInternoProceso,
+      payload
+    )
+    .subscribe({
+      next: (
+        respuesta:
+          GuardarProgresoVidaResponseLocal
+      ) => {
+        this.guardandoTitularProgreso =
+          false;
+
+        console.log(
+          'Progreso del titular guardado:',
+          respuesta
+        );
+
+        this.seccionesGrabadas.titular =
+          true;
+
+        /*
+         * Por ahora solo navegamos automáticamente
+         * cuando el backend confirma el siguiente
+         * estado esperado.
+         *
+         * Si Oracle indica un estado más avanzado,
+         * no navegamos todavía porque falta conectar
+         * la recuperación integral de los datos.
+         */
+        if (
+          respuesta.codigoEstadoNavegacion
+          !== 'DATOS_COMPLEMENTARIOS'
+        ) {
+          this.mostrarAviso(
+            'El trámite registra un avance posterior. La recuperación completa del proceso será aplicada antes de continuar.',
+            'advertencia',
+            'Proceso existente',
+            true
+          );
+
+          return;
+        }
+
+        this.pasoActual =
+          'trabajo';
+
+        this.intentoEnviar =
+          false;
+
+        this.scrollArriba();
+      },
+
+      error: (error: unknown) => {
+        this.guardandoTitularProgreso =
+          false;
+
+        console.error(
+          'Error guardando progreso del titular:',
+          error
+        );
+
+        this.mostrarAviso(
+          'No fue posible guardar los datos del titular. No se avanzará hasta completar el registro.',
+          'error',
+          'Guardado no completado',
+          true
+        );
+      }
+    });
+}
+
+guardarDatosComplementariosYContinuar():
+  void {
+
+  if (
+    this
+      .temporizadorBorradorDatosComplementarios
+  ) {
+    clearTimeout(
+      this
+        .temporizadorBorradorDatosComplementarios
+    );
+
+    this
+      .temporizadorBorradorDatosComplementarios =
+        null;
+  }
+
+  if (
+    this.guardandoDatosComplementariosProgreso
+  ) {
+    return;
+  }
+
+  const registroInternoProceso =
+    this.codigoSolicitud.trim();
+
+  if (!registroInternoProceso) {
+    this.mostrarAviso(
+      'No se encontró el identificador del trámite.',
+      'error',
+      'Proceso no disponible',
+      true
+    );
+
+    return;
+  }
+
+  const payload:
+    GuardarDatosComplementariosProgresoRequestLocal = {
+
+    codigoPlanilla:
+      this.form.codigoPlanilla,
+
+    decretoLegislativo:
+      this.form.decretoLegislativo,
+
+    convenioCgbvp:
+      this.form.convenioCGBVP === 'SI'
+        ? 'SI'
+        : 'NO',
+
+    rucEmpleador:
+      this.form.rucEmpleador,
+
+    razonSocial:
+      this.form.razonSocial
+  };
+
+  this.guardandoDatosComplementariosProgreso =
+    true;
+
+  console.log(
+    'Guardando progreso de datos complementarios:',
+    {
+      registroInternoProceso,
+      payload
+    }
+  );
+
+  this.vidaApiService
+    .guardarDatosComplementariosProgreso(
+      registroInternoProceso,
+      payload
+    )
+    .subscribe({
+      next: (
+        respuesta:
+          GuardarProgresoVidaResponseLocal
+      ) => {
+
+        this.guardandoDatosComplementariosProgreso =
+          false;
+
+        console.log(
+          'Progreso de datos complementarios guardado:',
+          respuesta
+        );
+
+        this.seccionesGrabadas.trabajo =
+          true;
+
+        if (
+          respuesta.codigoEstadoNavegacion
+          !== 'CONYUGE_CONCUBINO'
+        ) {
+          this.mostrarAviso(
+            'El trámite registra un avance posterior. La recuperación completa será aplicada antes de continuar.',
+            'advertencia',
+            'Proceso existente',
+            true
+          );
+
+          return;
+        }
+
+        /*
+         * Se consulta al cónyuge únicamente
+         * después de confirmar el guardado.
+         */
+        this.consultarConyugeConcubino();
+
+        this.pasoActual =
+          'conyuge';
+
+        this.intentoEnviar =
+          false;
+
+        this.scrollArriba();
+      },
+
+      error: (error: unknown) => {
+
+        this.guardandoDatosComplementariosProgreso =
+          false;
+
+        console.error(
+          'Error guardando datos complementarios:',
+          error
+        );
+
+        this.mostrarAviso(
+          'No fue posible guardar los datos complementarios. No se avanzará hasta completar el registro.',
+          'error',
+          'Guardado no completado',
+          true
+        );
+      }
+    });
+}
+
+guardarConyugeYContinuar(): void {
+  if (this.guardandoConyugeProgreso) {
+    return;
+  }
+
+  const registroInternoProceso =
+    this.codigoSolicitud.trim();
+
+  if (!registroInternoProceso) {
+    this.mostrarAviso(
+      'No se encontró el identificador del trámite.',
+      'error',
+      'Proceso no disponible',
+      true
+    );
+
+    return;
+  }
+
+  const conyuge =
+    this.form.conyuge;
+
+  const descripcionOtroDocumento =
+    conyuge
+    && conyuge.tipoDocumento !== '01'
+    && conyuge.tipoDocumento !== '04'
+      ? (
+          conyuge.otroTipoDocumento
+          || this.getDescripcionTipoDocumento(
+            conyuge.tipoDocumento
+          )
+        )
+      : null;
+
+  const payload:
+    GuardarConyugeProgresoRequestLocal = {
+
+    tipoDocumentoConyuge:
+      conyuge?.tipoDocumento
+      || null,
+
+    descripcionOtroDocumentoConyuge:
+      descripcionOtroDocumento
+      || null,
+
+    numeroDocumentoConyuge:
+      conyuge?.numeroDocumento
+      || null,
+
+    apellidoPaternoConyuge:
+      conyuge?.apellidoPaterno
+      || null,
+
+    apellidoMaternoConyuge:
+      conyuge?.apellidoMaterno
+      || null,
+
+    primerNombreConyuge:
+      conyuge?.primerNombre
+      || null,
+
+    segundoNombreConyuge:
+      conyuge?.segundoNombre
+      || null,
+
+    tipoRelacion:
+      conyuge?.tipoRelacion
+      || null
+  };
+
+  this.guardandoConyugeProgreso =
+    true;
+
+  console.log(
+    'Guardando progreso del cónyuge o concubino:',
+    {
+      registroInternoProceso,
+      payload
+    }
+  );
+
+  this.vidaApiService
+    .guardarConyugeProgreso(
+      registroInternoProceso,
+      payload
+    )
+    .subscribe({
+      next: (
+        respuesta:
+          GuardarProgresoVidaResponseLocal
+      ) => {
+
+        this.guardandoConyugeProgreso =
+          false;
+
+        console.log(
+          'Progreso del cónyuge o concubino guardado:',
+          respuesta
+        );
+
+        this.seccionesGrabadas.conyuge =
+          true;
+
+        if (
+          respuesta.codigoEstadoNavegacion
+          !== 'BENEFICIARIOS'
+        ) {
+          this.mostrarAviso(
+            'El trámite registra un avance posterior. La recuperación completa será aplicada antes de continuar.',
+            'advertencia',
+            'Proceso existente',
+            true
+          );
+
+          return;
+        }
+
+        this.asegurarBeneficiarioInicial();
+
+        this.pasoActual =
+          'beneficiarios';
+
+        this.intentoEnviar =
+          false;
+
+        this.scrollArriba();
+      },
+
+      error: (error: unknown) => {
+
+        this.guardandoConyugeProgreso =
+          false;
+
+        console.error(
+          'Error guardando progreso del cónyuge o concubino:',
+          error
+        );
+
+        this.mostrarAviso(
+          'No fue posible guardar la información del cónyuge o concubino. No se avanzará hasta completar el registro.',
+          'error',
+          'Guardado no completado',
+          true
+        );
+      }
+    });
+}
+
+guardarBeneficiariosYContinuar(
+  beneficiarios: Beneficiario[] = this.beneficiariosConDatos()
+): void {
+
+  if (
+    this.temporizadorBorradorBeneficiarios
+  ) {
+    clearTimeout(
+      this.temporizadorBorradorBeneficiarios
+    );
+
+    this.temporizadorBorradorBeneficiarios =
+      null;
+  }
+
+  if (this.guardandoBeneficiariosProgreso) {
+    return;
+  }
+
+  const registroInternoProceso =
+    this.codigoSolicitud.trim();
+
+  if (!registroInternoProceso) {
+    this.mostrarAviso(
+      'No se encontró el identificador del trámite.',
+      'error',
+      'Proceso no disponible',
+      true
+    );
+
+    return;
+  }
+
+  const beneficiariosPayload:
+    BeneficiarioProgresoRequestLocal[] =
+    beneficiarios.map(
+      beneficiario => {
+
+        const tipoDocumento =
+          beneficiario.tipoDocumento.trim();
+
+        const descripcionOtroDocumento =
+          tipoDocumento !== '01'
+          && tipoDocumento !== '04'
+            ? (
+                beneficiario.otroTipoDocumento
+                || this.getDescripcionTipoDocumento(
+                  tipoDocumento
+                )
+              )
+            : null;
+
+        return {
+          tipoDocumento,
+
+          descripcionOtroDocumento:
+            descripcionOtroDocumento
+            || null,
+
+          numeroDocumento:
+            beneficiario.numeroDocumento,
+
+          apellidoPaterno:
+            beneficiario.apellidoPaterno,
+
+          apellidoMaterno:
+            beneficiario.apellidoMaterno,
+
+          primerNombre:
+            beneficiario.primerNombre,
+
+          segundoNombre:
+            beneficiario.segundoNombre,
+
+          porcentaje:
+            Number(
+              beneficiario.porcentaje
+            )
+        };
+      }
+    );
+
+  const payload:
+    GuardarBeneficiariosProgresoRequestLocal = {
+      beneficiarios:
+        beneficiariosPayload
+  };
+
+  this.guardandoBeneficiariosProgreso =
+    true;
+
+  console.log(
+    'Guardando progreso de beneficiarios:',
+    {
+      registroInternoProceso,
+      cantidadBeneficiarios:
+        beneficiariosPayload.length,
+      payload
+    }
+  );
+
+  this.vidaApiService
+    .guardarBeneficiariosProgreso(
+      registroInternoProceso,
+      payload
+    )
+    .subscribe({
+      next: (
+        respuesta:
+          GuardarProgresoVidaResponseLocal
+      ) => {
+
+        this.guardandoBeneficiariosProgreso =
+          false;
+
+        console.log(
+          'Progreso de beneficiarios guardado:',
+          respuesta
+        );
+
+        this.seccionesGrabadas.beneficiarios =
+          true;
+
+        if (
+          respuesta.codigoEstadoNavegacion
+          !== 'DECLARACION_JURADA'
+        ) {
+          this.mostrarAviso(
+            'El trámite registra un avance posterior. La recuperación completa será aplicada antes de continuar.',
+            'advertencia',
+            'Proceso existente',
+            true
+          );
+
+          return;
+        }
+
+        this.pasoActual =
+          'declaracion';
+
+        this.intentoEnviar =
+          false;
+
+        this.scrollArriba();
+      },
+
+      error: (error: unknown) => {
+
+        this.guardandoBeneficiariosProgreso =
+          false;
+
+        console.error(
+          'Error guardando beneficiarios:',
+          error
+        );
+
+        this.mostrarAviso(
+          'No fue posible guardar los beneficiarios. No se avanzará hasta completar el registro.',
+          'error',
+          'Guardado no completado',
+          true
+        );
+      }
+    });
 }
 
 normalizarTextoServicio(valor: string | null): string {
@@ -1385,51 +3902,6 @@ obtenerMensajeValidacionBeneficiarios(): string {
   return 'Revise los datos de beneficiarios antes de continuar.';
 }
 
-mensajePorcentajeInvalido(beneficiario: Beneficiario): string {
-  if (this.campoVacio(beneficiario.porcentaje)) {
-    return 'Requiere mínimo 1%.';
-  }
-
-  const porcentaje = Number(beneficiario.porcentaje);
-
-  if (Number.isNaN(porcentaje)) {
-    return 'Ingrese un porcentaje válido.';
-  }
-
-  if (porcentaje < 1) {
-    return 'Requiere mínimo 1%.';
-  }
-
-  if (porcentaje > 100) {
-    return 'No puede ser mayor a 100%.';
-  }
-
-  return '';
-}
-
-mensajeDocumentoInvalido(persona: PersonaDocumento): string {
-  const numero = persona.numeroDocumento?.trim() || '';
-
-  if (this.campoVacio(numero)) {
-    return 'Este campo es obligatorio.';
-  }
-
-  if (persona.tipoDocumento === '01') {
-    return 'El DNI debe tener exactamente 8 dígitos.';
-  }
-
-  if (persona.tipoDocumento === '04') {
-    return 'El C.E. debe tener exactamente 9 dígitos.';
-  }
-
-  return 'Ingrese un documento válido. Máximo 15 caracteres.';
-}
-
-
-  requiereOtroDocumento(persona: PersonaDocumento): boolean {
-    return persona.tipoDocumento === 'Otro';
-  }
-
   campoVacio(valor: string | undefined | null): boolean {
     return !valor || valor.toString().trim() === '';
   }
@@ -1468,10 +3940,6 @@ mensajeDocumentoInvalido(persona: PersonaDocumento): string {
     }
 
     return numero.length < 3 || numero.length > 15;
-  }
-
-  nombresInvalidos(persona: PersonaDocumento): boolean {
-    return this.campoVacio(persona.nombres);
   }
 
   rucInvalido(): boolean {
@@ -1533,89 +4001,6 @@ mensajeDocumentoInvalido(persona: PersonaDocumento): string {
   return true;
 }
 
-  continuarResumen(): void {
-    this.intentoEnviar = true;
-    this.cerrarAviso();
-
-    if (!this.formularioValido()) {
-      this.mostrarAviso('Revise los campos pendientes antes de continuar.');
-      setTimeout(() => {
-        const primerError = document.querySelector('.is-invalid, .alerta-porcentaje');
-        primerError?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      });
-      return;
-    }
-
-    this.vista = 'resumen';
-    this.scrollArriba();
-  }
-
-  volverEditar(): void {
-    this.vista = 'formulario';
-    this.scrollArriba();
-  }
-
-  generarSolicitud(): void {
-    const payload = this.construirPayloadFinal();
-
-    console.log('Payload simulado para backend:', payload);
-
-    this.vista = 'exito';
-    this.scrollArriba();
-  }
-
-  construirPayloadFinal(): object {
-    return {
-      modo: this.form.esNuevo ? 'AFILIACION' : 'ACTUALIZACION',
-      titular: {
-        tipoDocumento: this.form.titular.tipoDocumento,
-        numeroDocumento: this.form.titular.numeroDocumento,
-        nombres: this.form.titular.nombres,
-        correoViva: this.form.correoViva
-      },
-      contacto: {
-        celular: this.form.celular
-      },
-      informacionComplementaria: {
-        tipoAsegurado: this.form.tipoAsegurado,
-        codigoPlanilla: this.form.codigoPlanilla,
-        decretoLegislativo: this.form.decretoLegislativo,
-        convenioCGBVP: this.form.convenioCGBVP,
-        notificacionesCorreo: this.form.esNuevo ? this.form.notificacionesCorreo : null,
-        rucEmpleador: this.mostrarRuc ? this.form.rucEmpleador : '',
-        razonSocial: this.mostrarRazonSocial ? this.form.razonSocial : ''
-      },
-      conyuge: this.form.conyuge
-  ? {
-      ...this.form.conyuge,
-      nombres: this.nombreCompletoPersona(this.form.conyuge)
-    }
-  : null,
-    beneficiarios: this.beneficiariosRegistrados().map(beneficiario => ({
-      ...beneficiario,
-      nombres: this.nombreCompletoPersona(beneficiario)
-    })),
-
-      fechaDeclaracion: {
-        dia: this.diaDeclaracion,
-        mes: this.mesDeclaracion
-      },
-documentoEmitido: {
-  documentosGenerados: this.documentosGenerados,
-  codigoSolicitud: this.codigoSolicitud,
-  fechaGeneracion: this.fechaGeneracionDocumentos
-},
-archivosFirmados: {
-  formulario6012: this.archivoFormulario6012.cargado
-    ? this.archivoFormulario6012.nombre
-    : null,
-  autorizacionDescuento: this.archivoAutorizacionDescuento.cargado
-    ? this.archivoAutorizacionDescuento.nombre
-    : null
-}
-    };
-  }
-
   cerrarExito(): void {
   this.cargarCasoNuevo();
 }
@@ -1669,30 +4054,6 @@ obtenerIconoAviso(tipo: TipoAviso): string {
   return 'ℹ️';
 }
 
-  establecerFechaActual(): void {
-    const meses = [
-      'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
-      'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'
-    ];
-
-    const hoy = new Date();
-
-    this.diaDeclaracion = String(hoy.getDate());
-    this.mesDeclaracion = meses[hoy.getMonth()];
-  }
-
-  crearEstadoSecciones(): Record<PasoFormulario, boolean> {
-  return {
-    titular: false,
-    trabajo: false,
-    conyuge: false,
-    beneficiarios: false,
-    declaracion: false,
-    documentos: false,
-    publicacion: false
-  };
-}
-
 crearArchivoVacio(): ArchivoDocumentoFirmado {
   return {
     archivo: null,
@@ -1707,7 +4068,9 @@ crearArchivoVacio(): ArchivoDocumentoFirmado {
 
 reiniciarFlujoPorPasos(): void {
 this.pasoActual = 'titular';
-this.seccionesGrabadas = this.crearEstadoSecciones();
+this.seccionesGrabadas =
+  this.vidaTramiteStateService
+    .crearEstadoSecciones();
 
 this.cargandoConyuge = false;
 this.conyugeConsultado = false;
@@ -1715,27 +4078,27 @@ this.errorConyuge = '';
 this.documentosGenerados = false;
 this.solicitudBloqueada = false;
 this.codigoSolicitud = '';
+this.iniciandoProcesoVida = false;
+this.procesoVidaInicializado = false;
+this.guardandoTitularProgreso = false;
 this.fechaGeneracionDocumentos = '';
-
+this.recuperandoAvanceProceso = false;
 this.preparandoProcesoBackendLocal = false;
 this.procesoBackendPreparado = false;
-this.errorPreparacionBackendLocal = '';
 this.consultandoDocumentoPublicado = null;
+this.recuperandoDocumentosPublicadosFinalizacion =
+  false;
 this.tipoGeneracionDocumentos = null;
-this.idDocumentoGeneradoAutorizacion = '';
-this.idDocumentoGeneradoFormulario6012 = '';
+this.generandoFormulario6012Servicio = false;
+this.generandoFormularioDescuentoServicio = false;
+this.descargandoDocumentos = false;
 
 this.cerrandoDocumentosBackend = false;
 this.documentosCerradosBackend = false;
 
-this.idDocumentoSelladoAutorizacion = '';
 this.idDocumentoPublicadoAutorizacion = '';
 
-this.idDocumentoSelladoFormulario6012 = '';
 this.idDocumentoPublicadoFormulario6012 = '';
-
-this.resultadoCierreAutorizacion = null;
-this.resultadoCierreFormulario6012 = null;
 
 this.mensajeErrorCierre = '';
 
@@ -1746,16 +4109,19 @@ this.autorizacionFirmadaBloqueada = false;
 this.pendienteBeneficiariosPara6012 = false;
 this.mostrarConfirmacionSinBeneficiarios = false;
 this.mostrarInvitacionBeneficiarios = false;
-this.actualizandoBeneficiarios6012 = false;
-this.aceptaVeracidad = false;
-this.aceptaAfiliacion = false;
-this.aceptaNotificacionesDeclaracion = true;
 
 this.aceptaTerminosDeclaracion = false;
 this.aceptaTratamientoDatos = false;
+this.guardandoDatosComplementariosProgreso =
+  false;
+this.guardandoConyugeProgreso =
+  false;
+this.guardandoBeneficiariosProgreso =
+  false;
 
-this.modoRetornoPendiente = false;
 
+
+  
 this.archivoFormulario6012 = this.crearArchivoVacio();
 this.archivoAutorizacionDescuento = this.crearArchivoVacio();
 this.cargandoDocumentosFirmadosBackend =
@@ -1775,13 +4141,9 @@ this.documentosValidadosBackend = false;
 this.autorizacionValidadaBackend = false;
 this.formulario6012ValidadoBackend = false;
 
-this.resultadoValidacionAutorizacion = null;
-this.resultadoValidacionFormulario6012 = null;
-
 this.mensajeRechazoValidacion = '';
 this.documentosPublicados = false;
 this.fechaRecepcionDocumentos = '';
-this.correoEnvioDocumentos = '';
 
 this.formulario6012Sellado = false;
 this.autorizacionDescuentoSellada = false;
@@ -1799,6 +4161,11 @@ irAPaso(paso: PasoFormulario): void {
   }
 
   this.pasoActual = paso;
+
+  this.persistirNavegacionActual(
+    paso
+  );
+
   this.intentoEnviar = false;
 
   if (paso === 'conyuge') {
@@ -1808,22 +4175,36 @@ irAPaso(paso: PasoFormulario): void {
   this.scrollArriba();
 }
 
-obtenerIndicePaso(paso: PasoFormulario): number {
-  return this.pasosFormulario.findIndex(item => item.codigo === paso);
+obtenerIndicePaso(
+  paso: PasoFormulario
+): number {
+  return this.ordenPasos.indexOf(
+    paso
+  );
 }
 
-obtenerPasoSiguiente(): PasoFormulario | null {
-  const indiceActual = this.obtenerIndicePaso(this.pasoActual);
-  const siguiente = this.pasosFormulario[indiceActual + 1];
+obtenerPasoSiguiente():
+  PasoFormulario | null {
+  const indiceActual =
+    this.obtenerIndicePaso(
+      this.pasoActual
+    );
 
-  return siguiente ? siguiente.codigo : null;
+  return this.ordenPasos[
+    indiceActual + 1
+  ] ?? null;
 }
 
-obtenerPasoAnterior(): PasoFormulario | null {
-  const indiceActual = this.obtenerIndicePaso(this.pasoActual);
-  const anterior = this.pasosFormulario[indiceActual - 1];
+obtenerPasoAnterior():
+  PasoFormulario | null {
+  const indiceActual =
+    this.obtenerIndicePaso(
+      this.pasoActual
+    );
 
-  return anterior ? anterior.codigo : null;
+  return this.ordenPasos[
+    indiceActual - 1
+  ] ?? null;
 }
 
 volverPaso(): void {
@@ -1911,31 +4292,23 @@ abrirConfirmacionSinBeneficiarios(): void {
 }
 
 confirmarContinuarSinBeneficiarios(): void {
-  this.mostrarConfirmacionSinBeneficiarios = false;
+  this.mostrarConfirmacionSinBeneficiarios =
+    false;
 
   this.form.beneficiarios = [];
 
-  this.seccionesGrabadas.beneficiarios = true;
-  this.pasoActual = 'declaracion';
-  this.intentoEnviar = false;
-  this.scrollArriba();
+  /*
+   * La lista vacía se persiste en backend.
+   * No navegamos hasta que Oracle confirme.
+   */
+  this.guardarBeneficiariosYContinuar(
+    []
+  );
 }
 
 cancelarContinuarSinBeneficiarios(): void {
   this.mostrarConfirmacionSinBeneficiarios = false;
   this.intentoEnviar = false;
-}
-
-grabarSeccion(): void {
-  this.intentoEnviar = true;
-
-  if (!this.validarPaso(this.pasoActual)) {
-    this.mostrarAviso('Revise los campos observados antes de grabar esta sección.');
-    return;
-  }
-
-  this.seccionesGrabadas[this.pasoActual] = true;
-  this.mostrarAviso('Sección grabada correctamente.');
 }
 
 continuarPaso(): void {
@@ -1969,7 +4342,28 @@ continuarPaso(): void {
     return;
   }
 
-  this.seccionesGrabadas[this.pasoActual] = true;
+  if (this.pasoActual === 'titular') {
+    this.guardarTitularYContinuar();
+    return;
+  }
+
+  if (this.pasoActual === 'trabajo') {
+    this.guardarDatosComplementariosYContinuar();
+    return;
+  }
+
+  if (this.pasoActual === 'conyuge') {
+    this.guardarConyugeYContinuar();
+    return;
+  }
+
+  if (this.pasoActual === 'beneficiarios') {
+    this.guardarBeneficiariosYContinuar();
+    return;
+  }
+
+  this.seccionesGrabadas[this.pasoActual] =
+    true;
 
   const siguiente = this.obtenerPasoSiguiente();
 
@@ -2016,10 +4410,10 @@ beneficiariosBloqueados(): boolean {
 
 textoBotonGenerarDocumentos(): string {
   if (!this.hayBeneficiariosRegistrados()) {
-    return 'Generar autorización';
+    return 'Confirmar autorización y continuar';
   }
 
-  return 'Generar documentos';
+  return 'Confirmar solicitud y continuar';
 }
 
 tituloDescargaDocumentos(): string {
@@ -2074,14 +4468,6 @@ declaracionValida(): boolean {
   return this.aceptaTerminosDeclaracion;
 }
 
-alCambiarAutorizacionNotificaciones(): void {
-  if (this.form.esNuevo && !this.aceptaNotificacionesDeclaracion) {
-    this.mostrarAviso(
-      'Para solicitar una vía de comunicación distinta al correo electrónico, deberá realizar una solicitud por el canal correspondiente. Por el momento, la afiliación digital no podrá continuar sin esta autorización.'
-    );
-  }
-}
-
 obtenerTipoDocumentoFormulario6012(codigoTipoDocumento: string): TipoDocumentoFormulario6012 {
   if (codigoTipoDocumento === '01') {
     return 'DNI';
@@ -2094,22 +4480,46 @@ obtenerTipoDocumentoFormulario6012(codigoTipoDocumento: string): TipoDocumentoFo
   return 'OTRO';
 }
 
-obtenerOtroDocumentoFormulario6012(codigoTipoDocumento: string): string | null {
-  const tipoDocumento = this.obtenerTipoDocumentoFormulario6012(codigoTipoDocumento);
-
-  if (tipoDocumento !== 'OTRO') {
-    return null;
-  }
-
-  return this.getDescripcionTipoDocumento(codigoTipoDocumento);
-}
-
 obtenerConvenioCgbvpFormulario6012(): 'SI' | 'NO' {
   return this.form.convenioCGBVP === 'SI' ? 'SI' : 'NO';
 }
 
+private descargarBlobGenerado(
+  blob: Blob,
+  nombreArchivo: string
+): void {
+  const urlTemporal =
+    URL.createObjectURL(blob);
+
+  const enlace =
+    document.createElement('a');
+
+  enlace.href =
+    urlTemporal;
+
+  enlace.download =
+    nombreArchivo;
+
+  document.body.appendChild(
+    enlace
+  );
+
+  enlace.click();
+  enlace.remove();
+
+  setTimeout(
+    () => {
+      URL.revokeObjectURL(
+        urlTemporal
+      );
+    },
+    1_000
+  );
+}
+
 generarFormulario6012DesdeServicio(
-  callbackExito?: () => void
+  callbackExito?: () => void,
+  callbackError?: () => void
 ): void {
   if (!this.beneficiariosValidosPara6012()) {
     this.mostrarAviso(
@@ -2118,16 +4528,22 @@ generarFormulario6012DesdeServicio(
       'Formulario 6012'
     );
 
+    callbackError?.();
+    return;
+  }
+
+  if (this.generandoFormulario6012Servicio) {
     return;
   }
 
   const payload =
     this.construirPayloadFormulario6012();
 
-  this.generandoFormulario6012Servicio = true;
+  this.generandoFormulario6012Servicio =
+    true;
 
   console.log(
-    'Payload Formulario 6012 local:',
+    'Solicitando generación del Formulario 6012:',
     payload
   );
 
@@ -2141,34 +4557,25 @@ generarFormulario6012DesdeServicio(
         this.generandoFormulario6012Servicio =
           false;
 
-        this.idDocumentoGeneradoFormulario6012 =
-          resultado.idDocumentoGenerado;
+        this.formulario6012Generado =
+          true;
 
-        this.blobFormulario6012Generado =
-          resultado.blob;
+        const nombreArchivo =
+          resultado.nombreArchivo
+          || `Formulario-6012-${this.form.titular.numeroDocumento || 'titular'}.pdf`;
 
-        if (this.urlFormulario6012Generado) {
-          URL.revokeObjectURL(
-            this.urlFormulario6012Generado
-          );
-        }
-
-        this.urlFormulario6012Generado =
-          URL.createObjectURL(resultado.blob);
-
-        this.formulario6012Generado = true;
+        this.descargarBlobGenerado(
+          resultado.blob,
+          nombreArchivo
+        );
 
         console.log(
-          'Formulario 6012 recibido en el componente:',
+          'Formulario 6012 generado y descargado:',
           {
             registroInternoProceso:
               this.codigoSolicitud,
 
-            idDocumentoGenerado:
-              this.idDocumentoGeneradoFormulario6012,
-
-            nombreArchivo:
-              resultado.nombreArchivo,
+            nombreArchivo,
 
             tamanioBytes:
               resultado.blob.size,
@@ -2178,17 +4585,7 @@ generarFormulario6012DesdeServicio(
           }
         );
 
-        this.descargarFormulario6012Generado();
-
-        this.mostrarAviso(
-          'El Formulario 6012 fue generado correctamente. Descargue el documento, fírmelo y cárguelo en formato PDF.',
-          'exito',
-          'Formulario 6012 listo'
-        );
-
-        if (callbackExito) {
-          callbackExito();
-        }
+        callbackExito?.();
       },
 
       error: (error: unknown) => {
@@ -2196,30 +4593,38 @@ generarFormulario6012DesdeServicio(
           false;
 
         console.error(
-          'Error generando Formulario 6012 local:',
+          'Error generando Formulario 6012:',
           error
         );
 
         this.mostrarAviso(
-          'No se pudo generar el Formulario 6012. Revise la respuesta del backend local.',
+          'No se pudo generar el Formulario 6012. Intente nuevamente en unos momentos.',
           'error',
           'Error al generar',
           true
         );
+
+        callbackError?.();
       }
     });
 }
 
 generarFormularioDescuentoDesdeServicio(
-  callbackExito?: () => void
+  callbackExito?: () => void,
+  callbackError?: () => void
 ): void {
+  if (this.generandoFormularioDescuentoServicio) {
+    return;
+  }
+
   const payload =
     this.construirPayloadFormularioDescuento();
 
-  this.generandoFormularioDescuentoServicio = true;
+  this.generandoFormularioDescuentoServicio =
+    true;
 
   console.log(
-    'Payload Autorización de Descuento local:',
+    'Solicitando generación de la Autorización de Descuento:',
     payload
   );
 
@@ -2227,24 +4632,30 @@ generarFormularioDescuentoDesdeServicio(
     .generarFormularioDescuento(payload)
     .subscribe({
       next: (
-        resultado: DocumentoGeneradoDescargadoLocal
+        resultado:
+          DocumentoGeneradoDescargadoLocal
       ) => {
-        this.generandoFormularioDescuentoServicio = false;
+        this.generandoFormularioDescuentoServicio =
+          false;
 
-        this.idDocumentoGeneradoAutorizacion =
-          resultado.idDocumentoGenerado;
+        this.autorizacionDescuentoGenerada =
+          true;
 
-        this.blobFormularioDescuentoGenerado =
-          resultado.blob;
+        const nombreArchivo =
+          resultado.nombreArchivo
+          || `Autorizacion-Descuento-${this.form.titular.numeroDocumento || 'titular'}.pdf`;
+
+        this.descargarBlobGenerado(
+          resultado.blob,
+          nombreArchivo
+        );
 
         console.log(
-          'Resultado recibido en el componente:',
+          'Autorización generada y descargada:',
           {
-            idDocumentoGenerado:
-              resultado.idDocumentoGenerado,
-
-            nombreArchivo:
-              resultado.nombreArchivo,
+            registroInternoProceso:
+              this.codigoSolicitud,
+            nombreArchivo,
 
             tamanioBytes:
               resultado.blob.size,
@@ -2254,85 +4665,28 @@ generarFormularioDescuentoDesdeServicio(
           }
         );
 
-        if (this.urlFormularioDescuentoGenerado) {
-          URL.revokeObjectURL(
-            this.urlFormularioDescuentoGenerado
-          );
-        }
-
-        this.urlFormularioDescuentoGenerado =
-          URL.createObjectURL(resultado.blob);
-
-        this.autorizacionDescuentoGenerada = true;
-
-        console.log(
-          'Autorización descargada correctamente:',
-          {
-            registroInternoProceso:
-              this.codigoSolicitud,
-
-            idDocumentoGenerado:
-              this.idDocumentoGeneradoAutorizacion,
-
-            tamanioBytes:
-              resultado.blob.size,
-
-            tipoArchivo:
-              resultado.blob.type
-          }
-        );
-
-        this.descargarFormularioDescuentoGenerado();
-
-        this.mostrarAviso(
-          'La Autorización de Descuento fue generada correctamente. Descargue el documento, fírmelo y cárguelo en formato PDF.',
-          'exito',
-          'Autorización lista'
-        );
-
-        if (callbackExito) {
-          callbackExito();
-        }
+        callbackExito?.();
       },
 
       error: (error: unknown) => {
-        this.generandoFormularioDescuentoServicio = false;
+        this.generandoFormularioDescuentoServicio =
+          false;
 
         console.error(
-          'Error generando autorización local:',
+          'Error generando Autorización de Descuento:',
           error
         );
 
         this.mostrarAviso(
-          'No se pudo generar la Autorización de Descuento. Revise la respuesta del backend local.',
+          'No se pudo generar la Autorización de Descuento. Intente nuevamente en unos momentos.',
           'error',
           'Error al generar',
           true
         );
+
+        callbackError?.();
       }
     });
-}
-
-descargarFormularioDescuentoGenerado(): void {
-  if (!this.blobFormularioDescuentoGenerado) {
-    return;
-  }
-
-  const enlace = document.createElement('a');
-  enlace.href = this.urlFormularioDescuentoGenerado || URL.createObjectURL(this.blobFormularioDescuentoGenerado);
-  enlace.download = `Autorizacion-Descuento-${this.form.titular.numeroDocumento || 'titular'}.pdf`;
-  enlace.click();
-}
-
-descargarFormulario6012Generado(): void {
-  if (!this.blobFormulario6012Generado) {
-    return;
-  }
-
-  const enlace = document.createElement('a');
-  enlace.href = this.urlFormulario6012Generado || URL.createObjectURL(this.blobFormulario6012Generado);
-  enlace.download = `Formulario-6012-${this.form.titular.numeroDocumento || 'titular'}.pdf`;
-  enlace.click();
 }
 
 conyugeRegistradoPara6012(): boolean {
@@ -2468,7 +4822,6 @@ prepararProcesoBackendLocal(
     this.construirPayloadAceptacionLegal();
 
   this.preparandoProcesoBackendLocal = true;
-  this.errorPreparacionBackendLocal = '';
 
   console.log(
     'Abriendo expediente digital:',
@@ -2490,7 +4843,6 @@ prepararProcesoBackendLocal(
             next: aceptacion => {
               this.preparandoProcesoBackendLocal = false;
               this.procesoBackendPreparado = true;
-              this.errorPreparacionBackendLocal = '';
 
               console.log(
                 'Aceptación legal registrada:',
@@ -2509,17 +4861,16 @@ prepararProcesoBackendLocal(
             error: (error: unknown) => {
               this.preparandoProcesoBackendLocal = false;
               this.procesoBackendPreparado = false;
-
-              this.errorPreparacionBackendLocal =
+              const mensajeError =
                 'No fue posible registrar la aceptación legal.';
 
               console.error(
-                this.errorPreparacionBackendLocal,
+                mensajeError,
                 error
               );
 
               this.mostrarAviso(
-                this.errorPreparacionBackendLocal,
+                mensajeError,
                 'error',
                 'Aceptación no registrada',
                 true
@@ -2532,16 +4883,16 @@ prepararProcesoBackendLocal(
         this.preparandoProcesoBackendLocal = false;
         this.procesoBackendPreparado = false;
 
-        this.errorPreparacionBackendLocal =
+        const mensajeError =
           'No fue posible abrir el expediente digital.';
 
         console.error(
-          this.errorPreparacionBackendLocal,
+          mensajeError,
           error
         );
 
         this.mostrarAviso(
-          this.errorPreparacionBackendLocal,
+          mensajeError,
           'error',
           'Expediente no registrado',
           true
@@ -2608,10 +4959,8 @@ construirPayloadFormulario6012():
           )
         : null,
 
-    notificacionCorreo:
-      this.aceptaNotificacionesDeclaracion
-        ? 'SI'
-        : 'NO',
+notificacionCorreo:
+  'SI',
 
     generadoPor:
       'SISTEMA',
@@ -2695,35 +5044,39 @@ construirPayloadFormularioDescuento():
 generarDocumentos(): void {
   this.intentoEnviar = true;
 
-  const requiereConsentimientoDatos = this.form.esNuevo === true;
+  const requiereConsentimientoDatos =
+    this.form.esNuevo === true;
 
-  // 1. Validación obligatoria de Declaración Jurada
   if (this.aceptaTerminosDeclaracion !== true) {
     this.mostrarAviso(
       'Debe aceptar los términos de la declaración jurada para continuar.',
       'advertencia',
       'Aceptación pendiente'
     );
+
     return;
   }
 
-  // 2. Validación obligatoria de Protección de Datos Personales
-  if (requiereConsentimientoDatos && this.aceptaTratamientoDatos !== true) {
+  if (
+    requiereConsentimientoDatos
+    && this.aceptaTratamientoDatos !== true
+  ) {
     this.mostrarAviso(
       'Debe aceptar el tratamiento de datos personales para continuar.',
       'advertencia',
       'Consentimiento pendiente'
     );
+
     return;
   }
 
-  // 3. Validación general del formulario
   if (!this.formularioValido()) {
     this.mostrarAviso(
-      'Revise los campos pendientes antes de generar los documentos.',
+      'Revise los campos pendientes antes de confirmar la solicitud.',
       'advertencia',
       'Información pendiente'
     );
+
     return;
   }
 
@@ -2738,168 +5091,181 @@ generarDocumentos(): void {
   for (const paso of pasosPrevios) {
     if (!this.validarPaso(paso)) {
       this.pasoActual = paso;
+
       this.mostrarAviso(
-        'Hay información pendiente de revisión antes de generar los documentos.',
+        'Hay información pendiente de revisión antes de confirmar la solicitud.',
         'advertencia',
         'Revise la solicitud'
       );
+
       this.scrollArriba();
       return;
     }
   }
 
-  const tieneBeneficiarios = this.hayBeneficiariosRegistrados();
+  const tieneBeneficiarios =
+    this.hayBeneficiariosRegistrados();
 
-  if (tieneBeneficiarios && !this.beneficiariosValidosPara6012()) {
-    this.pasoActual = 'beneficiarios';
+  if (
+    tieneBeneficiarios
+    && !this.beneficiariosValidosPara6012()
+  ) {
+    this.pasoActual =
+      'beneficiarios';
+
     this.mostrarAviso(
-      'Debe registrar beneficiarios válidos y asignar el 100% para generar el Formulario 6012.',
+      'Debe registrar beneficiarios válidos y asignar el 100% para preparar el Formulario 6012.',
       'advertencia',
       'Beneficiarios pendientes'
     );
+
     this.scrollArriba();
     return;
   }
 
-  this.form.notificacionesCorreo = 'SI';
+  this.form.notificacionesCorreo =
+    'SI';
 
   this.asegurarCodigoSolicitud();
 
-  const finalizarGeneracion = (incluyeFormulario6012: boolean): void => {
-    // Seguridad adicional: evita avanzar si por algún motivo cambió la aceptación antes de finalizar.
-    if (this.aceptaTerminosDeclaracion !== true) {
-      this.mostrarAviso(
-        'Debe aceptar los términos de la declaración jurada para continuar.',
-        'advertencia',
-        'Aceptación pendiente'
+  const finalizarPreparacionDocumental =
+    (): void => {
+      if (
+        this.aceptaTerminosDeclaracion
+        !== true
+      ) {
+        this.mostrarAviso(
+          'Debe aceptar los términos de la declaración jurada para continuar.',
+          'advertencia',
+          'Aceptación pendiente'
+        );
+
+        return;
+      }
+
+      if (
+        requiereConsentimientoDatos
+        && this.aceptaTratamientoDatos
+          !== true
+      ) {
+        this.mostrarAviso(
+          'Debe aceptar el tratamiento de datos personales para continuar.',
+          'advertencia',
+          'Consentimiento pendiente'
+        );
+
+        return;
+      }
+
+      const fecha =
+        new Date();
+
+      this.fechaGeneracionDocumentos =
+        fecha.toLocaleString('es-PE');
+
+      this.tipoGeneracionDocumentos =
+        tieneBeneficiarios
+          ? 'completa'
+          : 'soloAutorizacion';
+
+      /*
+       * Los PDF todavía no se generan.
+       * Se generarán al pulsar Descargar.
+       */
+      this.autorizacionDescuentoGenerada =
+        false;
+
+      this.formulario6012Generado =
+        false;
+
+      /*
+       * documentosGenerados se conserva como
+       * indicador de solicitud preparada.
+       */
+      this.documentosGenerados =
+        true;
+
+      this.solicitudBloqueada =
+        true;
+
+      pasosPrevios.forEach(
+        paso => {
+          this.seccionesGrabadas[paso] =
+            true;
+        }
       );
-      return;
-    }
 
-    if (requiereConsentimientoDatos && this.aceptaTratamientoDatos !== true) {
-      this.mostrarAviso(
-        'Debe aceptar el tratamiento de datos personales para continuar.',
-        'advertencia',
-        'Consentimiento pendiente'
+      console.log(
+        'Solicitud preparada para generación documental:',
+        {
+          registroInternoProceso:
+            this.codigoSolicitud,
+
+          tipoGeneracionDocumentos:
+            this.tipoGeneracionDocumentos,
+
+          incluyeFormulario6012:
+            tieneBeneficiarios
+        }
       );
-      return;
-    }
 
-    const fecha = new Date();
+      this.pasoActual =
+        'documentos';
 
-    this.asegurarCodigoSolicitud();
+      this.intentoEnviar =
+        false;
 
-    this.fechaGeneracionDocumentos =
-      fecha.toLocaleString('es-PE');
+      this.scrollArriba();
 
-    this.tipoGeneracionDocumentos = incluyeFormulario6012
-      ? 'completa'
-      : 'soloAutorizacion';
+      this.mostrarAviso(
+        tieneBeneficiarios
+          ? 'La solicitud fue confirmada. Descargue la Autorización de Descuento y el Formulario 6012.'
+          : 'La solicitud fue confirmada. Descargue la Autorización de Descuento.',
+        'exito',
+        'Solicitud preparada'
+      );
+    };
 
-    this.autorizacionDescuentoGenerada = true;
-    this.formulario6012Generado = incluyeFormulario6012;
-
-    this.documentosGenerados = true;
-    this.solicitudBloqueada = true;
-
-    pasosPrevios.forEach(paso => {
-      this.seccionesGrabadas[paso] = true;
-    });
-
-    console.log('Payload para generación de documentos:', this.construirPayloadFinal());
-
-    this.pasoActual = 'documentos';
-    this.intentoEnviar = false;
-    this.scrollArriba();
-  };
-
-  const continuarGeneracionDocumental = (): void => {
-  if (tieneBeneficiarios) {
-    this.tipoGeneracionDocumentos = 'completa';
-
-    console.log(
-      'Payload para Autorización de Descuento:',
-      this.construirPayloadFormularioDescuento()
-    );
-
-    console.log(
-      'Payload para Formulario 6012:',
-      this.construirPayloadFormulario6012()
-    );
-
-    this.generarFormularioDescuentoDesdeServicio(() => {
-      this.generarFormulario6012DesdeServicio(() => {
-        finalizarGeneracion(true);
-      });
-    });
-
-    return;
-  }
-
-  this.tipoGeneracionDocumentos =
-    'soloAutorizacion';
-
-  console.log(
-    'Payload para Autorización de Descuento:',
-    this.construirPayloadFormularioDescuento()
+  this.prepararProcesoBackendLocal(
+    finalizarPreparacionDocumental
   );
-
-  this.generarFormularioDescuentoDesdeServicio(() => {
-    finalizarGeneracion(false);
-
-    this.mostrarAviso(
-      'Autorización generada. El Formulario 6012 podrá generarse cuando registre beneficiarios.',
-      'exito',
-      'Documento listo'
-    );
-  });
-};
-
-this.prepararProcesoBackendLocal(
-  continuarGeneracionDocumental
-);
-}
-
-mostrarPantallaInvitacionBeneficiarios(): void {
-  this.mostrarInvitacionBeneficiarios = true;
-  this.pendienteBeneficiariosPara6012 = false;
-  this.pasoActual = 'publicacion';
-  this.vista = 'formulario';
-  this.intentoEnviar = false;
-  this.scrollArriba();
 }
 
 iniciarRegistroBeneficiarios6012(): void {
   this.mostrarInvitacionBeneficiarios = false;
   this.pendienteBeneficiariosPara6012 = true;
-  this.actualizandoBeneficiarios6012 = false;
-  this.asegurarBeneficiarioInicial();
 
-  this.pasoActual = 'beneficiarios';
-  this.vista = 'formulario';
-  this.intentoEnviar = false;
-  this.scrollArriba();
-
-  this.mostrarAviso('Complete los beneficiarios para generar el Formulario 6012.');
-}
-
-omitirRegistroBeneficiariosPorAhora(): void {
-  this.mostrarInvitacionBeneficiarios = false;
-  this.seccionesGrabadas.documentos = true;
-  this.vista = 'exito';
-  this.scrollArriba();
-}
-
-iniciarActualizacionBeneficiarios6012(): void {
-  this.mostrarInvitacionBeneficiarios = false;
-  this.pendienteBeneficiariosPara6012 = true;
-  this.actualizandoBeneficiarios6012 = true;
-
-  this.tipoGeneracionDocumentos = 'soloFormulario6012';
-
+  /*
+   * Se inicia un nuevo ciclo documental únicamente
+   * para el Formulario 6012.
+   *
+   * La Autorización ya publicada se conserva.
+   */
   this.formulario6012Generado = false;
   this.formulario6012Sellado = false;
-  this.archivoFormulario6012 = this.crearArchivoVacio();
+
+  this.archivoFormulario6012 =
+    this.crearArchivoVacio();
+
+  this.idDocumentoCargadoFormulario6012 = '';
+
+  this.cargandoDocumentosFirmadosBackend = false;
+  this.documentosFirmadosCargadosBackend = false;
+
+  this.validandoDocumentosBackend = false;
+  this.documentosValidadosBackend = false;
+
+  this.formulario6012ValidadoBackend = false;
+
+  this.cerrandoDocumentosBackend = false;
+  this.documentosCerradosBackend = false;
+
+  this.idDocumentoPublicadoFormulario6012 = '';
+
+  this.mensajeRechazoValidacion = '';
+  this.mensajeErrorCierre = '';
+
+  this.documentosPublicados = false;
 
   this.seccionesGrabadas.documentos = false;
   this.seccionesGrabadas.publicacion = false;
@@ -2909,164 +5275,194 @@ iniciarActualizacionBeneficiarios6012(): void {
   this.pasoActual = 'beneficiarios';
   this.vista = 'formulario';
   this.intentoEnviar = false;
+
   this.scrollArriba();
 
-  this.mostrarAviso('Actualice los beneficiarios y genere nuevamente el Formulario 6012.');
+  this.mostrarAviso(
+    'Complete los beneficiarios para preparar el Formulario 6012.'
+  );
 }
 
-textoBotonGenerarFormulario6012(): string {
-  return this.actualizandoBeneficiarios6012
-    ? 'Generar Formulario 6012 actualizado'
-    : 'Generar Formulario 6012';
+omitirRegistroBeneficiariosPorAhora(): void {
+  this.mostrarInvitacionBeneficiarios = false;
+  this.seccionesGrabadas.documentos = true;
+  this.vista = 'exito';
+  this.scrollArriba();
 }
 
 generarFormulario6012Pendiente(): void {
-  this.intentoEnviar = true;
+  this.intentoEnviar =
+    true;
 
-  if (!this.beneficiariosValidosPara6012()) {
+  if (
+    !this.beneficiariosValidosPara6012()
+  ) {
     this.mostrarAviso(
-      'Debe registrar beneficiarios válidos y asignar el 100% para generar el Formulario 6012.',
+      'Debe registrar beneficiarios válidos y asignar el 100% para preparar el Formulario 6012.',
       'advertencia',
       'Beneficiarios pendientes'
     );
+
     return;
   }
 
-  this.tipoGeneracionDocumentos = 'soloFormulario6012';
+  const fecha =
+    new Date();
+
+  this.fechaGeneracionDocumentos =
+    fecha.toLocaleString('es-PE');
+
+  this.tipoGeneracionDocumentos =
+    'soloFormulario6012';
+
+  /*
+   * El PDF queda pendiente de generación
+   * hasta que se pulse Descargar.
+   */
+  this.formulario6012Generado =
+    false;
+
+  this.pendienteBeneficiariosPara6012 =
+    false;
+
+  this.documentosGenerados =
+    true;
+
+  this.solicitudBloqueada =
+    true;
+
+  this.seccionesGrabadas.beneficiarios =
+    true;
 
   console.log(
-    'Payload para Formulario 6012 pendiente:',
-    this.construirPayloadFormulario6012()
+    'Formulario 6012 preparado para generación:',
+    {
+      registroInternoProceso:
+        this.codigoSolicitud,
+
+      cantidadBeneficiarios:
+        this.beneficiariosRegistrados()
+          .length
+    }
   );
 
-  this.generarFormulario6012DesdeServicio(() => {
-    const fecha = new Date();
+  this.pasoActual =
+    'documentos';
 
-    this.fechaGeneracionDocumentos = fecha.toLocaleString('es-PE');
+  this.intentoEnviar =
+    false;
 
-    this.formulario6012Generado = true;
-    this.tipoGeneracionDocumentos = 'soloFormulario6012';
-
-    this.pendienteBeneficiariosPara6012 = false;
-    this.actualizandoBeneficiarios6012 = false;
-
-    this.documentosGenerados = true;
-    this.solicitudBloqueada = true;
-    this.seccionesGrabadas.beneficiarios = true;
-
-    console.log(
-      'Payload final luego de generar Formulario 6012 pendiente:',
-      this.construirPayloadFinal()
-    );
-
-    this.pasoActual = 'documentos';
-    this.intentoEnviar = false;
-    this.scrollArriba();
-  });
-}
-
-descargarDocumentosSimulados(): void {
-  if (!this.documentosGenerados) {
-    this.mostrarAviso(
-      'Primero debe generar los documentos.',
-      'advertencia',
-      'Documentos no generados'
-    );
-    return;
-  }
-
-  if (this.tipoGeneracionDocumentos === 'soloAutorizacion') {
-    if (!this.blobFormularioDescuentoGenerado) {
-      this.mostrarAviso(
-        'No se encontró la Autorización de Descuento generada para descargar.',
-        'error',
-        'Documento no disponible'
-      );
-      return;
-    }
-
-    this.descargarFormularioDescuentoGenerado();
-
-    this.mostrarAviso(
-      'Autorización de Descuento descargada correctamente.',
-      'exito',
-      'Descarga lista'
-    );
-    return;
-  }
-
-  if (this.tipoGeneracionDocumentos === 'soloFormulario6012') {
-    if (!this.blobFormulario6012Generado) {
-      this.mostrarAviso(
-        'No se encontró el Formulario 6012 generado para descargar.',
-        'error',
-        'Documento no disponible'
-      );
-      return;
-    }
-
-    this.descargarFormulario6012Generado();
-
-    this.mostrarAviso(
-      'Formulario 6012 descargado correctamente.',
-      'exito',
-      'Descarga lista'
-    );
-    return;
-  }
-
-  if (this.tipoGeneracionDocumentos === 'completa') {
-    if (!this.blobFormularioDescuentoGenerado || !this.blobFormulario6012Generado) {
-      this.mostrarAviso(
-        'No se encontraron todos los documentos generados para descargar.',
-        'error',
-        'Documentos no disponibles'
-      );
-      return;
-    }
-
-    this.descargarFormularioDescuentoGenerado();
-
-    setTimeout(() => {
-      this.descargarFormulario6012Generado();
-    }, 300);
-
-    this.mostrarAviso(
-      'Formulario 6012 y Autorización de Descuento descargados correctamente.',
-      'exito',
-      'Descarga lista'
-    );
-  }
-}
-
-simularRetornoPendienteCarga(): void {
-  if (!this.documentosGenerados) {
-    this.mostrarAviso('Primero genere los documentos para simular el retorno pendiente de carga.');
-    return;
-  }
-
-  this.modoRetornoPendiente = true;
-  this.pasoActual = 'documentos';
-  this.vista = 'formulario';
-  this.intentoEnviar = false;
   this.scrollArriba();
 
-  this.mostrarAviso('Simulación: el usuario volvió para subir sus documentos firmados.');
+  this.mostrarAviso(
+    'Los beneficiarios fueron confirmados. Descargue el Formulario 6012 para generarlo.',
+    'exito',
+    'Formulario preparado'
+  );
 }
 
-simularRetornoPendienteBeneficiarios(): void {
-  if (!this.autorizacionFirmadaBloqueada) {
-    this.mostrarAviso('Primero debe registrar la Autorización de Descuento firmada.');
+descargarDocumentos(): void {
+  if (!this.documentosGenerados) {
+    this.mostrarAviso(
+      'Primero debe confirmar la solicitud.',
+      'advertencia',
+      'Solicitud no confirmada'
+    );
+
     return;
   }
 
-  this.solicitudBloqueada = true;
-  this.pendienteBeneficiariosPara6012 = false;
-  this.modoRetornoPendiente = false;
+  if (
+    this.descargandoDocumentos
+    || this.generandoFormulario6012Servicio
+    || this.generandoFormularioDescuentoServicio
+  ) {
+    return;
+  }
 
-  this.mostrarPantallaInvitacionBeneficiarios();
+  this.descargandoDocumentos =
+    true;
 
-  this.mostrarAviso('Autorización de Descuento enviada. Puede registrar beneficiarios y generar el Formulario 6012.');
+  const finalizarDescargaCorrecta =
+    (mensaje: string): void => {
+      this.descargandoDocumentos =
+        false;
+
+      this.mostrarAviso(
+        mensaje,
+        'exito',
+        'Descarga lista'
+      );
+    };
+
+  const finalizarDescargaConError =
+    (): void => {
+      this.descargandoDocumentos =
+        false;
+    };
+
+  if (
+    this.tipoGeneracionDocumentos ===
+    'soloAutorizacion'
+  ) {
+    this.generarFormularioDescuentoDesdeServicio(
+      () => {
+        finalizarDescargaCorrecta(
+          'La Autorización de Descuento fue generada y descargada correctamente.'
+        );
+      },
+      finalizarDescargaConError
+    );
+
+    return;
+  }
+
+  if (
+    this.tipoGeneracionDocumentos ===
+    'soloFormulario6012'
+  ) {
+    this.generarFormulario6012DesdeServicio(
+      () => {
+        finalizarDescargaCorrecta(
+          'El Formulario 6012 fue generado y descargado correctamente.'
+        );
+      },
+      finalizarDescargaConError
+    );
+
+    return;
+  }
+
+  if (
+    this.tipoGeneracionDocumentos ===
+    'completa'
+  ) {
+    this.generarFormularioDescuentoDesdeServicio(
+      () => {
+        this.generarFormulario6012DesdeServicio(
+          () => {
+            finalizarDescargaCorrecta(
+              'La Autorización de Descuento y el Formulario 6012 fueron generados y descargados correctamente.'
+            );
+          },
+          finalizarDescargaConError
+        );
+      },
+      finalizarDescargaConError
+    );
+
+    return;
+  }
+
+  this.descargandoDocumentos =
+    false;
+
+  this.mostrarAviso(
+    'No se pudo determinar qué documentos corresponden a la solicitud.',
+    'error',
+    'Flujo documental no definido',
+    true
+  );
 }
 
 seleccionarArchivo(
@@ -3103,9 +5499,6 @@ seleccionarArchivo(
 
     this.formulario6012ValidadoBackend =
       false;
-
-    this.resultadoValidacionFormulario6012 =
-      null;
   }
 
   if (tipo === 'autorizacionDescuento') {
@@ -3117,9 +5510,6 @@ seleccionarArchivo(
 
     this.autorizacionValidadaBackend =
       false;
-
-    this.resultadoValidacionAutorizacion =
-      null;
   }
 }
 
@@ -3184,10 +5574,6 @@ documentosFirmadosCompletos(): boolean {
     && this.archivoAutorizacionDescuento.cargado;
 }
 
-publicarDocumentosSellados(): void {
-  this.procesarCierreDocumental();
-}
-
 obtenerArchivoDocumento(tipoDocumento: TipoDocumentoFirmado): ArchivoDocumentoFirmado {
   return tipoDocumento === 'formulario6012'
     ? this.archivoFormulario6012
@@ -3198,26 +5584,6 @@ obtenerTituloDocumento(tipoDocumento: TipoDocumentoFirmado): string {
   return tipoDocumento === 'formulario6012'
     ? 'Formulario 6012'
     : 'Autorización de Descuento';
-}
-
-cerrarVistaPreviaPdf(): void {
-  this.documentoPdfVisible = false;
-  this.tituloDocumentoPdf = '';
-  this.urlDocumentoPdf = null;
-}
-
-simularRetornoDocumentosPublicados(): void {
-  if (!this.documentosPublicados) {
-    this.mostrarAviso('Aún no existen documentos recepcionados para visualizar.');
-    return;
-  }
-
-  this.pasoActual = 'publicacion';
-  this.vista = 'formulario';
-  this.intentoEnviar = false;
-  this.scrollArriba();
-
-  this.mostrarAviso('Documentos validados y sellados disponibles en la plataforma.');
 }
 
 finalizarPublicacionDocumentos(): void {
@@ -3296,12 +5662,62 @@ cargarDocumentoFirmadoDesdeServicio(
         respuesta:
           DocumentoCargadoLocalResponse
       ) => {
+
+        if (respuesta.cargado === false) {
+
+          const detalle =
+            respuesta.observaciones
+              ?.filter(
+                observacion =>
+                  !!observacion?.trim()
+              )
+              .join(' ')
+              .trim()
+            || '';
+
+          const mensaje =
+            detalle
+            || respuesta.mensajeCarga
+            || 'El archivo seleccionado no es un PDF válido o podría estar dañado. Seleccione otro archivo e inténtelo nuevamente.';
+
+          this.cargandoDocumentosFirmadosBackend =
+            false;
+
+          this.documentosFirmadosCargadosBackend =
+            false;
+
+          this.mostrarAviso(
+            mensaje,
+            'error',
+            'Documento no válido',
+            true
+          );
+
+          return;
+        }
+
+        const idDocumentoCargado =
+          respuesta.idDocumentoCargado
+            ?.trim()
+          || '';
+
+        if (!idDocumentoCargado) {
+          console.error(
+            'La carga fue informada como exitosa, '
+            + 'pero no se recibió el identificador '
+            + 'del documento cargado.',
+            respuesta
+          );
+
+          callbackError();
+          return;
+        }
         if (
           tipoDocumento ===
           'formulario6012'
         ) {
           this.idDocumentoCargadoFormulario6012 =
-            respuesta.idDocumentoCargado;
+            idDocumentoCargado;
         }
 
         if (
@@ -3309,7 +5725,7 @@ cargarDocumentoFirmadoDesdeServicio(
           'autorizacionDescuento'
         ) {
           this.idDocumentoCargadoAutorizacion =
-            respuesta.idDocumentoCargado;
+            idDocumentoCargado;
         }
 
         console.log(
@@ -3459,9 +5875,6 @@ validarDocumentoFirmadoDesdeServicio(
           tipoDocumento ===
           'formulario6012'
         ) {
-          this.resultadoValidacionFormulario6012 =
-            resultado;
-
           this.formulario6012ValidadoBackend =
             validacionAprobada;
         }
@@ -3470,9 +5883,6 @@ validarDocumentoFirmadoDesdeServicio(
           tipoDocumento ===
           'autorizacionDescuento'
         ) {
-          this.resultadoValidacionAutorizacion =
-            resultado;
-
           this.autorizacionValidadaBackend =
             validacionAprobada;
         }
@@ -3624,12 +6034,6 @@ procesarCierreDocumentoDesdeServicio(
           tipoDocumento ===
           'autorizacionDescuento'
         ) {
-          this.resultadoCierreAutorizacion =
-            resultado;
-
-          this.idDocumentoSelladoAutorizacion =
-            idDocumentoSellado;
-
           this.idDocumentoPublicadoAutorizacion =
             idDocumentoPublicado;
         }
@@ -3638,12 +6042,6 @@ procesarCierreDocumentoDesdeServicio(
           tipoDocumento ===
           'formulario6012'
         ) {
-          this.resultadoCierreFormulario6012 =
-            resultado;
-
-          this.idDocumentoSelladoFormulario6012 =
-            idDocumentoSellado;
-
           this.idDocumentoPublicadoFormulario6012 =
             idDocumentoPublicado;
         }
@@ -3713,9 +6111,6 @@ procesarCierreDocumental(): void {
     this.fechaRecepcionDocumentos =
       fecha.toLocaleString('es-PE');
 
-    this.correoEnvioDocumentos =
-      this.form.correoViva;
-
     if (
       this.tipoGeneracionDocumentos
       !== 'soloFormulario6012'
@@ -3744,14 +6139,8 @@ procesarCierreDocumental(): void {
         registroInternoProceso:
           this.codigoSolicitud,
 
-        idDocumentoSelladoAutorizacion:
-          this.idDocumentoSelladoAutorizacion,
-
         idDocumentoPublicadoAutorizacion:
           this.idDocumentoPublicadoAutorizacion,
-
-        idDocumentoSelladoFormulario6012:
-          this.idDocumentoSelladoFormulario6012,
 
         idDocumentoPublicadoFormulario6012:
           this.idDocumentoPublicadoFormulario6012
@@ -3766,9 +6155,6 @@ procesarCierreDocumental(): void {
         true;
 
       this.pendienteBeneficiariosPara6012 =
-        false;
-
-      this.modoRetornoPendiente =
         false;
 
       this.mostrarInvitacionBeneficiarios =
@@ -3996,7 +6382,7 @@ verDocumentoPublicado(
         ventanaDocumento.close();
 
         this.mostrarAviso(
-          'No se pudo abrir el documento publicado. Revise la respuesta del backend.',
+          'No se pudo abrir el documento en este momento. Intente nuevamente.',
           'error',
           'Visualización no disponible',
           true
@@ -4081,7 +6467,7 @@ descargarDocumentoPublicado(
         );
 
         this.mostrarAviso(
-          'No se pudo descargar el documento publicado. Revise la respuesta del backend.',
+          'No se pudo descargar el documento en este momento. Intente nuevamente.',
           'error',
           'Descarga no disponible',
           true
@@ -4097,7 +6483,7 @@ validarDocumentosFirmados(): void {
 
   if (!this.documentosFirmadosCargadosBackend) {
     this.mostrarAviso(
-      'Primero debe cargar los documentos firmados al backend.',
+      'Primero debe cargar los documentos firmados.',
       'advertencia',
       'Carga pendiente'
     );
@@ -4133,12 +6519,6 @@ validarDocumentosFirmados(): void {
 
         formulario6012Validado:
           this.formulario6012ValidadoBackend,
-
-        resultadoAutorizacion:
-          this.resultadoValidacionAutorizacion,
-
-        resultadoFormulario6012:
-          this.resultadoValidacionFormulario6012
       }
     );
 
@@ -4150,35 +6530,48 @@ validarDocumentosFirmados(): void {
   };
 
   const finalizarConRechazo = (
-    resultado:
-      ValidacionDocumentalCompletaResponseLocal
-  ): void => {
-    this.validandoDocumentosBackend = false;
-    this.documentosValidadosBackend = false;
+  resultado:
+    ValidacionDocumentalCompletaResponseLocal
+): void => {
+  this.validandoDocumentosBackend =
+    false;
 
-    const permiteNuevaCarga =
-      resultado.permiteNuevaCargaTrabajador
-      !== false;
+  this.documentosValidadosBackend =
+    false;
 
+  const incidenciaOperativa =
+    resultado.estadoValidacionDocumental ===
+      'OBSERVADO_OPERATIVO'
+    || resultado.permiteNuevaCargaTrabajador ===
+      false;
+
+  if (incidenciaOperativa) {
     this.mostrarAviso(
-      this.mensajeRechazoValidacion
-      || (
-        permiteNuevaCarga
-          ? 'El documento fue rechazado. Corrija el archivo y vuelva a cargarlo.'
-          : 'El documento no superó la validación documental.'
-      ),
+      resultado.mensajeValidacion
+      || 'No fue posible completar la validación por una incidencia interna. El documento no fue rechazado.',
       'error',
-      'Documento rechazado',
+      'Validación pendiente',
       true
     );
-  };
+
+    return;
+  }
+
+  this.mostrarAviso(
+    this.mensajeRechazoValidacion
+    || 'El documento fue rechazado. Corrija el archivo y vuelva a cargarlo.',
+    'error',
+    'Documento rechazado',
+    true
+  );
+};
 
   const finalizarConError = (): void => {
     this.validandoDocumentosBackend = false;
     this.documentosValidadosBackend = false;
 
     this.mostrarAviso(
-      'No se pudo ejecutar la validación documental completa. Revise Network y la consola del backend.',
+      'No se pudo completar la validación del documento en este momento. Intente nuevamente.',
       'error',
       'Validación no disponible',
       true
@@ -4317,42 +6710,48 @@ if (
     true;
 
   const finalizarCargaCorrecta = (): void => {
-      this.cargandoDocumentosFirmadosBackend =
-        false;
+  this.cargandoDocumentosFirmadosBackend =
+    false;
 
-      this.documentosFirmadosCargadosBackend =
-        true;
+  this.documentosFirmadosCargadosBackend =
+    true;
 
-      this.seccionesGrabadas.documentos =
-        true;
+  this.seccionesGrabadas.documentos =
+    true;
 
-      console.log(
-        'Carga documental completada:',
-        {
-          registroInternoProceso:
-            this.codigoSolicitud,
+  console.log(
+    'Carga documental completada:',
+    {
+      registroInternoProceso:
+        this.codigoSolicitud,
 
-          idDocumentoCargadoAutorizacion:
-            this.idDocumentoCargadoAutorizacion,
+      idDocumentoCargadoAutorizacion:
+        this.idDocumentoCargadoAutorizacion,
 
-          idDocumentoCargadoFormulario6012:
-            this.idDocumentoCargadoFormulario6012
-        }
-      );
+      idDocumentoCargadoFormulario6012:
+        this.idDocumentoCargadoFormulario6012
+    }
+  );
 
-      /*
-      * Al terminar la carga, se ejecuta automáticamente
-      * la validación documental completa.
-      */
-      this.validarDocumentosFirmados();
-    };
+  /*
+   * El aviso se muestra únicamente después de
+   * que el backend confirma la carga de todos
+   * los documentos correspondientes al flujo.
+   */
+  this.mostrarAviso(
+    'Los documentos firmados fueron cargados correctamente. Se iniciará la validación documental.',
+    'exito',
+    'Carga completada',
+    true
+  );
 
-    this.mostrarAviso(
-      'Los documentos firmados fueron cargados correctamente. Permanecen pendientes de validación documental.',
-      'exito',
-      'Carga completada',
-      true
-    );
+  /*
+   * Al terminar la carga, se ejecuta
+   * automáticamente la validación documental
+   * completa.
+   */
+  this.validarDocumentosFirmados();
+};
   
 
   const finalizarCargaConError = (): void => {
@@ -4363,7 +6762,7 @@ if (
       false;
 
     this.mostrarAviso(
-      'No se pudo completar la carga de los documentos firmados. Revise Network y la respuesta del backend.',
+      'No se pudo completar la carga del documento en este momento. Intente nuevamente.',
       'error',
       'Carga incompleta',
       true
@@ -4415,8 +6814,47 @@ scrollArriba(): void {
   setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }));
 }
 
-trackByIndex(index: number): number {
-  return index;
+ngOnDestroy(): void {
+
+  this.suscripcionRuta
+    ?.unsubscribe();
+
+  this.suscripcionRuta =
+    null;
+
+  if (this.temporizadorBorradorTitular) {
+    clearTimeout(
+      this.temporizadorBorradorTitular
+    );
+  }
+
+  if (
+    this
+      .temporizadorBorradorDatosComplementarios
+  ) {
+    clearTimeout(
+      this
+        .temporizadorBorradorDatosComplementarios
+    );
+  }
+
+  if (
+    this.temporizadorBorradorBeneficiarios
+  ) {
+    clearTimeout(
+      this.temporizadorBorradorBeneficiarios
+    );
+  }
+
+  this.temporizadorBorradorTitular =
+    null;
+
+  this
+    .temporizadorBorradorDatosComplementarios =
+      null;
+
+  this.temporizadorBorradorBeneficiarios =
+    null;
 }
 
 };

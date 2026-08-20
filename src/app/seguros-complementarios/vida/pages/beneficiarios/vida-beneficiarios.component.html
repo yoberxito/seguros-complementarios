@@ -1,0 +1,502 @@
+<section
+  (input)="borradorModificado.emit()"
+  (change)="borradorModificado.emit()">
+
+  <div class="paso-header">
+    <h4>
+      4. Información de Beneficiario(s)
+    </h4>
+
+    <p>
+      Registre los beneficiarios que correspondan
+      y asigne el porcentaje de distribución del
+      beneficio. La suma total de porcentajes debe
+      ser igual al 100%.
+    </p>
+  </div>
+
+  <div
+  class="alerta-pendiente-6012"
+  *ngIf="pendienteBeneficiariosPara6012">
+
+  <strong>
+    Autorización registrada.
+  </strong>
+
+  <span>
+    Complete los beneficiarios y distribuya el
+    100% para generar el Formulario 6012.
+  </span>
+
+</div>
+
+  <div
+    *ngIf="hayBeneficiariosIniciados()"
+    [class.alerta-porcentaje-exito]="
+      porcentajeCorrecto
+    "
+    [class.alerta-porcentaje]="
+      !porcentajeCorrecto
+    ">
+
+    <div class="porcentaje-numero">
+
+      Total asignado:
+
+      <strong>
+        {{ sumaPorcentajes }}
+      </strong>%
+
+    </div>
+
+    <div>
+      {{ textoEstadoPorcentaje }}
+    </div>
+
+  </div>
+
+  <div
+    *ngIf="
+      !hayBeneficiariosRegistrados()
+      && !pendienteBeneficiariosPara6012
+    "
+    class="alerta-neutral">
+
+    Si continúa sin registrarlos, solo podrá generar
+    la Autorización de Descuento.
+
+  </div>
+
+  <section
+    class="seccion-dinamica beneficiario"
+    *ngFor="
+      let beneficiario of form.beneficiarios;
+      let i = index;
+      trackBy: trackByIndex
+    ">
+
+    <div class="titulo-con-accion">
+
+      <strong>
+        Beneficiario #{{ i + 1 }}
+      </strong>
+
+    </div>
+
+    <div class="grid-beneficiario">
+
+      <div class="campo">
+
+        <label>
+          Tipo de Doc. <span>*</span>
+        </label>
+
+        <select
+          [(ngModel)]="beneficiario.tipoDocumento"
+          [ngModelOptions]="{ standalone: true }"
+          (change)="
+            alCambiarTipoDocumento(beneficiario)
+          "
+          [disabled]="edicionBloqueada"
+          [class.bg-light]="edicionBloqueada"
+          [class.is-invalid]="
+            intentoEnviar
+            && tipoDocumentoVacio(beneficiario)
+          ">
+
+          <option value="">
+            Seleccione...
+          </option>
+
+          <option
+            *ngFor="let tipo of tiposDocumento"
+            [value]="tipo.codigo">
+
+            {{ tipo.descripcion }}
+
+          </option>
+
+        </select>
+
+        <div
+          class="error-texto"
+          *ngIf="
+            intentoEnviar
+            && tipoDocumentoVacio(beneficiario)
+          ">
+
+          Obligatorio.
+
+        </div>
+
+        <input
+          *ngIf="requiereOtroDocumento(beneficiario)"
+          type="text"
+          class="mt-2 forzar-mayusculas"
+          placeholder="Especifique"
+          [(ngModel)]="
+            beneficiario.otroTipoDocumento
+          "
+          [ngModelOptions]="{ standalone: true }"
+          (ngModelChange)="
+            beneficiario.otroTipoDocumento =
+              convertirMayusculas($event)
+          "
+          [readonly]="edicionBloqueada"
+          [class.bg-light]="edicionBloqueada"
+          [class.is-invalid]="
+            intentoEnviar
+            && otroDocumentoInvalido(beneficiario)
+          ">
+
+        <div
+          class="error-texto"
+          *ngIf="
+            intentoEnviar
+            && otroDocumentoInvalido(beneficiario)
+          ">
+
+          Especifique.
+
+        </div>
+
+      </div>
+
+      <div class="campo">
+
+        <label>
+          Nro. de Doc. <span>*</span>
+        </label>
+
+        <input
+          type="text"
+          [(ngModel)]="
+            beneficiario.numeroDocumento
+          "
+          [ngModelOptions]="{ standalone: true }"
+          (input)="limpiarDocumento(beneficiario)"
+          [readonly]="edicionBloqueada"
+          [class.bg-light]="edicionBloqueada"
+          [class.is-invalid]="
+            numeroDocumentoInvalido(beneficiario)
+            && !campoVacio(
+              beneficiario.numeroDocumento
+            )
+          ">
+
+        <button
+          type="button"
+          class="btn-consulta-persona"
+          *ngIf="!edicionBloqueada"
+          [disabled]="
+            consultandoInformacionPersona
+            || tipoDocumentoVacio(beneficiario)
+            || campoVacio(
+              beneficiario.numeroDocumento
+            )
+            || numeroDocumentoInvalido(
+              beneficiario
+            )
+          "
+          (click)="buscarDatosPersona.emit(beneficiario)">
+
+          {{
+            consultandoInformacionPersona
+              ? 'Buscando...'
+              : 'Buscar datos'
+          }}
+
+        </button>
+
+        <div
+          class="error-texto"
+          *ngIf="
+            numeroDocumentoInvalido(beneficiario)
+            && !campoVacio(
+              beneficiario.numeroDocumento
+            )
+          ">
+
+          {{
+            mensajeDocumentoInvalido(
+              beneficiario
+            )
+          }}
+
+        </div>
+
+      </div>
+
+      <div class="campo">
+
+        <label>
+          Apellido Paterno <span>*</span>
+        </label>
+
+        <input
+          type="text"
+          class="forzar-mayusculas"
+          [(ngModel)]="
+            beneficiario.apellidoPaterno
+          "
+          [ngModelOptions]="{ standalone: true }"
+          (ngModelChange)="
+            beneficiario.apellidoPaterno =
+              convertirMayusculas($event)
+          "
+          [readonly]="edicionBloqueada"
+          [class.bg-light]="edicionBloqueada"
+          [class.is-invalid]="
+            intentoEnviar
+            && campoVacio(
+              beneficiario.apellidoPaterno
+            )
+          ">
+
+        <div
+          class="error-texto"
+          *ngIf="
+            intentoEnviar
+            && campoVacio(
+              beneficiario.apellidoPaterno
+            )
+          ">
+
+          Obligatorio.
+
+        </div>
+
+      </div>
+
+      <div class="campo">
+
+        <label>
+          Apellido Materno <span>*</span>
+        </label>
+
+        <input
+          type="text"
+          class="forzar-mayusculas"
+          [(ngModel)]="
+            beneficiario.apellidoMaterno
+          "
+          [ngModelOptions]="{ standalone: true }"
+          (ngModelChange)="
+            beneficiario.apellidoMaterno =
+              convertirMayusculas($event)
+          "
+          [readonly]="edicionBloqueada"
+          [class.bg-light]="edicionBloqueada"
+          [class.is-invalid]="
+            intentoEnviar
+            && campoVacio(
+              beneficiario.apellidoMaterno
+            )
+          ">
+
+        <div
+          class="error-texto"
+          *ngIf="
+            intentoEnviar
+            && campoVacio(
+              beneficiario.apellidoMaterno
+            )
+          ">
+
+          Obligatorio.
+
+        </div>
+
+      </div>
+
+      <div class="campo">
+
+        <label>
+          Primer Nombre <span>*</span>
+        </label>
+
+        <input
+          type="text"
+          class="forzar-mayusculas"
+          [(ngModel)]="
+            beneficiario.primerNombre
+          "
+          [ngModelOptions]="{ standalone: true }"
+          (ngModelChange)="
+            beneficiario.primerNombre =
+              convertirMayusculas($event)
+          "
+          [readonly]="edicionBloqueada"
+          [class.bg-light]="edicionBloqueada"
+          [class.is-invalid]="
+            intentoEnviar
+            && campoVacio(
+              beneficiario.primerNombre
+            )
+          ">
+
+        <div
+          class="error-texto"
+          *ngIf="
+            intentoEnviar
+            && campoVacio(
+              beneficiario.primerNombre
+            )
+          ">
+
+          Obligatorio.
+
+        </div>
+
+      </div>
+
+      <div class="campo">
+
+        <label>
+          Segundo Nombre
+        </label>
+
+        <input
+          type="text"
+          class="forzar-mayusculas"
+          [(ngModel)]="
+            beneficiario.segundoNombre
+          "
+          [ngModelOptions]="{ standalone: true }"
+          (ngModelChange)="
+            beneficiario.segundoNombre =
+              convertirMayusculas($event)
+          "
+          [readonly]="edicionBloqueada"
+          [class.bg-light]="edicionBloqueada">
+
+      </div>
+
+      <div class="campo">
+
+        <label>
+          (%) <span>*</span>
+        </label>
+
+        <input
+          type="text"
+          inputmode="numeric"
+          maxlength="3"
+          placeholder="Ej: 50"
+          [(ngModel)]="beneficiario.porcentaje"
+          [ngModelOptions]="{ standalone: true }"
+          (input)="limpiarPorcentaje(beneficiario)"
+          [readonly]="edicionBloqueada"
+          [class.bg-light]="edicionBloqueada"
+          [class.is-invalid]="
+            mostrarErrorPorcentajeBeneficiario(
+              beneficiario
+            )
+          ">
+
+        <div
+          class="error-texto"
+          *ngIf="
+            mostrarErrorPorcentajeBeneficiario(
+              beneficiario
+            )
+          ">
+
+          {{
+            mensajePorcentajeInvalido(
+              beneficiario
+            )
+          }}
+
+        </div>
+
+      </div>
+
+    </div>
+
+    <div
+      class="acciones-beneficiario-inferior"
+      *ngIf="!edicionBloqueada">
+
+      <button
+        type="button"
+        class="
+          btn-danger-small
+          btn-quitar-beneficiario-abajo
+        "
+        (click)="quitar.emit(i)">
+
+        Quitar beneficiario
+
+      </button>
+
+    </div>
+
+  </section>
+
+  <button
+    *ngIf="!edicionBloqueada"
+    type="button"
+    class="btn-outline ancho-completo"
+    (click)="agregar.emit()">
+
+    + Añadir Beneficiario
+
+  </button>
+
+  <div
+    class="botonera-pasos"
+    *ngIf="!pendienteBeneficiariosPara6012">
+
+    <button
+      type="button"
+      class="btn-secundario"
+      (click)="volver.emit()">
+
+      Volver
+
+    </button>
+
+    <button
+      type="button"
+      class="btn-advertencia"
+      *ngIf="!beneficiariosValidosPara6012()"
+      (click)="avanzarSinBeneficiarios.emit()">
+
+      Avanzar sin beneficiarios
+
+    </button>
+
+    <button
+      type="button"
+      class="btn-success"
+      (click)="continuar.emit()">
+
+      Siguiente
+
+    </button>
+
+  </div>
+
+  <div
+    class="botonera-pasos"
+    *ngIf="pendienteBeneficiariosPara6012">
+
+    <button
+      type="button"
+      class="btn-success"
+      [disabled]="
+        !beneficiariosValidosPara6012()
+      "
+      [class.btn-deshabilitado]="
+        !beneficiariosValidosPara6012()
+      "
+      (click)="confirmarBeneficiarios.emit()">
+
+      Confirmar beneficiarios y continuar
+
+    </button>
+
+  </div>
+
+</section>

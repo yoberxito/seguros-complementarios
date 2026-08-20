@@ -1909,3 +1909,530 @@ select:focus {
   font-weight: 700;
   text-decoration: underline;
 }
+
+/* ============================================================
+   AJUSTE UX/UI — RESUMEN Y DECLARACIÓN JURADA
+   Agregar al final del archivo CSS actual
+   ============================================================ */
+
+/* ---------- Encabezado de la sección ---------- */
+
+.paso-header {
+  margin: 24px 0 20px;
+  padding: 18px 22px;
+  border: 1px solid #d8e2ec;
+  border-left: 3px solid var(--azul);
+  border-radius: 10px;
+  background: #ffffff;
+  box-shadow: 0 2px 6px rgba(8, 41, 68, .04);
+}
+
+.paso-header h4 {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  color: var(--azul-tinta);
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  line-height: 1.25;
+  font-weight: 650;
+}
+
+
+/* ============================================================
+   RESUMEN DE LA SOLICITUD
+   ============================================================ */
+
+.bloque-resumen {
+  padding: 22px;
+  border-color: #d8e2ec;
+  box-shadow: 0 2px 8px rgba(8, 41, 68, .04);
+}
+
+.bloque-resumen > h4 {
+  margin: 0 0 18px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e5edf4;
+  color: var(--azul-tinta);
+  font-size: 1.05rem;
+}
+
+.resumen-final {
+  display: grid;
+  grid-template-columns:
+    minmax(0, 1fr)
+    minmax(0, 1.08fr)
+    minmax(0, 1fr);
+  gap: 16px;
+  border: 0;
+}
+
+.resumen-final > h4 {
+  grid-column: 1 / -1;
+}
+
+.resumen-final .grupo-resumen {
+  min-width: 0;
+  margin: 0;
+  padding: 17px 18px;
+  border: 1px solid #d7e1eb;
+  border-radius: 11px;
+  background: #ffffff;
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, .03),
+    0 3px 10px rgba(8, 41, 68, .035);
+}
+
+.resumen-final .grupo-resumen h5 {
+  display: flex;
+  align-items: center;
+  min-height: 34px;
+  gap: 7px;
+  margin: 0 0 13px;
+  padding: 0 0 10px;
+  border-bottom: 1px solid #e5edf4;
+  color: var(--azul-tinta);
+  font-family: var(--font-display);
+  font-size: .98rem;
+  line-height: 1.1;
+  font-weight: 650;
+}
+
+.resumen-final .grupo-resumen p {
+  margin: 0 0 8px;
+  color: #26374a;
+  font-size: .9rem;
+  line-height: 1.42;
+  overflow-wrap: anywhere;
+}
+
+.resumen-final .grupo-resumen p:last-child {
+  margin-bottom: 0;
+}
+
+.resumen-final .grupo-resumen strong {
+  color: #152235;
+  font-weight: 700;
+}
+
+.resumen-final .lista-resumen {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.resumen-final .lista-resumen li {
+  margin: 0;
+  color: #26374a;
+  font-size: .91rem;
+  line-height: 1.5;
+}
+
+.resumen-final .grupo-resumen:nth-of-type(4) {
+  grid-column: 1 / -1;
+  padding: 17px 18px 18px;
+}
+
+
+/* ---------- Indicador de porcentaje ---------- */
+
+.total-beneficiarios,
+.alerta-porcentaje-exito {
+  display: inline-flex;
+  width: fit-content;
+  max-width: 100%;
+  align-items: center;
+  gap: 7px;
+  margin: 12px 0 0;
+  padding: 7px 13px;
+  border: 1px solid #b8dec7;
+  border-left: 1px solid #b8dec7;
+  border-radius: 999px;
+  background: #edf8f1;
+  color: #17603b;
+  font-size: .82rem;
+  line-height: 1.2;
+  font-weight: 700;
+  box-shadow: none;
+}
+
+.total-beneficiarios::before,
+.alerta-porcentaje-exito::before {
+  content: "✓";
+  display: inline-grid;
+  place-items: center;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  background: #cfead9;
+  color: #17603b;
+  font-size: .72rem;
+  font-weight: 800;
+}
+
+.alerta-porcentaje {
+  display: inline-flex;
+  width: fit-content;
+  max-width: 100%;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 0 0;
+  padding: 7px 13px;
+  border: 1px solid #e8c996;
+  border-left: 1px solid #e8c996;
+  border-radius: 999px;
+  background: #fff8ec;
+  color: #754a12;
+  font-size: .82rem;
+  font-weight: 700;
+  box-shadow: none;
+}
+
+
+/* ============================================================
+   DECLARACIÓN JURADA
+   ============================================================ */
+
+.declaracion-institucional {
+  margin-bottom: 20px;
+  padding: 22px 24px;
+  border: 1px solid #d8e2ec;
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 2px 8px rgba(8, 41, 68, .04);
+}
+
+.encabezado-seccion-legal {
+  margin-bottom: 4px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #dfe7ee;
+}
+
+.encabezado-seccion-legal h4 {
+  margin: 0 0 6px;
+  padding: 0;
+  border: 0;
+  color: var(--azul-tinta);
+  font-family: var(--font-display);
+  font-size: 1.08rem;
+  line-height: 1.3;
+  font-weight: 650;
+}
+
+.encabezado-seccion-legal p {
+  margin: 0;
+  color: #647386;
+  font-size: .86rem;
+  line-height: 1.5;
+}
+
+.contenedor-clausulas-legales {
+  display: flex;
+  flex-direction: column;
+  max-width: 100%;
+  gap: 0;
+}
+
+.clausula-legal {
+  margin: 0;
+  padding: 17px 2px;
+  border: 0;
+  border-bottom: 1px solid #e6ecf1;
+  border-radius: 0;
+  background: transparent;
+}
+
+.clausula-legal h5 {
+  margin: 0 0 8px;
+  color: var(--azul-tinta);
+  font-family: var(--font-body);
+  font-size: .95rem;
+  line-height: 1.35;
+  font-weight: 700;
+}
+
+.clausula-legal p {
+  max-width: 96ch;
+  margin: 0 0 9px;
+  color: #26374a;
+  font-size: .9rem;
+  line-height: 1.62;
+  text-align: left;
+}
+
+.clausula-legal p:last-child {
+  margin-bottom: 0;
+}
+
+
+/* ---------- Protección de datos ---------- */
+
+.clausula-datos-personales {
+  margin-top: 15px;
+  padding: 17px 18px;
+  border: 1px solid #cbdfea;
+  border-left: 4px solid var(--azul);
+  border-radius: 10px;
+  background: #f7fbfd;
+}
+
+.clausula-datos-personales h5 {
+  color: var(--azul-tinta);
+}
+
+.clausula-datos-personales p {
+  max-width: 100%;
+}
+
+.referencia-politica {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 13px;
+  padding: 10px 12px;
+  border: 1px solid #d5e3ed;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #425266;
+  font-size: .82rem;
+  line-height: 1.4;
+}
+
+.referencia-politica a {
+  margin-left: 0;
+  color: var(--azul-tinta);
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+.referencia-politica a:hover {
+  color: #003f61;
+}
+
+
+/* ============================================================
+   ACEPTACIONES
+   ============================================================ */
+
+.seccion-declaracion {
+  padding: 22px 24px;
+}
+
+.seccion-declaracion > h4 {
+  margin: 0 0 18px;
+  padding-bottom: 11px;
+  border-bottom: 1px solid #e4ebf1;
+  color: var(--azul-tinta);
+  font-size: 1.05rem;
+}
+
+.check-final-declaracion {
+  display: flex;
+  align-items: flex-start;
+  gap: 13px;
+  margin-bottom: 13px;
+  padding: 15px 17px;
+  border: 1px solid #dce4eb;
+  border-radius: 10px;
+  background: #fafbfc;
+  color: #344255;
+  cursor: pointer;
+  transition:
+    background-color .16s ease,
+    border-color .16s ease,
+    box-shadow .16s ease;
+}
+
+.check-final-declaracion:hover {
+  border-color: #b8c8d6;
+  background: #f7f9fb;
+}
+
+.check-final-declaracion span {
+  color: #344255;
+  font-size: .86rem;
+  line-height: 1.52;
+  font-weight: 600;
+}
+
+.check-linea {
+  display: flex;
+  align-items: flex-start;
+  gap: 13px;
+  margin-bottom: 13px;
+  color: #344255;
+  line-height: 1.52;
+  cursor: pointer;
+}
+
+.check-linea input[type="checkbox"],
+.check-final-declaracion input[type="checkbox"] {
+  width: 19px;
+  height: 19px;
+  min-width: 19px;
+  min-height: 19px;
+  flex: 0 0 19px;
+  margin: 2px 0 0;
+  padding: 0;
+  border-radius: 4px;
+  transform: none;
+  accent-color: var(--azul-tinta);
+  cursor: pointer;
+}
+
+/* Estado seleccionado sin modificar HTML */
+
+.check-final-declaracion:has(input[type="checkbox"]:checked) {
+  border-color: #9fd3b1;
+  background: #f0f8f3;
+  box-shadow: 0 0 0 1px rgba(63, 166, 107, .06);
+}
+
+.check-final-declaracion:has(input[type="checkbox"]:checked) span {
+  color: #16452e;
+}
+
+
+/* ============================================================
+   AVISOS FINALES
+   ============================================================ */
+
+.alerta-revision-final {
+  margin-top: 15px;
+  padding: 16px 18px;
+  border: 1px solid #eac98e;
+  border-left: 4px solid var(--ambar);
+  border-radius: 10px;
+  background: #fff9ef;
+  color: #684210;
+  box-shadow: none;
+}
+
+.alerta-revision-final strong {
+  margin: 0 0 5px;
+  color: #5e3908;
+  font-family: var(--font-body);
+  font-size: .9rem;
+  line-height: 1.4;
+  font-weight: 750;
+}
+
+.alerta-revision-final span {
+  color: #704814;
+  font-size: .86rem;
+  line-height: 1.52;
+}
+
+.alerta-importante {
+  margin-top: 14px;
+  padding: 15px 18px;
+  border: 1px solid #dce4eb;
+  border-left: 4px solid #94a4b4;
+  border-radius: 10px;
+  background: #fafbfc;
+  color: #344255;
+  box-shadow: none;
+}
+
+
+/* ============================================================
+   BOTONERA FINAL
+   ============================================================ */
+
+.botonera-pasos,
+.acciones-finales {
+  margin-top: 24px;
+  padding: 18px 0 0;
+  border: 0;
+  border-top: 1px solid #dfe7ee;
+  border-radius: 0;
+  background: transparent;
+}
+
+.acciones-finales .btn-principal,
+.botonera-pasos .btn-principal,
+.acciones-finales .btn-success,
+.botonera-pasos .btn-success {
+  min-height: 42px;
+  padding: 10px 21px;
+  border-radius: 9px;
+  background: var(--azul-tinta);
+  border-color: var(--azul-tinta);
+  box-shadow: 0 3px 8px rgba(0, 95, 143, .16);
+}
+
+.acciones-finales .btn-principal:hover,
+.botonera-pasos .btn-principal:hover,
+.acciones-finales .btn-success:hover,
+.botonera-pasos .btn-success:hover {
+  background: #004f78;
+  box-shadow: 0 4px 10px rgba(0, 79, 120, .2);
+}
+
+.acciones-finales .btn-secundario,
+.botonera-pasos .btn-secundario,
+.acciones-finales .btn-outline,
+.botonera-pasos .btn-outline {
+  min-height: 42px;
+  padding: 10px 18px;
+  border-radius: 9px;
+}
+
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+
+@media (max-width: 1100px) {
+  .resumen-final {
+    grid-template-columns: 1fr;
+  }
+
+  .resumen-final .grupo-resumen:nth-of-type(4) {
+    grid-column: auto;
+  }
+}
+
+@media (max-width: 720px) {
+  .bloque-resumen,
+  .declaracion-institucional,
+  .seccion-declaracion {
+    padding: 18px;
+  }
+
+  .paso-header {
+    padding: 17px 18px;
+  }
+
+  .resumen-final {
+    gap: 13px;
+  }
+
+  .resumen-final .grupo-resumen {
+    padding: 16px;
+  }
+
+  .clausula-legal {
+    padding: 15px 0;
+  }
+
+  .clausula-datos-personales {
+    padding: 16px;
+  }
+
+  .check-final-declaracion {
+    padding: 14px 15px;
+  }
+
+  .referencia-politica {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .botonera-pasos,
+  .acciones-finales {
+    gap: 10px;
+  }
+}
