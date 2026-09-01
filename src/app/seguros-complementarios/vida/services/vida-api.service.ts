@@ -134,10 +134,50 @@ export interface GenerarFormulario6012Request {
     BeneficiarioFormulario6012Request[];
 }
 
+export type IdTipoDocumentoDrive =
+  | '244'
+  | '247';
+
+export interface ArchivoDriveResponse {
+  nombreArchivo: string;
+  rutaArchivo: string;
+}
+
+export interface SubirDocumentoDriveResponse {
+  archivo: ArchivoDriveResponse | null;
+  flagResultado: string;
+  mensaje: string;
+}
+
 export interface ApiResponseLocal<T> {
   codResultado: string;
   mensaje: string;
   body: T | null;
+}
+
+export interface SolicitarOtpRequestLocal {
+  correo: string;
+}
+
+export interface SolicitarOtpResponseLocal {
+  codResultadoGeneracion: string;
+  otpGenerado: boolean;
+  correoEnviado: boolean;
+  mensaje: string;
+
+  codigoResultadoCorreo?: string | null;
+  mensajeCorreo?: string | null;
+}
+
+export interface ValidarOtpRequestLocal {
+  correo: string;
+  codigo: string;
+}
+
+export interface ValidarOtpResponseLocal {
+  valido: boolean;
+  mensaje: string;
+  intentosRestantes: number;
 }
 
 export interface IniciarProcesoVidaRequestLocal {
@@ -151,6 +191,9 @@ export interface IniciarProcesoVidaRequestLocal {
   apellidoMaternoTitular: string;
   primerNombreTitular: string;
   segundoNombreTitular: string;
+
+  correo: string;
+  celular: string;
 }
 
 export interface IniciarProcesoVidaResponseLocal {
@@ -649,8 +692,282 @@ export class VidaApiService {
   '/sagw/viva-essalud/viva-apidatosmaestros';
   private readonly baseUrlBackendLocal =
   'http://localhost/api/v1';
+  private readonly baseUrlBackendDocumentosQa =
+  'https://appsqa.essalud.gob.pe/sagw/mia-seguros-hijomenormayor/api/docs';
 
   constructor(private http: HttpClient) {}
+
+  solicitarOtp(
+  correo: string
+): Observable<SolicitarOtpResponseLocal> {
+
+  const correoLimpio =
+    (correo || '').trim();
+
+  if (!correoLimpio) {
+    return throwError(
+      () => new Error(
+        'El correo es obligatorio para solicitar el código OTP.'
+      )
+    );
+  }
+
+  const payload:
+    SolicitarOtpRequestLocal = {
+      correo: correoLimpio
+    };
+
+  const url =
+    `${this.baseUrlBackendLocal}`
+    + `/otp/solicitar`;
+
+  return this.http
+    .post<
+      ApiResponseLocal<
+        SolicitarOtpResponseLocal
+      >
+    >(
+      url,
+      payload
+    )
+    .pipe(
+      map(respuesta => {
+
+        if (!respuesta.body) {
+          throw new Error(
+            respuesta.mensaje
+            || 'No fue posible solicitar el código OTP.'
+          );
+        }
+
+        return respuesta.body;
+      }),
+
+      catchError((error: unknown) => {
+
+        console.error(
+          'Error solicitando código OTP:',
+          error
+        );
+
+        return throwError(
+          () => error
+        );
+      })
+    );
+}
+
+subirDocumentoDrive(
+  archivo: Blob,
+  nombreArchivo: string,
+  idTpDoc: IdTipoDocumentoDrive,
+  tpDocument: string,
+  numDocument: string
+): Observable<SubirDocumentoDriveResponse> {
+
+  const nombre =
+    (nombreArchivo || '').trim();
+
+  const tipoDocumento =
+    (tpDocument || '').trim();
+
+  const numeroDocumento =
+    (numDocument || '').trim();
+
+  if (!archivo || archivo.size === 0) {
+    return throwError(
+      () => new Error(
+        'El archivo que se enviará a Google Drive es obligatorio.'
+      )
+    );
+  }
+
+  if (!nombre) {
+    return throwError(
+      () => new Error(
+        'El nombre del archivo que se enviará a Google Drive es obligatorio.'
+      )
+    );
+  }
+
+  if (!tipoDocumento) {
+    return throwError(
+      () => new Error(
+        'El tipo de documento del titular es obligatorio para Google Drive.'
+      )
+    );
+  }
+
+  if (!numeroDocumento) {
+    return throwError(
+      () => new Error(
+        'El número de documento del titular es obligatorio para Google Drive.'
+      )
+    );
+  }
+
+  const formData =
+    new FormData();
+
+  formData.append(
+    'archivo',
+    archivo,
+    nombre
+  );
+
+  formData.append(
+    'idTpDoc',
+    idTpDoc
+  );
+
+  formData.append(
+    'tpDocument',
+    tipoDocumento
+  );
+
+  formData.append(
+    'numDocument',
+    numeroDocumento
+  );
+
+  const url =
+    `${this.baseUrl}/google-drive/upload`;
+
+  return this.http
+    .post<SubirDocumentoDriveResponse>(
+      url,
+      formData
+    )
+    .pipe(
+      map(respuesta => {
+
+        const operacionCorrecta =
+          String(
+            respuesta.flagResultado
+          ).trim() === '0';
+
+        const rutaArchivo =
+          respuesta.archivo
+            ?.rutaArchivo
+            ?.trim()
+          || '';
+
+        if (
+          !operacionCorrecta
+          || !respuesta.archivo
+          || !rutaArchivo
+        ) {
+          throw new Error(
+            respuesta.mensaje
+            || 'Google Drive no confirmó el almacenamiento del documento.'
+          );
+        }
+
+        console.log(
+          'Documento almacenado en Google Drive:',
+          {
+            idTpDoc,
+            tipoDocumento,
+            numeroDocumento,
+            nombreArchivo:
+              respuesta.archivo.nombreArchivo,
+            rutaArchivo
+          }
+        );
+
+        return respuesta;
+      }),
+
+      catchError((error: unknown) => {
+
+        console.error(
+          'Error almacenando documento en Google Drive:',
+          error
+        );
+
+        return throwError(
+          () => error
+        );
+      })
+    );
+}
+
+validarOtp(
+  correo: string,
+  codigo: string
+): Observable<ValidarOtpResponseLocal> {
+
+  const correoLimpio =
+    (correo || '').trim();
+
+  const codigoLimpio =
+    (codigo || '').trim();
+
+  if (!correoLimpio) {
+    return throwError(
+      () => new Error(
+        'El correo es obligatorio para validar el código OTP.'
+      )
+    );
+  }
+
+  if (!/^\d{6}$/.test(codigoLimpio)) {
+    return throwError(
+      () => new Error(
+        'El código OTP debe contener 6 dígitos.'
+      )
+    );
+  }
+
+  const payload:
+    ValidarOtpRequestLocal = {
+      correo: correoLimpio,
+      codigo: codigoLimpio
+    };
+
+  const url =
+    `${this.baseUrlBackendLocal}`
+    + `/otp/validar`;
+
+  return this.http
+    .post<
+      ApiResponseLocal<
+        ValidarOtpResponseLocal
+      >
+    >(
+      url,
+      payload
+    )
+    .pipe(
+      map(respuesta => {
+
+        /*
+         * valido=false es una respuesta funcional,
+         * no un error técnico.
+         */
+        if (!respuesta.body) {
+          throw new Error(
+            respuesta.mensaje
+            || 'No fue posible validar el código OTP.'
+          );
+        }
+
+        return respuesta.body;
+      }),
+
+      catchError((error: unknown) => {
+
+        console.error(
+          'Error validando código OTP:',
+          error
+        );
+
+        return throwError(
+          () => error
+        );
+      })
+    );
+}
 
   iniciarProcesoVida(
   payload: IniciarProcesoVidaRequestLocal
@@ -1544,7 +1861,7 @@ generarFormulario6012(
   payload: GenerarFormulario6012Request
 ): Observable<DocumentoGeneradoDescargadoLocal> {
   const urlGeneracion =
-    `${this.baseUrlBackendLocal}/documentos/formulario-6012/generar`;
+    `${this.baseUrlBackendDocumentosQa}/formulario-6012/generar`;
 
   return this.http
     .post<ApiResponseLocal<GenerarDocumentoLocalResponse>>(
@@ -1619,7 +1936,7 @@ generarFormularioDescuento(
   payload: GenerarFormularioDescuentoRequest
 ): Observable<DocumentoGeneradoDescargadoLocal> {
   const urlGeneracion =
-    `${this.baseUrlBackendLocal}/documentos/autorizacion-descuento/generar`;
+    `${this.baseUrlBackendDocumentosQa}/autorizacion-descuento/generar`;
 
   return this.http
     .post<ApiResponseLocal<GenerarDocumentoLocalResponse>>(
@@ -1735,7 +2052,7 @@ cargarDocumentoFirmado(
   );
 
   const url =
-    `${this.baseUrlBackendLocal}/documentos/cargados/firmados`;
+    `${this.baseUrlBackendDocumentosQa}/cargados/firmados`;
 
   return this.http
     .post<ApiResponseLocal<DocumentoCargadoLocalResponse>>(
@@ -1857,7 +2174,7 @@ validarDocumentoCompleto(
   );
 
   const url =
-    `${this.baseUrlBackendLocal}/documentos/validacion/completa`;
+    `${this.baseUrlBackendDocumentosQa}/validacion/completa`;
 
   return this.http
     .post<
@@ -1969,7 +2286,7 @@ procesarCierreDocumental(
   );
 
   const url =
-    `${this.baseUrlBackendLocal}/documentos/cierre/procesar`;
+    `${this.baseUrlBackendDocumentosQa}/cierre/procesar`;
 
   return this.http
     .post<
@@ -2036,11 +2353,11 @@ listarDocumentosPublicados(
   }
 
   const url =
-    `${this.baseUrlBackendLocal}`
-    + `/documentos/publicacion/proceso/`
-    + `${encodeURIComponent(registro)}`
-    + `/trabajador/`
-    + `${encodeURIComponent(numeroDocumento)}`;
+  `${this.baseUrlBackendDocumentosQa}`
+  + `/publicacion/proceso/`
+  + `${encodeURIComponent(registro)}`
+  + `/trabajador/`
+  + `${encodeURIComponent(numeroDocumento)}`;
 
   return this.http
     .get<
@@ -2091,8 +2408,8 @@ obtenerDocumentoPublicado(
   }
 
   const url =
-    `${this.baseUrlBackendLocal}`
-    + `/documentos/publicacion/`
+    `${this.baseUrlBackendDocumentosQa}`
+    + `/publicacion/`
     + `${encodeURIComponent(idSeguro)}`
     + `/archivo`;
 

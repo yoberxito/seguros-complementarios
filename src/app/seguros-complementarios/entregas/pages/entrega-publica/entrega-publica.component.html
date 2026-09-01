@@ -1,0 +1,647 @@
+<div class="pagina">
+
+  <main class="card-custom">
+
+    <!-- ======================================================
+         HEADER INSTITUCIONAL
+         ====================================================== -->
+
+    <header class="encabezado web-header">
+
+      <div class="logo-essalud-real">
+        <img
+          src="/Imagenes/essaludlogo.png"
+          alt="EsSalud">
+      </div>
+
+      <div class="web-header-texto">
+
+        <span class="modulo-etiqueta">
+          Seguros Complementarios
+        </span>
+
+        <h1>
+          Recepción de lote +Vida
+        </h1>
+
+        <p>
+          Verificación de identidad y constancia
+          de disponibilidad de documentos.
+        </p>
+
+      </div>
+
+    </header>
+
+
+    <!-- ======================================================
+         CARGA
+         ====================================================== -->
+
+    <div
+      class="estado-carga"
+      *ngIf="cargandoEntrega">
+
+      Consultando información de la entrega...
+
+    </div>
+
+
+    <!-- ======================================================
+         ERROR GENERAL
+         ====================================================== -->
+
+    <div
+      class="alerta-error"
+      *ngIf="
+        !cargandoEntrega
+        && errorCarga
+      ">
+
+      <strong>
+        No fue posible abrir la entrega
+      </strong>
+
+      <span>
+        {{ errorCarga }}
+      </span>
+
+    </div>
+
+
+    <!-- ======================================================
+         ENTREGA
+         ====================================================== -->
+
+    <section
+      class="entrega-contenido"
+      *ngIf="
+        !cargandoEntrega
+        && !errorCarga
+        && entrega
+      ">
+
+      <!-- ====================================================
+           TARJETA ÚNICA
+           ==================================================== -->
+
+      <article class="entrega-card">
+
+        <!-- CONTEXTO DEL LOTE -->
+
+        <header class="entrega-contexto">
+
+          <div class="contexto-principal">
+
+            <span class="contexto-etiqueta">
+              Destinatario
+            </span>
+
+            <h2>
+              {{ destinatarioVisible }}
+            </h2>
+
+          </div>
+
+
+          <span
+            class="estado-chip"
+
+            [class.estado-chip-exito]="
+              recepcionRegistrada
+            ">
+
+            {{ estadoVisible }}
+
+          </span>
+
+        </header>
+
+
+        <div class="entrega-metadata">
+
+          <div class="metadata-item">
+
+            <span>
+              Período
+            </span>
+
+            <strong>
+              {{ formatearPeriodo() }}
+            </strong>
+
+          </div>
+
+
+          <div class="metadata-separador">
+          </div>
+
+
+          <div class="metadata-item">
+
+            <span>
+              Documentos
+            </span>
+
+            <strong>
+              {{ entrega.cantidadDocumentos }}
+            </strong>
+
+          </div>
+
+
+          <div class="metadata-separador">
+          </div>
+
+
+          <div class="metadata-item">
+
+            <span>
+              Publicado
+            </span>
+
+            <strong>
+              {{
+                formatearFecha(
+                  entrega.fechaPublicacion
+                )
+              }}
+            </strong>
+
+          </div>
+
+        </div>
+
+
+        <!-- MENSAJES DE OPERACIÓN -->
+
+        <div
+          class="alerta-exito"
+          *ngIf="
+            mensajeAccion
+            && !recepcionRegistrada
+          ">
+
+          {{ mensajeAccion }}
+
+        </div>
+
+
+        <div
+          class="alerta-error"
+          *ngIf="errorAccion">
+
+          {{ errorAccion }}
+
+        </div>
+
+
+        <!-- ==================================================
+             ESTADO 1
+             PENDIENTE DE VERIFICACIÓN
+             ================================================== -->
+
+        <section
+          class="estado-principal"
+          *ngIf="
+            !identidadValidada
+            && !recepcionRegistrada
+          ">
+
+          <div class="estado-icono estado-icono-identidad">
+
+          <svg
+            class="icono-seguridad"
+            viewBox="0 0 24 24"
+            aria-hidden="true">
+
+            <path d="M7 10V7a5 5 0 0 1 10 0v3"></path>
+
+            <rect
+              x="5"
+              y="10"
+              width="14"
+              height="10"
+              rx="2">
+            </rect>
+
+            <path d="M12 14v2"></path>
+
+          </svg>
+
+        </div>
+
+
+        <h3>
+          Verifique su identidad
+        </h3>
+
+
+        <p class="estado-descripcion">
+
+          Para confirmar la recepción de este lote,
+          necesitamos validar previamente su identidad.
+
+        </p>
+
+
+        <div
+          class="correo-autorizado"
+          *ngIf="entrega.correoEnmascarado">
+
+          <span>
+            Enviaremos un código de verificación a
+          </span>
+
+          <strong>
+            {{ entrega.correoEnmascarado }}
+          </strong>
+
+        </div>
+
+
+        <button
+          type="button"
+          class="btn-principal"
+
+          [disabled]="
+            !puedeVerificarIdentidad
+          "
+
+          (click)="
+            iniciarVerificacionIdentidad()
+          ">
+
+          Enviar código de verificación
+
+        </button>
+
+        </section>
+
+
+        <!-- ==================================================
+             ESTADO 2
+             OTP VALIDADO / PENDIENTE DE ACUSE
+             ================================================== -->
+
+        <section
+          class="estado-principal estado-confirmacion"
+          *ngIf="
+            identidadValidada
+            && !recepcionRegistrada
+          ">
+
+          <div class="identidad-confirmada">
+
+            <span class="check-pequeno">
+              ✓
+            </span>
+
+            <div>
+
+              <strong>
+                Identidad verificada
+              </strong>
+
+              <span>
+                Puede continuar con la confirmación
+                de recepción.
+              </span>
+
+            </div>
+
+          </div>
+
+
+          <div class="declaracion">
+
+            <span class="declaracion-etiqueta">
+              Declaración de recepción
+            </span>
+
+
+            <p>
+              {{ entrega.textoAcuse }}
+            </p>
+
+          </div>
+
+
+          <button
+            type="button"
+            class="btn-principal"
+
+            [disabled]="
+              !puedeConfirmarRecepcion
+              || confirmandoAcuse
+            "
+
+            (click)="
+              confirmarRecepcion()
+            ">
+
+            {{
+              confirmandoAcuse
+                ? 'Registrando recepción...'
+                : 'Confirmar recepción'
+            }}
+
+          </button>
+
+        </section>
+
+
+        <!-- ==================================================
+             ESTADO 3
+             RECEPCIÓN REGISTRADA
+             ================================================== -->
+
+        <section
+          class="estado-principal estado-final"
+          *ngIf="recepcionRegistrada">
+
+          <div class="check-final">
+            ✓
+          </div>
+
+
+          <span class="estado-sobretitulo">
+            Proceso completado
+          </span>
+
+
+          <h3>
+            Recepción registrada
+          </h3>
+
+
+          <p class="estado-descripcion">
+
+            La constancia de disponibilidad del lote
+            +Vida fue registrada correctamente.
+
+          </p>
+
+
+          <p
+            class="fecha-confirmacion"
+            *ngIf="entrega.fechaAcuse">
+
+            Registrado el
+            <strong>
+              {{ formatearFechaHora(entrega.fechaAcuse) }}
+            </strong>
+
+          </p>
+
+          <div class="resumen-final">
+
+            <strong>
+              {{ destinatarioVisible }}
+            </strong>
+
+            <span>
+              {{ formatearPeriodo() }}
+            </span>
+
+          </div>
+
+
+          <a
+            *ngIf="
+              entrega.accesoDisponible
+              && entrega.urlAcceso
+            "
+
+            class="btn-principal btn-enlace"
+
+            [href]="entrega.urlAcceso"
+
+            target="_blank"
+
+            rel="noopener noreferrer">
+
+            Acceder al lote
+
+          </a>
+
+
+          <div
+            class="acceso-pendiente"
+            *ngIf="
+              !entrega.accesoDisponible
+              || !entrega.urlAcceso
+            ">
+
+            <strong>
+              Acceso documental pendiente
+            </strong>
+
+            <span>
+              La recepción ya fue registrada.
+              El acceso al lote se mostrará en este enlace
+              cuando se encuentre disponible.
+            </span>
+
+          </div>
+
+        </section>
+
+      </article>
+
+
+      <!-- NOTA INFERIOR -->
+
+      <p class="nota-enlace">
+
+        Este enlace corresponde exclusivamente
+        a la recepción del lote +Vida indicado.
+
+      </p>
+
+    </section>
+
+  </main>
+
+
+  <!-- ========================================================
+       MODAL OTP
+       ======================================================== -->
+
+  <div
+    class="modal-fondo"
+    *ngIf="mostrarModalOtp">
+
+    <div class="modal-otp">
+
+      <div class="otp-icono">
+        🔐
+      </div>
+
+
+      <h2>
+        Verificación de identidad
+      </h2>
+
+
+      <p class="otp-descripcion">
+
+        Ingrese el código de seguridad enviado
+        al correo autorizado para esta entrega.
+
+      </p>
+
+
+      <div
+        class="otp-correo"
+        *ngIf="entrega?.correoEnmascarado">
+
+        <span>
+          Código enviado a
+        </span>
+
+        <strong>
+          {{ entrega?.correoEnmascarado }}
+        </strong>
+
+      </div>
+
+
+      <div
+        class="otp-cargando"
+        *ngIf="solicitandoOtp">
+
+        Enviando código de verificación...
+
+      </div>
+
+
+      <div
+        class="otp-mensaje"
+        *ngIf="
+          mensajeOtp
+          && !solicitandoOtp
+        ">
+
+        {{ mensajeOtp }}
+
+      </div>
+
+
+      <div
+        class="otp-campo"
+        *ngIf="!solicitandoOtp">
+
+        <label for="codigoOtpEntrega">
+          Código de verificación
+        </label>
+
+
+        <input
+          id="codigoOtpEntrega"
+
+          type="text"
+
+          inputmode="numeric"
+
+          autocomplete="one-time-code"
+
+          maxlength="6"
+
+          placeholder="000000"
+
+          [(ngModel)]="codigoOtp"
+
+          (input)="
+            normalizarCodigoOtp()
+          "
+
+          [disabled]="
+            validandoOtp
+          ">
+
+
+        <small>
+          Ingrese los 6 dígitos recibidos
+          por correo.
+        </small>
+
+      </div>
+
+
+      <div
+        class="otp-error"
+        *ngIf="errorOtp">
+
+        {{ errorOtp }}
+
+      </div>
+
+
+      <div class="otp-acciones">
+
+        <button
+          type="button"
+          class="btn-secundario"
+
+          [disabled]="
+            solicitandoOtp
+            || validandoOtp
+          "
+
+          (click)="
+            cerrarModalOtp()
+          ">
+
+          Cerrar
+
+        </button>
+
+
+        <button
+          type="button"
+          class="btn-secundario"
+
+          [disabled]="
+            solicitandoOtp
+            || validandoOtp
+          "
+
+          (click)="
+            solicitarCodigoOtp()
+          ">
+
+          Solicitar código
+
+        </button>
+
+
+        <button
+          type="button"
+          class="btn-modal-principal"
+
+          [disabled]="
+            codigoOtp.length !== 6
+            || solicitandoOtp
+            || validandoOtp
+          "
+
+          (click)="
+            validarCodigoOtp()
+          ">
+
+          {{
+            validandoOtp
+              ? 'Validando...'
+              : 'Validar código'
+          }}
+
+        </button>
+
+      </div>
+
+    </div>
+
+  </div>
+
+</div>

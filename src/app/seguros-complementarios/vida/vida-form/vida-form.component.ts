@@ -1,4 +1,5 @@
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import {
   Component,
   OnDestroy
@@ -44,7 +45,9 @@ import {
   GuardarBorradorDatosComplementariosRequestLocal,
   BeneficiarioBorradorRequestLocal,
   GuardarBorradorBeneficiariosRequestLocal,
-  TipoDocumentoFormulario6012
+  TipoDocumentoFormulario6012,
+  SolicitarOtpResponseLocal,
+  ValidarOtpResponseLocal
 } from '../services/vida-api.service';
 
 import {
@@ -103,6 +106,7 @@ import {
   standalone: true,
   imports: [
     CommonModule,
+    FormsModule,
     VidaTitularComponent,
     VidaDatosComplementariosComponent,
     VidaConyugeComponent,
@@ -270,6 +274,60 @@ vista: Vista = 'formulario';
 intentoEnviar = false;
 avisoFlotante: AvisoFlotante | null = null;
 temporizadorAviso: ReturnType<typeof setTimeout> | null = null;
+
+/*
+ * ============================================================
+ * OTP
+ * ============================================================
+ *
+ * Durante las pruebas se utiliza un correo fijo.
+ *
+ * Para pasar posteriormente al correo institucional recuperado
+ * para el titular solamente debe cambiarse
+ * usarCorreoTitularParaOtp a true.
+ */
+private readonly usarCorreoTitularParaOtp =
+  false;
+
+private readonly correoOtpPrueba =
+  'diego.inga@essalud.gob.pe';
+
+mostrarModalOtp =
+  false;
+
+correoOtpDestino =
+  '';
+
+codigoOtp =
+  '';
+
+solicitandoOtp =
+  false;
+
+validandoOtp =
+  false;
+
+otpHabilitadoParaValidar =
+  false;
+
+mensajeOtp =
+  '';
+
+errorOtp =
+  '';
+
+intentosRestantesOtp:
+  number | null = null;
+
+/*
+ * Acción que únicamente puede ejecutarse
+ * después de una validación OTP correcta.
+ *
+ * Es deliberadamente temporal y no se
+ * persiste como estado del trámite.
+ */
+private accionPosteriorOtp:
+  (() => void) | null = null;
 
 private readonly ordenPasos:
   PasoFormulario[] = [
@@ -2156,7 +2214,13 @@ iniciarORecuperarProcesoVida(): void {
       this.form.titular.primerNombre,
 
     segundoNombreTitular:
-      this.form.titular.segundoNombre
+      this.form.titular.segundoNombre,
+
+    correo:
+      this.form.correoViva,
+
+    celular:
+      this.form.celular
   };
 
   this.iniciandoProcesoVida = true;
@@ -3670,6 +3734,8 @@ guardarConyugeYContinuar(): void {
 guardarBeneficiariosYContinuar(
   beneficiarios: Beneficiario[] = this.beneficiariosConDatos()
 ): void {
+    const esFormulario6012Posterior =
+    this.pendienteBeneficiariosPara6012;
 
   if (
     this.temporizadorBorradorBeneficiarios
@@ -3789,6 +3855,78 @@ guardarBeneficiariosYContinuar(
 
         this.seccionesGrabadas.beneficiarios =
           true;
+
+                if (esFormulario6012Posterior) {
+
+          if (
+            respuesta.codigoEstadoNavegacion
+            !== 'DOCUMENTOS'
+          ) {
+            this.mostrarAviso(
+              'Los beneficiarios fueron enviados, pero el backend no confirmó el ciclo posterior del Formulario 6012.',
+              'error',
+              'Ciclo documental no confirmado',
+              true
+            );
+
+            return;
+          }
+
+          const fecha =
+            new Date();
+
+          this.fechaGeneracionDocumentos =
+            fecha.toLocaleString('es-PE');
+
+          this.tipoGeneracionDocumentos =
+            'soloFormulario6012';
+
+          /*
+           * El PDF todavía no existe.
+           * Se generará recién al pulsar
+           * Descargar.
+           */
+          this.formulario6012Generado =
+            false;
+
+          this.pendienteBeneficiariosPara6012 =
+            false;
+
+          this.documentosGenerados =
+            true;
+
+          this.solicitudBloqueada =
+            true;
+
+          console.log(
+            'Formulario 6012 posterior confirmado en backend:',
+            {
+              registroInternoProceso,
+              codigoEstadoProceso:
+                respuesta.codigoEstadoProceso,
+              codigoEstadoNavegacion:
+                respuesta.codigoEstadoNavegacion,
+              cantidadBeneficiarios:
+                beneficiariosPayload.length
+            }
+          );
+
+          this.pasoActual =
+            'documentos';
+
+          this.intentoEnviar =
+            false;
+
+          this.scrollArriba();
+
+          this.mostrarAviso(
+            'Los beneficiarios fueron registrados. Descargue el Formulario 6012 para continuar.',
+            'exito',
+            'Formulario preparado'
+          );
+
+          return;
+        }
 
         if (
           respuesta.codigoEstadoNavegacion
@@ -4147,7 +4285,7 @@ this.fechaRecepcionDocumentos = '';
 
 this.formulario6012Sellado = false;
 this.autorizacionDescuentoSellada = false;
-
+this.limpiarEstadoOtp();
 }
 
 irAPaso(paso: PasoFormulario): void {
@@ -5041,6 +5179,411 @@ construirPayloadFormularioDescuento():
   };
 }
 
+private obtenerCorreoOtpDestino():
+  string {
+
+  if (
+    this.usarCorreoTitularParaOtp
+  ) {
+    return (
+      this.form.correoViva
+      || ''
+    ).trim();
+  }
+
+  return this.correoOtpPrueba;
+}
+
+
+private iniciarVerificacionOtp(
+  accionPosteriorOtp: () => void
+): void {
+
+  if (
+    this.solicitandoOtp
+    || this.validandoOtp
+  ) {
+    return;
+  }
+
+  const correo =
+    this.obtenerCorreoOtpDestino();
+
+  if (!correo) {
+    this.mostrarAviso(
+      'No existe un correo disponible para realizar la verificación de identidad.',
+      'error',
+      'Correo no disponible',
+      true
+    );
+
+    return;
+  }
+
+  this.accionPosteriorOtp =
+    accionPosteriorOtp;
+
+  this.correoOtpDestino =
+    correo;
+
+  this.codigoOtp =
+    '';
+
+  this.mensajeOtp =
+    '';
+
+  this.errorOtp =
+    '';
+
+  this.intentosRestantesOtp =
+    null;
+
+  this.otpHabilitadoParaValidar =
+    false;
+
+  this.mostrarModalOtp =
+    true;
+
+  this.solicitarCodigoOtp();
+}
+
+
+solicitarCodigoOtp(): void {
+
+  if (
+    this.solicitandoOtp
+    || this.validandoOtp
+  ) {
+    return;
+  }
+
+  const correo =
+    this.correoOtpDestino.trim();
+
+  if (!correo) {
+    this.errorOtp =
+      'No existe un correo disponible para solicitar el código.';
+
+    return;
+  }
+
+  this.solicitandoOtp =
+    true;
+
+  this.errorOtp =
+    '';
+
+  this.mensajeOtp =
+    '';
+
+  this.otpHabilitadoParaValidar =
+    false;
+
+  console.log(
+    'Solicitando OTP:',
+    {
+      correo
+    }
+  );
+
+  this.vidaApiService
+    .solicitarOtp(
+      correo
+    )
+    .subscribe({
+
+      next: (
+        respuesta:
+          SolicitarOtpResponseLocal
+      ) => {
+
+        this.solicitandoOtp =
+          false;
+
+        const codigoResultadoGeneracion =
+          String(
+            respuesta
+              .codResultadoGeneracion
+            ?? ''
+          ).trim();
+
+        const mensaje =
+          (
+            respuesta.mensaje
+            || ''
+          ).trim();
+
+        const codigoGeneradoYEnviado =
+          respuesta.otpGenerado === true
+          && respuesta.correoEnviado === true;
+
+        /*
+         * El servicio institucional devuelve
+         * codResultadoGeneracion = "1"
+         * cuando todavía existe un OTP activo.
+         *
+         * En ese escenario NO generamos otro:
+         * el trabajador puede introducir el
+         * código que ya recibió.
+         */
+        const existeCodigoActivo =
+          codigoResultadoGeneracion === '1'
+          && mensaje
+            .toLowerCase()
+            .includes('activo');
+
+        if (
+          codigoGeneradoYEnviado
+        ) {
+          this.otpHabilitadoParaValidar =
+            true;
+
+          this.mensajeOtp =
+            mensaje
+            || 'Se envió un código de verificación al correo indicado.';
+
+          return;
+        }
+
+        if (
+          existeCodigoActivo
+        ) {
+          this.otpHabilitadoParaValidar =
+            true;
+
+          this.mensajeOtp =
+            'Ya existe un código de verificación activo. Ingrese el código recibido en su correo.';
+
+          return;
+        }
+
+        this.otpHabilitadoParaValidar =
+          false;
+
+        this.errorOtp =
+          mensaje
+          || 'No fue posible generar y enviar el código de verificación.';
+      },
+
+      error: (
+        error: unknown
+      ) => {
+
+        this.solicitandoOtp =
+          false;
+
+        this.otpHabilitadoParaValidar =
+          false;
+
+        this.errorOtp =
+          'No fue posible comunicarse con el servicio de verificación. Intente nuevamente.';
+
+        console.error(
+          'No fue posible solicitar OTP:',
+          error
+        );
+      }
+    });
+}
+
+
+normalizarCodigoOtp(): void {
+
+  this.codigoOtp =
+    (this.codigoOtp || '')
+      .replace(/\D/g, '')
+      .slice(0, 6);
+
+  this.errorOtp =
+    '';
+}
+
+
+validarCodigoOtp(): void {
+
+  if (
+    this.validandoOtp
+    || this.solicitandoOtp
+  ) {
+    return;
+  }
+
+  this.normalizarCodigoOtp();
+
+  if (
+    !/^\d{6}$/.test(
+      this.codigoOtp
+    )
+  ) {
+    this.errorOtp =
+      'Ingrese el código de 6 dígitos recibido en su correo.';
+
+    return;
+  }
+
+  const correo =
+    this.correoOtpDestino.trim();
+
+  if (!correo) {
+    this.errorOtp =
+      'No existe un correo asociado a la verificación.';
+
+    return;
+  }
+
+  this.validandoOtp =
+    true;
+
+  this.errorOtp =
+    '';
+
+  console.log(
+    'Validando OTP:',
+    {
+      correo
+    }
+  );
+
+  this.vidaApiService
+    .validarOtp(
+      correo,
+      this.codigoOtp
+    )
+    .subscribe({
+
+      next: (
+        respuesta:
+          ValidarOtpResponseLocal
+      ) => {
+
+        this.validandoOtp =
+          false;
+
+        this.intentosRestantesOtp =
+          Number.isFinite(
+            respuesta.intentosRestantes
+          )
+            ? respuesta.intentosRestantes
+            : null;
+
+        if (
+          respuesta.valido === true
+        ) {
+
+          const accion =
+            this.accionPosteriorOtp;
+
+          /*
+           * Cerramos completamente el OTP antes
+           * de continuar con la fase documental.
+           */
+          this.limpiarEstadoOtp();
+
+          if (!accion) {
+            this.mostrarAviso(
+              'El código fue validado, pero no se encontró la acción pendiente del trámite.',
+              'error',
+              'Continuación no disponible',
+              true
+            );
+
+            return;
+          }
+
+          console.log(
+            'OTP validado correctamente. Continuando flujo documental.'
+          );
+
+          accion();
+
+          return;
+        }
+
+        this.errorOtp =
+          respuesta.mensaje
+          || 'El código ingresado no es válido.';
+
+        /*
+         * Cuando no quedan intentos o el OTP
+         * dejó de existir, exigimos solicitar
+         * nuevamente uno antes de validar.
+         */
+        if (
+          respuesta.intentosRestantes === 0
+        ) {
+          this.otpHabilitadoParaValidar =
+            false;
+
+          this.codigoOtp =
+            '';
+        }
+      },
+
+      error: (
+        error: unknown
+      ) => {
+
+        this.validandoOtp =
+          false;
+
+        this.errorOtp =
+          'No fue posible validar el código en este momento. Intente nuevamente.';
+
+        console.error(
+          'No fue posible validar OTP:',
+          error
+        );
+      }
+    });
+}
+
+
+cerrarVerificacionOtp(): void {
+
+  if (
+    this.solicitandoOtp
+    || this.validandoOtp
+  ) {
+    return;
+  }
+
+  this.limpiarEstadoOtp();
+}
+
+
+private limpiarEstadoOtp(): void {
+
+  this.mostrarModalOtp =
+    false;
+
+  this.correoOtpDestino =
+    '';
+
+  this.codigoOtp =
+    '';
+
+  this.solicitandoOtp =
+    false;
+
+  this.validandoOtp =
+    false;
+
+  this.otpHabilitadoParaValidar =
+    false;
+
+  this.mensajeOtp =
+    '';
+
+  this.errorOtp =
+    '';
+
+  this.intentosRestantesOtp =
+    null;
+
+  this.accionPosteriorOtp =
+    null;
+}
+
 generarDocumentos(): void {
   this.intentoEnviar = true;
 
@@ -5226,8 +5769,12 @@ generarDocumentos(): void {
       );
     };
 
-  this.prepararProcesoBackendLocal(
-    finalizarPreparacionDocumental
+  this.iniciarVerificacionOtp(
+    () => {
+      this.prepararProcesoBackendLocal(
+        finalizarPreparacionDocumental
+      );
+    }
   );
 }
 
@@ -5291,6 +5838,7 @@ omitirRegistroBeneficiariosPorAhora(): void {
 }
 
 generarFormulario6012Pendiente(): void {
+
   this.intentoEnviar =
     true;
 
@@ -5306,58 +5854,28 @@ generarFormulario6012Pendiente(): void {
     return;
   }
 
-  const fecha =
-    new Date();
-
-  this.fechaGeneracionDocumentos =
-    fecha.toLocaleString('es-PE');
-
-  this.tipoGeneracionDocumentos =
-    'soloFormulario6012';
-
   /*
-   * El PDF queda pendiente de generación
-   * hasta que se pulse Descargar.
+   * El OTP se mantiene inmediatamente
+   * antes de confirmar el nuevo ciclo
+   * documental.
+   *
+   * Solo después de validarlo se persisten
+   * los beneficiarios y el backend activa:
+   *
+   * SOLO_AUTORIZACION
+   *        ↓
+   * FORMULARIO_6012_POSTERIOR
    */
-  this.formulario6012Generado =
-    false;
+  const continuarDespuesOtp =
+    (): void => {
 
-  this.pendienteBeneficiariosPara6012 =
-    false;
+      this.guardarBeneficiariosYContinuar(
+        this.beneficiariosConDatos()
+      );
+    };
 
-  this.documentosGenerados =
-    true;
-
-  this.solicitudBloqueada =
-    true;
-
-  this.seccionesGrabadas.beneficiarios =
-    true;
-
-  console.log(
-    'Formulario 6012 preparado para generación:',
-    {
-      registroInternoProceso:
-        this.codigoSolicitud,
-
-      cantidadBeneficiarios:
-        this.beneficiariosRegistrados()
-          .length
-    }
-  );
-
-  this.pasoActual =
-    'documentos';
-
-  this.intentoEnviar =
-    false;
-
-  this.scrollArriba();
-
-  this.mostrarAviso(
-    'Los beneficiarios fueron confirmados. Descargue el Formulario 6012 para generarlo.',
-    'exito',
-    'Formulario preparado'
+  this.iniciarVerificacionOtp(
+    continuarDespuesOtp
   );
 }
 

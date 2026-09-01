@@ -372,6 +372,166 @@
 
   </main>
 
+<!-- VERIFICACIÓN OTP -->
+<div
+  class="modal-fondo"
+  *ngIf="mostrarModalOtp">
+
+  <div class="modal-otp">
+
+    <div class="otp-icono">
+      🔐
+    </div>
+
+    <h2>
+      Verificación de identidad
+    </h2>
+
+    <p class="otp-descripcion">
+      Antes de continuar con la generación de
+      documentos, debemos verificar su identidad.
+    </p>
+
+    <div class="otp-correo">
+
+      <span>
+        Código enviado a:
+      </span>
+
+      <strong>
+        {{ correoOtpDestino }}
+      </strong>
+
+    </div>
+
+    <div
+      class="otp-cargando"
+      *ngIf="solicitandoOtp">
+
+      Enviando código de verificación...
+
+    </div>
+
+    <div
+      class="otp-mensaje"
+      *ngIf="
+        mensajeOtp
+        && !solicitandoOtp
+      ">
+
+      {{ mensajeOtp }}
+
+    </div>
+
+    <div
+      class="otp-campo"
+      *ngIf="
+        !solicitandoOtp
+      ">
+
+      <label for="codigoOtp">
+        Código de verificación
+      </label>
+
+      <input
+        id="codigoOtp"
+        type="text"
+        inputmode="numeric"
+        autocomplete="one-time-code"
+        maxlength="6"
+        placeholder="000000"
+        [(ngModel)]="codigoOtp"
+        (input)="normalizarCodigoOtp()"
+        [disabled]="
+          !otpHabilitadoParaValidar
+          || validandoOtp
+        ">
+
+      <small>
+        Ingrese los 6 dígitos recibidos por correo.
+        El código tiene una vigencia limitada.
+      </small>
+
+    </div>
+
+    <div
+      class="otp-intentos"
+      *ngIf="
+        intentosRestantesOtp !== null
+      ">
+
+      Intentos restantes:
+      <strong>
+        {{ intentosRestantesOtp }}
+      </strong>
+
+    </div>
+
+    <div
+      class="otp-error"
+      *ngIf="errorOtp">
+
+      {{ errorOtp }}
+
+    </div>
+
+    <div class="otp-acciones">
+
+      <button
+        type="button"
+        class="btn-secundario"
+        [disabled]="
+          solicitandoOtp
+          || validandoOtp
+        "
+        (click)="cerrarVerificacionOtp()">
+
+        Cancelar
+
+      </button>
+
+      <button
+        type="button"
+        class="btn-secundario"
+        [disabled]="
+          solicitandoOtp
+          || validandoOtp
+        "
+        (click)="solicitarCodigoOtp()">
+
+        {{
+          solicitandoOtp
+            ? 'Enviando...'
+            : 'Solicitar código'
+        }}
+
+      </button>
+
+      <button
+        type="button"
+        class="btn-success"
+        [disabled]="
+          !otpHabilitadoParaValidar
+          || codigoOtp.length !== 6
+          || solicitandoOtp
+          || validandoOtp
+        "
+        (click)="validarCodigoOtp()">
+
+        {{
+          validandoOtp
+            ? 'Validando...'
+            : 'Validar y continuar'
+        }}
+
+      </button>
+
+    </div>
+
+  </div>
+
+</div>
+
   <div class="modal-fondo" *ngIf="mostrarConfirmacionSinBeneficiarios">
   <div class="modal-confirmacion">
     <h2>Continuar sin beneficiarios</h2>
