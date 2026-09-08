@@ -1,5 +1,6 @@
 import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
 import { Injectable } from '@angular/core';
+import { environment } from '@environments/environment';
 import {
   catchError,
   map,
@@ -864,15 +865,20 @@ export interface DocumentoPublicadoResumenLocal {
   providedIn: 'root'
 })
 export class VidaApiService {
-  private readonly baseUrl = 'https://appsqa.essalud.gob.pe/sagw/mia-seguros-hijomenormayor/api';
-  private readonly baseUrlVivaSolicitud =
-  '/sagw/viva-essalud/mia-api-solicitud-incapacidad/api';
-  private readonly baseUrlDatosMaestros =
-  '/sagw/viva-essalud/viva-apidatosmaestros';
-  private readonly baseUrlBackendDocumentosQa =
-  'https://appsqa.essalud.gob.pe/sagw/mia-seguros-hijomenormayor/api/docs';
-  private readonly urlCorreoExitoVida =
-    'https://appsqa.essalud.gob.pe/sagw/viva-essalud/viva-apinotificaciones/seguros-complementarios/send-email';
+    baseUrl = `${environment.apiUrlServices}/api/seguro-complementario`;
+    baseUrlSeguros = `${environment.apiUrlServices}/api`;
+    baseUrlVivaSolicitud=`${environment.baseUrlVivaSolicitud}/api`;
+    baseUrlDatosMaestros=`${environment.baseUrlDatosMaestros}/api`;
+    baseUrlNotificaciones=`${environment.baseUrlNotificaciones}/seguros-complementarios`;
+  //private readonly baseUrl = 'https://appsqa.essalud.gob.pe/sagw/mia-seguros-hijomenormayor/api';
+  //private readonly baseUrlVivaSolicitud =
+ // '/sagw/viva-essalud/mia-api-solicitud-incapacidad/api';
+  //private readonly baseUrlDatosMaestros =
+  //'/sagw/viva-essalud/viva-apidatosmaestros';
+  /*private readonly baseUrl =
+  'http://localhost/api/v1';*/
+  private readonly baseUrlBackendDocumentosQa =`${environment.apiUrlServices}/api/docs`;
+
 
   constructor(private http: HttpClient) {}
 
@@ -1172,7 +1178,7 @@ enviarCorreoExitoVida(
 
   return this.http
     .post(
-      this.urlCorreoExitoVida,
+      `${this.baseUrlNotificaciones}/send-email`,
       formData,
       {
         responseType: 'text'
@@ -1539,7 +1545,7 @@ iniciarProcesoVida(
     .post<
       ApiResponseLocal<IniciarProcesoVidaResponseLocal>
     >(
-      `${this.baseUrl}/seguro-complementario/procesos/progreso/iniciar`,
+      `${this.baseUrl}/procesos/progreso/iniciar`,
       payload
     )
     .pipe(
@@ -1594,7 +1600,7 @@ recuperarAvanceProceso(
   }
 
   const url =
-    `${this.baseUrl}/seguro-complementario`
+    `${this.baseUrl}`
     + `/procesos/avance/registro/`
     + `${encodeURIComponent(registro)}`;
 
@@ -1670,7 +1676,7 @@ actualizarNavegacionProceso(
     };
 
   const url =
-    `${this.baseUrl}/seguro-complementario`
+    `${this.baseUrl}`
     + `/procesos/progreso/`
     + `${encodeURIComponent(registro)}`
     + `/navegacion`;
@@ -1736,7 +1742,7 @@ guardarTitularProgreso(
     .put<
       ApiResponseLocal<GuardarProgresoVidaResponseLocal>
     >(
-      `${this.baseUrl}/seguro-complementario`
+      `${this.baseUrl}`
       + `/procesos/progreso/`
       + `${encodeURIComponent(registro)}`
       + `/titular`,
@@ -1789,7 +1795,7 @@ obtenerTipoAsegurado(
 
   return this.http
     .get<TipoAseguradoApi>(
-      `${this.baseUrl}`
+      `${this.baseUrlSeguros}`
       + `/informacion-titular/get-tp-seguro`,
       {
         params
@@ -1831,7 +1837,7 @@ obtenerSustentosSeguroComplementario(
   }
 
   const url =
-    `${this.baseUrl}`
+    `${this.baseUrlSeguros}`
     + `/informacion-general`
     + `/get-list-sustento-seg-complement`
     + `/${encodeURIComponent(codigo)}`;
@@ -1891,7 +1897,7 @@ guardarDatosComplementariosProgreso(
     .put<
       ApiResponseLocal<GuardarProgresoVidaResponseLocal>
     >(
-      `${this.baseUrl}/seguro-complementario`
+      `${this.baseUrl}`
       + `/procesos/progreso/`
       + `${encodeURIComponent(registro)}`
       + `/datos-complementarios`,
@@ -1948,7 +1954,7 @@ guardarConyugeProgreso(
     .put<
       ApiResponseLocal<GuardarProgresoVidaResponseLocal>
     >(
-      `${this.baseUrl}/seguro-complementario`
+      `${this.baseUrl}`
       + `/procesos/progreso/`
       + `${encodeURIComponent(registro)}`
       + `/conyuge`,
@@ -2005,7 +2011,7 @@ guardarBeneficiariosProgreso(
     .put<
       ApiResponseLocal<GuardarProgresoVidaResponseLocal>
     >(
-      `${this.baseUrl}/seguro-complementario`
+      `${this.baseUrl}`
       + `/procesos/progreso/`
       + `${encodeURIComponent(registro)}`
       + `/beneficiarios`,
@@ -2060,7 +2066,7 @@ guardarBorradorTitular(
   }
 
   const url =
-    `${this.baseUrl}/seguro-complementario`
+    `${this.baseUrl}`
     + `/procesos/progreso/`
     + `${encodeURIComponent(registro)}`
     + `/borrador/titular`;
@@ -2126,7 +2132,7 @@ guardarBorradorDatosComplementarios(
   }
 
   const url =
-    `${this.baseUrl}/seguro-complementario`
+    `${this.baseUrl}`
     + `/procesos/progreso/`
     + `${encodeURIComponent(registro)}`
     + `/borrador/datos-complementarios`;
@@ -2192,7 +2198,7 @@ guardarBorradorBeneficiarios(
   }
 
   const url =
-    `${this.baseUrl}/seguro-complementario`
+    `${this.baseUrl}`
     + `/procesos/progreso/`
     + `${encodeURIComponent(registro)}`
     + `/borrador/beneficiarios`;
@@ -2309,7 +2315,7 @@ guardarBorradorBeneficiarios(
 
   obtenerTiposDocumentos(): Observable<TipoDocumentoApi[]> {
     return this.http
-      .get<RespuestaTiposDocumentoApi>(`${this.baseUrl}/informacion-general/getTiposDocumentos`)
+      .get<RespuestaTiposDocumentoApi>(`${this.baseUrlSeguros}/informacion-general/getTiposDocumentos`)
       .pipe(
         map(respuesta => {
           if (respuesta.flagResultado !== '1') {
@@ -2335,7 +2341,7 @@ guardarBorradorBeneficiarios(
 
     return this.http
       .get<ValidarSeguroComplementarioResponse>(
-        `${this.baseUrl}/informacion-titular/val-seg-complement-vida`,
+        `${this.baseUrlSeguros}/informacion-titular/val-seg-complement-vida`,
         { params }
       )
       .pipe(

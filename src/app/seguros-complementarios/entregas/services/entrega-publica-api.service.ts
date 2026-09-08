@@ -12,6 +12,7 @@ import {
   map,
   throwError
 } from 'rxjs';
+import { environment } from '@environments/environment';
 
 
 export interface ApiResponseEntrega<T> {
@@ -112,8 +113,8 @@ export class EntregaPublicaApiService {
    * siguen temporalmente con baseUrl local
    * hasta confirmar sus endpoints QA.
    */
-  private readonly baseUrlOtpQa =
-    'https://appsqa.essalud.gob.pe/sagw/mia-seguros-hijomenormayor/api/seguro-complementario';
+
+  baseUrlOtpQa = `${environment.apiUrlServices}/api/seguro-complementario`;
 
   /*
    * Correo temporal para pruebas QA
