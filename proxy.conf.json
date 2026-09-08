@@ -1,8 +1,0 @@
-{
-  "/sagw": {
-    "target": "https://appsqa.essalud.gob.pe",
-    "secure": true,
-    "changeOrigin": true,
-    "logLevel": "debug"
-  }
-}
