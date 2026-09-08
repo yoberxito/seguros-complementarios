@@ -335,29 +335,11 @@
   [fechaRecepcionDocumentos]="
     fechaRecepcionDocumentos
   "
-  [autorizacionDescuentoSellada]="
-    autorizacionDescuentoSellada
-  "
-  [formulario6012Sellado]="
-    formulario6012Sellado
-  "
-  [idDocumentoPublicadoAutorizacion]="
-    idDocumentoPublicadoAutorizacion
-  "
-  [idDocumentoPublicadoFormulario6012]="
-    idDocumentoPublicadoFormulario6012
-  "
-  [consultandoDocumentoPublicado]="
-    consultandoDocumentoPublicado
+  [tipoGeneracionDocumentos]="
+    tipoGeneracionDocumentos
   "
   [mostrarInvitacionBeneficiarios]="
     mostrarInvitacionBeneficiarios
-  "
-  (visualizarDocumento)="
-    verDocumentoPublicado($event)
-  "
-  (descargarDocumento)="
-    descargarDocumentoPublicado($event)
   "
   (omitirBeneficiarios)="
     omitirRegistroBeneficiariosPorAhora()
@@ -371,6 +353,185 @@
 </app-vida-finalizacion>
 
   </main>
+
+<!-- MODAL EXPERIENCIA DOCUMENTAL -->
+<div
+  class="modal-fondo modal-fondo-proceso-documental"
+  *ngIf="cargandoDocumentosFirmadosBackend || validandoDocumentosBackend || cerrandoDocumentosBackend">
+
+  <section
+    class="modal-proceso-documental"
+    role="status"
+    aria-live="polite"
+    aria-busy="true">
+
+    <!-- ANIMACION -->
+
+    <div
+      class="proceso-documental-animacion"
+      aria-hidden="true">
+
+      <div class="proceso-documental-spinner"></div>
+
+      <div class="proceso-documental-hoja">
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
+
+    </div>
+
+
+    <p class="proceso-documental-eyebrow">
+      Procesando documentación +Vida
+    </p>
+
+
+    <!-- RECEPCION -->
+
+    <ng-container *ngIf="cargandoDocumentosFirmadosBackend">
+
+      <h2>
+        Recibiendo sus documentos
+      </h2>
+
+      <p class="proceso-documental-mensaje">
+        Estamos preparando sus archivos firmados
+        para iniciar el procesamiento.
+      </p>
+
+    </ng-container>
+
+
+    <!-- VALIDACION -->
+
+    <ng-container
+      *ngIf="validandoDocumentosBackend && !cargandoDocumentosFirmadosBackend">
+
+      <h2>
+        Validando sus documentos
+      </h2>
+
+      <p class="proceso-documental-mensaje">
+        Estamos verificando que los documentos
+        cumplan correctamente con los requisitos
+        necesarios.
+      </p>
+
+    </ng-container>
+
+
+    <!-- SELLADO / REGISTRO / PUBLICACION -->
+
+    <ng-container
+      *ngIf="cerrandoDocumentosBackend && !validandoDocumentosBackend && !cargandoDocumentosFirmadosBackend">
+
+      <h2>
+        Sellando y registrando sus documentos
+      </h2>
+
+      <p class="proceso-documental-mensaje">
+        Sus documentos fueron validados correctamente.
+        Ahora estamos aplicando el sello institucional
+        de EsSalud y confirmando su registro de forma
+        segura.
+      </p>
+
+    </ng-container>
+
+
+    <!-- ETAPAS -->
+
+    <div class="proceso-documental-etapas">
+
+      <!-- RECEPCION -->
+
+      <div
+        class="proceso-documental-etapa"
+        [class.activa]="cargandoDocumentosFirmadosBackend"
+        [class.completada]="documentosFirmadosCargadosBackend">
+
+        <span class="proceso-documental-etapa-icono">
+          <span></span>
+        </span>
+
+        <div>
+
+          <strong>
+            Recepción
+          </strong>
+
+          <small>
+            Documentos firmados
+          </small>
+
+        </div>
+
+      </div>
+
+
+      <!-- VALIDACION -->
+
+      <div
+        class="proceso-documental-etapa"
+        [class.activa]="validandoDocumentosBackend"
+        [class.completada]="documentosValidadosBackend">
+
+        <span class="proceso-documental-etapa-icono">
+          <span></span>
+        </span>
+
+        <div>
+
+          <strong>
+            Validación
+          </strong>
+
+          <small>
+            Verificación documental
+          </small>
+
+        </div>
+
+      </div>
+
+
+      <!-- REGISTRO -->
+
+      <div
+        class="proceso-documental-etapa"
+        [class.activa]="cerrandoDocumentosBackend"
+        [class.completada]="documentosCerradosBackend">
+
+        <span class="proceso-documental-etapa-icono">
+          <span></span>
+        </span>
+
+        <div>
+
+          <strong>
+            Registro
+          </strong>
+
+          <small>
+            Sellado y publicación
+          </small>
+
+        </div>
+
+      </div>
+
+    </div>
+
+
+    <p class="proceso-documental-espera">
+      Este proceso puede tomar unos segundos.
+      Por favor, no cierre ni recargue la página.
+    </p>
+
+  </section>
+
+</div>
 
 <!-- VERIFICACIÓN OTP -->
 <div

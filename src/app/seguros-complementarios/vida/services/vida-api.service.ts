@@ -1,9 +1,10 @@
-import { HttpClient, HttpParams } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import {
   catchError,
   map,
   Observable,
+  of,
   throwError
 } from 'rxjs';
 
@@ -148,6 +149,41 @@ export interface SubirDocumentoDriveResponse {
   flagResultado: string;
   mensaje: string;
 }
+export interface ArchivoSftpResponse {
+  nombreArchivo: string;
+  rutaArchivo: string;
+}
+
+export interface SubirDocumentoSftpResponse {
+  archivo: ArchivoSftpResponse | null;
+  flagResultado: string;
+  mensaje: string;
+}
+
+export interface ConfirmarPublicacionSftpResponse {
+  codResultado: string;
+  mensaje: string;
+  registroInternoProceso: string;
+  tipoDocumento: string;
+  idDocumentoPublicado: string | null;
+  nombreArchivo: string;
+  rutaArchivo: string;
+  publicado: boolean;
+}
+export interface EnviarCorreoExitoVidaRequest {
+  correo: string;
+  descripcionSeguro: string;
+  nombreSeguro: string;
+  usuario: string;
+  nombreCompleto: string;
+  montoVida: number;
+  enviaFormulario: boolean;
+}
+
+export interface ArchivoAdjuntoCorreoVida {
+  archivo: Blob;
+  nombreArchivo: string;
+}
 
 export interface ApiResponseLocal<T> {
   codResultado: string;
@@ -155,23 +191,9 @@ export interface ApiResponseLocal<T> {
   body: T | null;
 }
 
-export interface SolicitarOtpRequestLocal {
-  correo: string;
-}
-
 export interface SolicitarOtpResponseLocal {
-  codResultadoGeneracion: string;
-  otpGenerado: boolean;
-  correoEnviado: boolean;
+  codResultado: string | number;
   mensaje: string;
-
-  codigoResultadoCorreo?: string | null;
-  mensajeCorreo?: string | null;
-}
-
-export interface ValidarOtpRequestLocal {
-  correo: string;
-  codigo: string;
 }
 
 export interface ValidarOtpResponseLocal {
@@ -328,6 +350,13 @@ export interface RecuperarAvanceProcesoResponseLocal {
 
   formularioVida:
     FormularioVidaRecuperadoLocal | null;
+
+  /*
+   * Señales funcionales de reanudación emitidas
+   * por el backend.
+   */
+  accionPendiente?: string | null;
+  accionFrontendSugerida?: string | null;
 
   mensajeConsulta: string | null;
   mensajeUsuario: string | null;
@@ -590,7 +619,7 @@ export interface DetalleEtapaValidacionLocal {
 
   etapaAprobada?: boolean;
   estadoEtapa?: string;
-  mensaje?: string;
+  mensajeEtapa?: string;
 
   observaciones?: string[];
 
@@ -611,6 +640,8 @@ export interface ValidacionDocumentalCompletaResponseLocal {
 
   registroInternoProceso?: string;
   tipoDocumento?: string;
+  tipoDocumentoTrabajador?: string;
+  numeroDocumentoTrabajador?: string;
   idDocumentoCargado?: string;
 
   [key: string]: unknown;
@@ -640,6 +671,154 @@ export interface CierreDocumentalCompletoResponseLocal {
   [key: string]: unknown;
 }
 
+export interface ValidacionPdfIndividualResponseLocal {
+  valido: boolean;
+  mensajeValidacion: string;
+  nombreArchivo: string;
+  tamanioBytes: number;
+  numeroPaginas: number;
+  observaciones: string[];
+
+  [key: string]: unknown;
+}
+
+export interface ValidarCorrespondenciaDocumentoResponseLocal {
+  correspondenciaValida: boolean;
+  mensajeValidacion: string;
+  estadoValidacionDocumental: string;
+  permiteNuevaCarga: boolean;
+
+  idDocumentoGenerado?: string | null;
+  registroInternoProceso?: string;
+  tipoDocumentoEsperado?: string;
+  tipoDocumentoQr?: string;
+  numeroDocumentoTrabajador?: string;
+
+  observaciones?: string[];
+
+  [key: string]: unknown;
+}
+
+export interface ValidarPaginasDocumentoResponseLocal {
+  paginasValidas: boolean;
+  mensajeValidacion: string;
+  estadoValidacionDocumental: string;
+  permiteNuevaCarga: boolean;
+
+  idDocumentoGenerado?: string | null;
+  registroInternoProceso?: string;
+  tipoDocumento?: string;
+  numeroDocumentoTrabajador?: string;
+
+  numeroPaginasArchivo?: number;
+  numeroPaginasEsperadas?: number;
+
+  paginasEsperadas?: number[];
+  paginasLeidas?: number[];
+  paginasFaltantes?: number[];
+  paginasDuplicadas?: number[];
+
+  observaciones?: string[];
+
+  [key: string]: unknown;
+}
+
+export interface ValidarLegibilidadOcrResponseLocal {
+  legibilidadValida: boolean;
+  mensajeValidacion: string;
+  estadoValidacionDocumental: string;
+  permiteNuevaCarga: boolean;
+
+  tipoDocumento?: string;
+
+  numeroPaginasAnalizadas?: number;
+  paginasLegibles?: number;
+  paginasIlegibles?: number;
+
+  observaciones?: string[];
+
+  [key: string]: unknown;
+}
+
+export interface ValidarElementosVisualesResponseLocal {
+  elementosVisualesValidos: boolean;
+  mensajeValidacion: string;
+  estadoValidacionDocumental: string;
+  permiteNuevaCarga: boolean;
+
+  tipoDocumento?: string;
+  nombreArchivo?: string;
+
+  numeroPaginasAnalizadas?: number;
+  paginasConElementosCompletos?: number;
+  paginasConObservaciones?: number;
+
+  observaciones?: string[];
+
+  [key: string]: unknown;
+}
+
+export interface ValidarFirmaTrabajadorResponseLocal {
+  firmaValida: boolean;
+  mensajeValidacion: string;
+  estadoValidacionDocumental: string;
+  permiteNuevaCarga: boolean;
+
+  tipoDocumento?: string;
+  numeroPaginasArchivo?: number;
+
+  paginasEvaluadas?: number;
+  paginasConFirma?: number;
+  paginasSinFirma?: number;
+
+  observaciones?: string[];
+
+  [key: string]: unknown;
+}
+
+export interface GenerarDocumentoSelladoResponseLocal {
+  documentoSellado: boolean;
+  mensajeSellado: string;
+
+  idDocumentoSellado: string;
+  registroInternoProceso: string;
+  tipoDocumento: string;
+  numeroDocumentoTrabajador: string;
+
+  nombreArchivo: string;
+  contentType: string;
+  archivoBase64: string;
+
+  numeroPaginasSelladas: number;
+  hashSha256DocumentoSellado?: string;
+  fechaHoraSellado?: string;
+  estadoDocumentoSellado?: string;
+
+  requiereVerificacionSello?: boolean;
+
+  [key: string]: unknown;
+}
+
+export interface ValidarSelloEssaludResponseLocal {
+  selloValido: boolean;
+  mensajeValidacion: string;
+
+  estadoValidacionDocumental: string;
+  permiteNuevaCarga: boolean;
+
+  tipoDocumento?: string;
+  numeroPaginasArchivo?: number;
+
+  requiereReintentoSellado?: boolean;
+
+  paginasEvaluadas?: number;
+  paginasConSello?: number;
+  paginasSinSello?: number;
+
+  observaciones?: string[];
+
+  [key: string]: unknown;
+}
 export interface DocumentoPublicadoResumenLocal {
   canalPublicacion?: string;
 
@@ -690,10 +869,10 @@ export class VidaApiService {
   '/sagw/viva-essalud/mia-api-solicitud-incapacidad/api';
   private readonly baseUrlDatosMaestros =
   '/sagw/viva-essalud/viva-apidatosmaestros';
-  private readonly baseUrlBackendLocal =
-  'http://localhost/api/v1';
   private readonly baseUrlBackendDocumentosQa =
   'https://appsqa.essalud.gob.pe/sagw/mia-seguros-hijomenormayor/api/docs';
+  private readonly urlCorreoExitoVida =
+    'https://appsqa.essalud.gob.pe/sagw/viva-essalud/viva-apinotificaciones/seguros-complementarios/send-email';
 
   constructor(private http: HttpClient) {}
 
@@ -712,41 +891,30 @@ export class VidaApiService {
     );
   }
 
-  const payload:
-    SolicitarOtpRequestLocal = {
-      correo: correoLimpio
-    };
+  const params =
+    new HttpParams()
+      .set(
+        'correo',
+        correoLimpio
+      );
 
   const url =
-    `${this.baseUrlBackendLocal}`
-    + `/otp/solicitar`;
+    `${this.baseUrl}`
+    + `/seguro-complementario/genera-otp`;
 
   return this.http
-    .post<
-      ApiResponseLocal<
-        SolicitarOtpResponseLocal
-      >
-    >(
+    .post<SolicitarOtpResponseLocal>(
       url,
-      payload
+      null,
+      {
+        params
+      }
     )
     .pipe(
-      map(respuesta => {
-
-        if (!respuesta.body) {
-          throw new Error(
-            respuesta.mensaje
-            || 'No fue posible solicitar el código OTP.'
-          );
-        }
-
-        return respuesta.body;
-      }),
-
       catchError((error: unknown) => {
 
         console.error(
-          'Error solicitando código OTP:',
+          'Error generando código OTP en QA:',
           error
         );
 
@@ -757,6 +925,414 @@ export class VidaApiService {
     );
 }
 
+subirDocumentoSftp(
+  archivo: Blob,
+  nombreArchivo: string,
+  tpDocument: string,
+  numDocument: string
+): Observable<SubirDocumentoSftpResponse> {
+
+  const nombre =
+    (nombreArchivo || '').trim();
+
+  const tipoDocumento =
+    (tpDocument || '').trim();
+
+  const numeroDocumento =
+    (numDocument || '').trim();
+
+  if (!archivo || archivo.size === 0) {
+    return throwError(
+      () => new Error(
+        'El PDF sellado es obligatorio para SFTP.'
+      )
+    );
+  }
+
+  if (!nombre) {
+    return throwError(
+      () => new Error(
+        'El nombre del PDF sellado es obligatorio para SFTP.'
+      )
+    );
+  }
+
+  if (!tipoDocumento) {
+    return throwError(
+      () => new Error(
+        'El tipo de documento del titular es obligatorio para SFTP.'
+      )
+    );
+  }
+
+  if (!numeroDocumento) {
+    return throwError(
+      () => new Error(
+        'El número de documento del titular es obligatorio para SFTP.'
+      )
+    );
+  }
+
+  const formData =
+    new FormData();
+
+  formData.append(
+    'archivo',
+    archivo,
+    nombre
+  );
+
+  formData.append(
+    'tpDocument',
+    tipoDocumento
+  );
+
+  formData.append(
+    'numDocument',
+    numeroDocumento
+  );
+
+  const url =
+    `${this.baseUrl}/sftp/upload`;
+
+  return this.http
+    .post<SubirDocumentoSftpResponse>(
+      url,
+      formData
+    )
+    .pipe(
+      map(respuesta => {
+
+        const nombreArchivoSftp =
+          respuesta.archivo
+            ?.nombreArchivo
+            ?.trim()
+          || '';
+
+        const rutaArchivoSftp =
+          respuesta.archivo
+            ?.rutaArchivo
+            ?.trim()
+          || '';
+
+        if (
+          !respuesta.archivo
+          || !nombreArchivoSftp
+          || !rutaArchivoSftp
+        ) {
+          throw new Error(
+            respuesta.mensaje
+            || 'SFTP no confirmó el almacenamiento del documento.'
+          );
+        }
+
+        console.log(
+          'Documento almacenado en SFTP QA:',
+          {
+            nombreArchivo:
+              nombreArchivoSftp,
+            rutaArchivo:
+              rutaArchivoSftp,
+            tipoDocumento,
+            numeroDocumento
+          }
+        );
+
+        return respuesta;
+      }),
+
+      catchError((error: unknown) => {
+
+        console.error(
+          'Error almacenando documento en SFTP QA:',
+          error
+        );
+
+        return throwError(
+          () => error
+        );
+      })
+    );
+}
+enviarCorreoExitoVida(
+  payload: EnviarCorreoExitoVidaRequest,
+  archivosAdjuntos: ArchivoAdjuntoCorreoVida[]
+): Observable<string> {
+
+  const correo =
+    (payload.correo || '').trim();
+
+  const usuario =
+    (payload.usuario || '').trim();
+
+  const nombreCompleto =
+    (payload.nombreCompleto || '').trim();
+
+  if (!correo) {
+    return throwError(
+      () => new Error(
+        'No existe correo destino para enviar la confirmación +Vida.'
+      )
+    );
+  }
+
+  if (!usuario) {
+    return throwError(
+      () => new Error(
+        'No existe usuario para enviar la confirmación +Vida.'
+      )
+    );
+  }
+
+  if (!nombreCompleto) {
+    return throwError(
+      () => new Error(
+        'No existe nombre del trabajador para enviar la confirmación +Vida.'
+      )
+    );
+  }
+
+  const adjuntosValidos =
+    (archivosAdjuntos || []).filter(
+      adjunto =>
+        !!adjunto
+        && !!adjunto.archivo
+        && adjunto.archivo.size > 0
+        && !!(adjunto.nombreArchivo || '').trim()
+    );
+
+  if (
+    adjuntosValidos.length < 1
+    || adjuntosValidos.length > 2
+  ) {
+    return throwError(
+      () => new Error(
+        'El correo +Vida requiere uno o dos documentos sellados.'
+      )
+    );
+  }
+
+  const req: EnviarCorreoExitoVidaRequest = {
+    correo,
+    descripcionSeguro:
+      payload.descripcionSeguro,
+    nombreSeguro:
+      payload.nombreSeguro,
+    usuario,
+    nombreCompleto,
+    montoVida:
+      payload.montoVida,
+    enviaFormulario:
+      payload.enviaFormulario
+  };
+
+  const formData =
+    new FormData();
+
+  /*
+   * Contrato institucional:
+   * req = JSON como texto.
+   */
+  formData.append(
+    'req',
+    JSON.stringify(req)
+  );
+
+  /*
+   * El servicio acepta uno o dos archivos.
+   * Se repite el mismo nombre multipart.
+   */
+  adjuntosValidos.forEach(
+    adjunto => {
+
+      formData.append(
+        'archivosAdjuntos',
+        adjunto.archivo,
+        adjunto.nombreArchivo.trim()
+      );
+    }
+  );
+
+  console.log(
+    'Enviando correo institucional +Vida:',
+    {
+      correo,
+      usuario,
+      enviaFormulario:
+        req.enviaFormulario,
+      cantidadAdjuntos:
+        adjuntosValidos.length,
+      nombresAdjuntos:
+        adjuntosValidos.map(
+          adjunto =>
+            adjunto.nombreArchivo
+        )
+    }
+  );
+
+  return this.http
+    .post(
+      this.urlCorreoExitoVida,
+      formData,
+      {
+        responseType: 'text'
+      }
+    )
+    .pipe(
+      catchError((error: unknown) => {
+
+        console.error(
+          'Error enviando correo institucional +Vida:',
+          error
+        );
+
+        return throwError(
+          () => error
+        );
+      })
+    );
+}
+
+confirmarPublicacionSftp(
+  archivo: Blob,
+  nombreArchivoSellado: string,
+  registroInternoProceso: string,
+  tipoDocumento: TipoDocumentoCargaLocal,
+  nombreArchivoSftp: string,
+  rutaArchivo: string
+): Observable<ConfirmarPublicacionSftpResponse> {
+
+  const registro =
+    (registroInternoProceso || '').trim();
+
+  const nombreSellado =
+    (nombreArchivoSellado || '').trim();
+
+  const nombreSftp =
+    (nombreArchivoSftp || '').trim();
+
+  const rutaSftp =
+    (rutaArchivo || '').trim();
+
+  if (!archivo || archivo.size === 0) {
+    return throwError(
+      () => new Error(
+        'El PDF sellado es obligatorio para confirmar la publicación.'
+      )
+    );
+  }
+
+  if (!registro) {
+    return throwError(
+      () => new Error(
+        'El registro interno del proceso es obligatorio para confirmar la publicación.'
+      )
+    );
+  }
+
+  if (!nombreSellado) {
+    return throwError(
+      () => new Error(
+        'El nombre del PDF sellado es obligatorio para confirmar la publicación.'
+      )
+    );
+  }
+
+  if (!nombreSftp || !rutaSftp) {
+    return throwError(
+      () => new Error(
+        'La metadata devuelta por SFTP es obligatoria para confirmar la publicación.'
+      )
+    );
+  }
+
+  const formData =
+    new FormData();
+
+  formData.append(
+    'archivo',
+    archivo,
+    nombreSellado
+  );
+
+  formData.append(
+    'registroInternoProceso',
+    registro
+  );
+
+  formData.append(
+    'tipoDocumento',
+    tipoDocumento
+  );
+
+  formData.append(
+    'nombreArchivo',
+    nombreSftp
+  );
+
+  formData.append(
+    'rutaArchivo',
+    rutaSftp
+  );
+
+  return this.http
+    .post<ConfirmarPublicacionSftpResponse>(
+      `${this.baseUrlBackendDocumentosQa}/confirmar`,
+      formData
+    )
+    .pipe(
+      map(respuesta => {
+
+        const correcto =
+          String(
+            respuesta.codResultado
+          ).trim() === '1'
+          && respuesta.publicado === true;
+
+        const idPublicado =
+          respuesta.idDocumentoPublicado
+            ?.trim()
+          || '';
+
+        if (!correcto || !idPublicado) {
+          throw new Error(
+            respuesta.mensaje
+            || 'El backend no confirmó la publicación del documento.'
+          );
+        }
+
+        console.log(
+          'Publicación SFTP confirmada en +Vida:',
+          {
+            registroInternoProceso:
+              respuesta.registroInternoProceso,
+            tipoDocumento:
+              respuesta.tipoDocumento,
+            idDocumentoPublicado:
+              idPublicado,
+            nombreArchivo:
+              respuesta.nombreArchivo,
+            rutaArchivo:
+              respuesta.rutaArchivo
+          }
+        );
+
+        return respuesta;
+      }),
+
+      catchError((error: unknown) => {
+
+        console.error(
+          'Error confirmando publicación SFTP en +Vida:',
+          error
+        );
+
+        return throwError(
+          () => error
+        );
+      })
+    );
+}
 subirDocumentoDrive(
   archivo: Blob,
   nombreArchivo: string,
@@ -919,46 +1495,33 @@ validarOtp(
     );
   }
 
-  const payload:
-    ValidarOtpRequestLocal = {
-      correo: correoLimpio,
-      codigo: codigoLimpio
-    };
+  const params =
+    new HttpParams()
+      .set(
+        'correo',
+        correoLimpio
+      )
+      .set(
+        'codigo',
+        codigoLimpio
+      );
 
   const url =
-    `${this.baseUrlBackendLocal}`
-    + `/otp/validar`;
+    `${this.baseUrl}`
+    + `/seguro-complementario/validar-otp`;
 
   return this.http
-    .post<
-      ApiResponseLocal<
-        ValidarOtpResponseLocal
-      >
-    >(
+    .get<ValidarOtpResponseLocal>(
       url,
-      payload
+      {
+        params
+      }
     )
     .pipe(
-      map(respuesta => {
-
-        /*
-         * valido=false es una respuesta funcional,
-         * no un error técnico.
-         */
-        if (!respuesta.body) {
-          throw new Error(
-            respuesta.mensaje
-            || 'No fue posible validar el código OTP.'
-          );
-        }
-
-        return respuesta.body;
-      }),
-
       catchError((error: unknown) => {
 
         console.error(
-          'Error validando código OTP:',
+          'Error validando código OTP en QA:',
           error
         );
 
@@ -969,14 +1532,14 @@ validarOtp(
     );
 }
 
-  iniciarProcesoVida(
+iniciarProcesoVida(
   payload: IniciarProcesoVidaRequestLocal
 ): Observable<IniciarProcesoVidaResponseLocal> {
   return this.http
     .post<
       ApiResponseLocal<IniciarProcesoVidaResponseLocal>
     >(
-      `${this.baseUrlBackendLocal}/procesos/progreso/iniciar`,
+      `${this.baseUrl}/seguro-complementario/procesos/progreso/iniciar`,
       payload
     )
     .pipe(
@@ -1031,7 +1594,7 @@ recuperarAvanceProceso(
   }
 
   const url =
-    `${this.baseUrlBackendLocal}`
+    `${this.baseUrl}/seguro-complementario`
     + `/procesos/avance/registro/`
     + `${encodeURIComponent(registro)}`;
 
@@ -1107,7 +1670,7 @@ actualizarNavegacionProceso(
     };
 
   const url =
-    `${this.baseUrlBackendLocal}`
+    `${this.baseUrl}/seguro-complementario`
     + `/procesos/progreso/`
     + `${encodeURIComponent(registro)}`
     + `/navegacion`;
@@ -1173,7 +1736,7 @@ guardarTitularProgreso(
     .put<
       ApiResponseLocal<GuardarProgresoVidaResponseLocal>
     >(
-      `${this.baseUrlBackendLocal}`
+      `${this.baseUrl}/seguro-complementario`
       + `/procesos/progreso/`
       + `${encodeURIComponent(registro)}`
       + `/titular`,
@@ -1328,7 +1891,7 @@ guardarDatosComplementariosProgreso(
     .put<
       ApiResponseLocal<GuardarProgresoVidaResponseLocal>
     >(
-      `${this.baseUrlBackendLocal}`
+      `${this.baseUrl}/seguro-complementario`
       + `/procesos/progreso/`
       + `${encodeURIComponent(registro)}`
       + `/datos-complementarios`,
@@ -1385,7 +1948,7 @@ guardarConyugeProgreso(
     .put<
       ApiResponseLocal<GuardarProgresoVidaResponseLocal>
     >(
-      `${this.baseUrlBackendLocal}`
+      `${this.baseUrl}/seguro-complementario`
       + `/procesos/progreso/`
       + `${encodeURIComponent(registro)}`
       + `/conyuge`,
@@ -1442,7 +2005,7 @@ guardarBeneficiariosProgreso(
     .put<
       ApiResponseLocal<GuardarProgresoVidaResponseLocal>
     >(
-      `${this.baseUrlBackendLocal}`
+      `${this.baseUrl}/seguro-complementario`
       + `/procesos/progreso/`
       + `${encodeURIComponent(registro)}`
       + `/beneficiarios`,
@@ -1497,7 +2060,7 @@ guardarBorradorTitular(
   }
 
   const url =
-    `${this.baseUrlBackendLocal}`
+    `${this.baseUrl}/seguro-complementario`
     + `/procesos/progreso/`
     + `${encodeURIComponent(registro)}`
     + `/borrador/titular`;
@@ -1563,7 +2126,7 @@ guardarBorradorDatosComplementarios(
   }
 
   const url =
-    `${this.baseUrlBackendLocal}`
+    `${this.baseUrl}/seguro-complementario`
     + `/procesos/progreso/`
     + `${encodeURIComponent(registro)}`
     + `/borrador/datos-complementarios`;
@@ -1629,7 +2192,7 @@ guardarBorradorBeneficiarios(
   }
 
   const url =
-    `${this.baseUrlBackendLocal}`
+    `${this.baseUrl}/seguro-complementario`
     + `/procesos/progreso/`
     + `${encodeURIComponent(registro)}`
     + `/borrador/beneficiarios`;
@@ -1681,7 +2244,7 @@ guardarBorradorBeneficiarios(
   ): Observable<ExpedienteDigitalResponseLocal> {
     return this.http
       .post<ApiResponseLocal<ExpedienteDigitalResponseLocal>>(
-        `${this.baseUrlBackendLocal}/expedientes/registrar-avance`,
+        `${this.baseUrl}/seguro-complementario/expedientes/registrar-avance`,
         payload
       )
       .pipe(
@@ -1715,7 +2278,7 @@ guardarBorradorBeneficiarios(
   ): Observable<RegistrarAceptacionResponseLocal> {
     return this.http
       .post<ApiResponseLocal<RegistrarAceptacionResponseLocal>>(
-        `${this.baseUrlBackendLocal}/aceptaciones/registrar`,
+        `${this.baseUrl}/seguro-complementario/aceptaciones/registrar`,
         payload
       )
       .pipe(
@@ -2114,6 +2677,234 @@ cargarDocumentoFirmado(
     );
 }
 
+validarEstructuraPdf(
+  archivo: File
+): Observable<ApiResponseLocal<ValidacionPdfIndividualResponseLocal>> {
+
+  const formData = new FormData();
+
+  formData.append(
+    'archivo',
+    archivo,
+    archivo.name
+  );
+
+  return this.http
+    .post<ApiResponseLocal<ValidacionPdfIndividualResponseLocal>>(
+      `${this.baseUrlBackendDocumentosQa}/pdf/validar-estructura`,
+      formData
+    )
+    .pipe(
+      catchError(error =>
+        this.recuperarRespuestaDocumentalFuncional<
+          ValidacionPdfIndividualResponseLocal
+        >(error)
+      )
+    );
+}
+
+validarCorrespondenciaDocumento(
+  archivo: File,
+  registroInternoProceso: string,
+  tipoDocumento: TipoDocumentoCargaLocal,
+  numeroDocumentoTrabajador: string
+): Observable<ApiResponseLocal<ValidarCorrespondenciaDocumentoResponseLocal>> {
+
+  const formData = new FormData();
+
+  formData.append('archivo', archivo, archivo.name);
+  formData.append('registroInternoProceso', registroInternoProceso);
+  formData.append('tipoDocumento', tipoDocumento);
+  formData.append('numeroDocumentoTrabajador', numeroDocumentoTrabajador);
+
+  return this.http
+    .post<ApiResponseLocal<ValidarCorrespondenciaDocumentoResponseLocal>>(
+      `${this.baseUrlBackendDocumentosQa}/validacion/correspondencia`,
+      formData
+    )
+    .pipe(
+      catchError(error =>
+        this.recuperarRespuestaDocumentalFuncional<
+          ValidarCorrespondenciaDocumentoResponseLocal
+        >(error)
+      )
+    );
+}
+
+validarPaginasDocumento(
+  archivo: File,
+  registroInternoProceso: string,
+  tipoDocumento: TipoDocumentoCargaLocal,
+  numeroDocumentoTrabajador: string
+): Observable<ApiResponseLocal<ValidarPaginasDocumentoResponseLocal>> {
+
+  const formData = new FormData();
+
+  formData.append('archivo', archivo, archivo.name);
+  formData.append('registroInternoProceso', registroInternoProceso);
+  formData.append('tipoDocumento', tipoDocumento);
+  formData.append('numeroDocumentoTrabajador', numeroDocumentoTrabajador);
+
+  return this.http
+    .post<ApiResponseLocal<ValidarPaginasDocumentoResponseLocal>>(
+      `${this.baseUrlBackendDocumentosQa}/validacion/paginas`,
+      formData
+    )
+    .pipe(
+      catchError(error =>
+        this.recuperarRespuestaDocumentalFuncional<
+          ValidarPaginasDocumentoResponseLocal
+        >(error)
+      )
+    );
+}
+
+validarLegibilidadDocumento(
+  archivo: File,
+  tipoDocumento: TipoDocumentoCargaLocal
+): Observable<ApiResponseLocal<ValidarLegibilidadOcrResponseLocal>> {
+
+  const formData = new FormData();
+
+  formData.append('archivo', archivo, archivo.name);
+  formData.append('tipoDocumento', tipoDocumento);
+
+  return this.http
+    .post<ApiResponseLocal<ValidarLegibilidadOcrResponseLocal>>(
+      `${this.baseUrlBackendDocumentosQa}/validacion/legibilidad`,
+      formData
+    )
+    .pipe(
+      catchError(error =>
+        this.recuperarRespuestaDocumentalFuncional<
+          ValidarLegibilidadOcrResponseLocal
+        >(error)
+      )
+    );
+}
+
+validarElementosVisualesDocumento(
+  archivo: File,
+  tipoDocumento: TipoDocumentoCargaLocal
+): Observable<ApiResponseLocal<ValidarElementosVisualesResponseLocal>> {
+
+  const formData = new FormData();
+
+  formData.append('archivo', archivo, archivo.name);
+  formData.append('tipoDocumento', tipoDocumento);
+
+  return this.http
+    .post<ApiResponseLocal<ValidarElementosVisualesResponseLocal>>(
+      `${this.baseUrlBackendDocumentosQa}/validacion/elementos-visuales`,
+      formData
+    )
+    .pipe(
+      catchError(error =>
+        this.recuperarRespuestaDocumentalFuncional<
+          ValidarElementosVisualesResponseLocal
+        >(error)
+      )
+    );
+}
+
+validarFirmaTrabajador(
+  archivo: File,
+  tipoDocumento: TipoDocumentoCargaLocal
+): Observable<ApiResponseLocal<ValidarFirmaTrabajadorResponseLocal>> {
+
+  const formData = new FormData();
+
+  formData.append('archivo', archivo, archivo.name);
+  formData.append('tipoDocumento', tipoDocumento);
+
+  return this.http
+    .post<ApiResponseLocal<ValidarFirmaTrabajadorResponseLocal>>(
+      `${this.baseUrlBackendDocumentosQa}/validacion/firma-trabajador`,
+      formData
+    )
+    .pipe(
+      catchError(error =>
+        this.recuperarRespuestaDocumentalFuncional<
+          ValidarFirmaTrabajadorResponseLocal
+        >(error)
+      )
+    );
+}
+
+generarDocumentoSellado(
+  archivo: File,
+  registroInternoProceso: string,
+  tipoDocumento: TipoDocumentoCargaLocal,
+  numeroDocumentoTrabajador: string
+): Observable<ApiResponseLocal<GenerarDocumentoSelladoResponseLocal>> {
+
+  const formData = new FormData();
+
+  formData.append('archivo', archivo, archivo.name);
+  formData.append('registroInternoProceso', registroInternoProceso);
+  formData.append('tipoDocumento', tipoDocumento);
+  formData.append('numeroDocumentoTrabajador', numeroDocumentoTrabajador);
+
+  return this.http
+    .post<ApiResponseLocal<GenerarDocumentoSelladoResponseLocal>>(
+      `${this.baseUrlBackendDocumentosQa}/sellado/generar`,
+      formData
+    );
+}
+
+validarSelloEssalud(
+  archivo: Blob,
+  nombreArchivo: string,
+  tipoDocumento: TipoDocumentoCargaLocal
+): Observable<ApiResponseLocal<ValidarSelloEssaludResponseLocal>> {
+
+  const formData = new FormData();
+
+  formData.append(
+    'archivo',
+    archivo,
+    nombreArchivo
+  );
+
+  formData.append(
+    'tipoDocumento',
+    tipoDocumento
+  );
+
+  return this.http
+    .post<ApiResponseLocal<ValidarSelloEssaludResponseLocal>>(
+      `${this.baseUrlBackendDocumentosQa}/validacion/sello-essalud`,
+      formData
+    )
+    .pipe(
+      catchError(error =>
+        this.recuperarRespuestaDocumentalFuncional<
+          ValidarSelloEssaludResponseLocal
+        >(error)
+      )
+    );
+}
+
+private recuperarRespuestaDocumentalFuncional<T>(
+  error: unknown
+): Observable<ApiResponseLocal<T>> {
+
+  if (error instanceof HttpErrorResponse) {
+
+    const respuesta =
+      error.error as ApiResponseLocal<T> | null;
+
+    if (
+      respuesta
+      && typeof respuesta === 'object'
+      && respuesta.body
+    ) {
+      return of(respuesta);
+    }
+  }
+
+  return throwError(() => error);
+}
 validarDocumentoCompleto(
   archivo: File,
   registroInternoProceso: string,

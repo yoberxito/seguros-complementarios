@@ -330,38 +330,8 @@
 
       </button>
 
-      <div
-        class="archivo-ok"
-        *ngIf="
-          documentosFirmadosCargadosBackend
-          && !documentosValidadosBackend
-        ">
 
-        ✅ Documentos cargados.
-        Ejecutando validación documental...
 
-      </div>
-
-      <div
-        class="archivo-ok"
-        *ngIf="
-          documentosValidadosBackend
-          && !documentosCerradosBackend
-        ">
-
-        ✅ Validación documental aprobada.
-        Sellando y publicando documentos...
-
-      </div>
-
-      <div
-        class="archivo-ok"
-        *ngIf="documentosCerradosBackend">
-
-        ✅ Documentos validados, sellados y
-        publicados.
-
-      </div>
 
       <div
         class="error-texto"

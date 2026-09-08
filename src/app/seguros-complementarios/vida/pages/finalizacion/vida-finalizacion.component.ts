@@ -8,7 +8,7 @@ import {
 } from '@angular/core';
 
 import {
-  TipoDocumentoFirmado
+  TipoGeneracionDocumentos
 } from '../../models/vida-form.models';
 
 @Component({
@@ -33,31 +33,11 @@ export class VidaFinalizacionComponent {
   fechaRecepcionDocumentos = '';
 
   @Input()
-  autorizacionDescuentoSellada = false;
-
-  @Input()
-  formulario6012Sellado = false;
-
-  @Input()
-  idDocumentoPublicadoAutorizacion = '';
-
-  @Input()
-  idDocumentoPublicadoFormulario6012 = '';
-
-  @Input()
-  consultandoDocumentoPublicado:
-    TipoDocumentoFirmado | null = null;
+  tipoGeneracionDocumentos:
+    TipoGeneracionDocumentos = null;
 
   @Input()
   mostrarInvitacionBeneficiarios = false;
-
-  @Output()
-  visualizarDocumento =
-    new EventEmitter<TipoDocumentoFirmado>();
-
-  @Output()
-  descargarDocumento =
-    new EventEmitter<TipoDocumentoFirmado>();
 
   @Output()
   omitirBeneficiarios =
@@ -70,4 +50,22 @@ export class VidaFinalizacionComponent {
   @Output()
   finalizar =
     new EventEmitter<void>();
+
+
+  get esSoloAutorizacion(): boolean {
+    return this.tipoGeneracionDocumentos ===
+      'soloAutorizacion';
+  }
+
+
+  get esFlujoCompleto(): boolean {
+    return this.tipoGeneracionDocumentos ===
+      'completa';
+  }
+
+
+  get esFormulario6012Posterior(): boolean {
+    return this.tipoGeneracionDocumentos ===
+      'soloFormulario6012';
+  }
 }

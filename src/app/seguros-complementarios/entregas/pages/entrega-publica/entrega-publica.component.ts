@@ -245,7 +245,6 @@ export class EntregaPublicaComponent
     this.solicitarCodigoOtp();
   }
 
-
   solicitarCodigoOtp(): void {
 
     if (
@@ -263,9 +262,7 @@ export class EntregaPublicaComponent
     this.errorOtp = '';
 
     this.entregaApi
-      .solicitarOtp(
-        this.token
-      )
+      .solicitarOtp()
       .subscribe({
 
         next: respuesta => {
@@ -273,37 +270,30 @@ export class EntregaPublicaComponent
           this.solicitandoOtp =
             false;
 
-          /*
-           * Si por concurrencia/F5 Oracle
-           * ya muestra OTP validado,
-           * recuperamos el estado real.
-           */
-          if (
-            respuesta.otpYaValidado
-          ) {
+          const codResultado =
+            String(
+              respuesta.codResultado
+              ?? ''
+            ).trim();
 
-            this.mostrarModalOtp =
-              false;
+          const mensaje =
+            (
+              respuesta.mensaje
+              || ''
+            ).trim();
 
-            this.mensajeAccion =
-              'La identidad ya se encontraba verificada.';
+          if (codResultado === '0') {
 
-            this.errorAccion = '';
-
-            this.cargarEntrega(
-              false
-            );
+            this.mensajeOtp =
+              mensaje
+              || 'El código de verificación fue generado y enviado correctamente.';
 
             return;
           }
 
-          this.mensajeOtp =
-            respuesta.mensaje
-            || (
-              respuesta.otpDisponible
-                ? 'Código OTP disponible para validación.'
-                : 'No fue posible disponer de un código OTP.'
-            );
+          this.errorOtp =
+            mensaje
+            || 'No fue posible generar y enviar el código OTP.';
         },
 
 
@@ -323,6 +313,8 @@ export class EntregaPublicaComponent
   }
 
 
+
+
   normalizarCodigoOtp(): void {
 
     this.codigoOtp =
@@ -339,7 +331,6 @@ export class EntregaPublicaComponent
           6
         );
   }
-
 
   validarCodigoOtp(): void {
 
@@ -372,7 +363,6 @@ export class EntregaPublicaComponent
 
     this.entregaApi
       .validarOtp(
-        this.token,
         this.codigoOtp
       )
       .subscribe({
@@ -382,13 +372,9 @@ export class EntregaPublicaComponent
           this.validandoOtp =
             false;
 
-          /*
-           * OTP inválido no es error técnico.
-           * Backend devuelve HTTP 200
-           * con otpValidado=false.
-           */
+
           if (
-            !respuesta.otpValidado
+            respuesta.valido !== true
           ) {
 
             this.errorOtp =
@@ -404,15 +390,15 @@ export class EntregaPublicaComponent
             false;
 
           this.mensajeAccion =
-            respuesta.yaValidado
-              ? 'La identidad ya se encontraba verificada.'
-              : 'Identidad verificada correctamente.';
+            respuesta.mensaje
+            || 'Identidad verificada correctamente.';
 
           this.errorAccion = '';
 
           /*
-           * GET nuevamente para que
-           * Oracle sea fuente de verdad.
+           * Consultamos nuevamente la entrega.
+           * El estado persistido sigue siendo
+           * responsabilidad del backend.
            */
           this.cargarEntrega(
             false
@@ -434,6 +420,8 @@ export class EntregaPublicaComponent
 
       });
   }
+
+
 
 
   cerrarModalOtp(): void {

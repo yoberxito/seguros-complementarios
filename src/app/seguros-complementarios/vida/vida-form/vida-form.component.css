@@ -2780,3 +2780,373 @@ select:focus {
     gap: 10px;
   }
 }
+
+/* +VIDA - EXPERIENCIA PROCESAMIENTO DOCUMENTAL */
+
+.modal-fondo-proceso-documental {
+  z-index: 1100;
+}
+
+.modal-proceso-documental {
+  width: min(610px, calc(100% - 28px));
+
+  padding: 30px 32px 27px;
+
+  background: #ffffff;
+
+  border: 1px solid rgba(205, 218, 227, .92);
+  border-radius: var(--radius-lg);
+
+  box-shadow:
+    0 30px 90px
+    rgba(0, 60, 92, .30);
+
+  text-align: center;
+}
+
+
+/* ============================================================
+   ANIMACION
+   ============================================================ */
+
+.proceso-documental-animacion {
+  position: relative;
+
+  width: 78px;
+  height: 78px;
+
+  display: grid;
+  place-items: center;
+
+  margin: 0 auto 17px;
+}
+
+.proceso-documental-spinner {
+  position: absolute;
+
+  inset: 0;
+
+  border: 3px solid #e1ebf0;
+  border-top-color: var(--azul);
+
+  border-radius: 50%;
+
+  animation:
+    vidaProcesoGirar
+    1.05s
+    linear
+    infinite;
+}
+
+.proceso-documental-hoja {
+  position: relative;
+
+  width: 31px;
+  height: 39px;
+
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+
+  gap: 4px;
+
+  padding: 0 7px;
+
+  background: #ffffff;
+
+  border: 2px solid var(--azul);
+  border-radius: 4px;
+
+  box-shadow:
+    0 4px 12px
+    rgba(0, 60, 92, .12);
+
+  box-sizing: border-box;
+}
+
+.proceso-documental-hoja::after {
+  content: '';
+
+  position: absolute;
+
+  right: -2px;
+  top: -2px;
+
+  width: 10px;
+  height: 10px;
+
+  background: #edf6f9;
+
+  border-left: 2px solid var(--azul);
+  border-bottom: 2px solid var(--azul);
+
+  border-bottom-left-radius: 3px;
+}
+
+.proceso-documental-hoja span {
+  display: block;
+
+  height: 2px;
+
+  background: #a8c4d0;
+
+  border-radius: 10px;
+}
+
+
+/* ============================================================
+   TEXTOS
+   ============================================================ */
+
+.proceso-documental-eyebrow {
+  margin: 0 0 5px;
+
+  color: #647d89;
+
+  font-size: .76rem;
+  font-weight: 700;
+
+  letter-spacing: .055em;
+  text-transform: uppercase;
+}
+
+.modal-proceso-documental h2 {
+  margin: 0 0 8px;
+
+  color: var(--azul-tinta);
+
+  font-family: var(--font-display);
+
+  font-size: 1.25rem;
+  font-weight: 650;
+}
+
+.proceso-documental-mensaje {
+  max-width: 485px;
+
+  margin: 0 auto;
+
+  color: #485d6f;
+
+  font-size: .93rem;
+  line-height: 1.55;
+}
+
+
+/* ============================================================
+   ETAPAS
+   ============================================================ */
+
+.proceso-documental-etapas {
+  position: relative;
+
+  display: grid;
+
+  grid-template-columns:
+    repeat(3, 1fr);
+
+  gap: 8px;
+
+  margin: 27px 0 19px;
+}
+
+.proceso-documental-etapas::before {
+  content: '';
+
+  position: absolute;
+
+  top: 15px;
+  left: 16.66%;
+  right: 16.66%;
+
+  height: 1px;
+
+  background: #dfe8ed;
+
+  z-index: 0;
+}
+
+.proceso-documental-etapa {
+  position: relative;
+
+  z-index: 1;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  gap: 7px;
+
+  color: #8797a4;
+}
+
+.proceso-documental-etapa-icono {
+  width: 30px;
+  height: 30px;
+
+  display: grid;
+  place-items: center;
+
+  background: #ffffff;
+
+  border: 2px solid #d3dee4;
+
+  border-radius: 50%;
+
+  transition:
+    border-color .2s ease,
+    background .2s ease,
+    box-shadow .2s ease;
+}
+
+.proceso-documental-etapa-icono > span {
+  width: 7px;
+  height: 7px;
+
+  display: block;
+
+  background: #bdc9cf;
+
+  border-radius: 50%;
+}
+
+.proceso-documental-etapa strong {
+  display: block;
+
+  color: #657785;
+
+  font-size: .82rem;
+  font-weight: 650;
+}
+
+.proceso-documental-etapa small {
+  display: block;
+
+  margin-top: 2px;
+
+  color: #8998a4;
+
+  font-size: .7rem;
+  line-height: 1.3;
+}
+
+
+/* ============================================================
+   ETAPA ACTIVA
+   ============================================================ */
+
+.proceso-documental-etapa.activa .proceso-documental-etapa-icono {
+  background: #f3f8fb;
+
+  border-color: var(--azul);
+
+  box-shadow:
+    0 0 0 4px
+    rgba(0, 101, 140, .09);
+}
+
+.proceso-documental-etapa.activa .proceso-documental-etapa-icono > span {
+  background: var(--azul);
+}
+
+.proceso-documental-etapa.activa strong {
+  color: var(--azul-tinta);
+}
+
+
+/* ============================================================
+   ETAPA COMPLETADA
+   ============================================================ */
+
+.proceso-documental-etapa.completada .proceso-documental-etapa-icono {
+  background: #f0f8f3;
+  border-color: #58a778;
+}
+
+.proceso-documental-etapa.completada .proceso-documental-etapa-icono > span {
+  position: relative;
+
+  width: 12px;
+  height: 7px;
+
+  background: transparent;
+
+  border-left: 2px solid #26744a;
+  border-bottom: 2px solid #26744a;
+
+  border-radius: 0;
+
+  transform:
+    rotate(-45deg)
+    translate(1px, -1px);
+}
+
+.proceso-documental-etapa.completada strong {
+  color: #2c6648;
+}
+
+
+/* ============================================================
+   MENSAJE INFERIOR
+   ============================================================ */
+
+.proceso-documental-espera {
+  margin: 0;
+
+  padding-top: 15px;
+
+  border-top: 1px solid #edf1f4;
+
+  color: #71818e;
+
+  font-size: .78rem;
+  line-height: 1.45;
+}
+
+
+/* ============================================================
+   ANIMACION
+   ============================================================ */
+
+@keyframes vidaProcesoGirar {
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+
+@media (max-width: 620px) {
+
+  .modal-proceso-documental {
+    padding: 26px 20px 23px;
+  }
+
+  .proceso-documental-etapas {
+    gap: 3px;
+  }
+
+  .proceso-documental-etapa small {
+    display: none;
+  }
+
+  .proceso-documental-etapa strong {
+    font-size: .75rem;
+  }
+}
+
+
+/* ============================================================
+   ACCESIBILIDAD
+   ============================================================ */
+
+@media (prefers-reduced-motion: reduce) {
+
+  .proceso-documental-spinner {
+    animation-duration: 2.3s;
+  }
+}

@@ -1,364 +1,293 @@
-<section>
+<section class="finalizacion-vida">
 
   <div class="paso-header paso-header-simple">
-
     <h4>
-      7. Documentos recepcionados
+      7. Finalización
     </h4>
-
   </div>
 
-  <section class="estado-documento">
+
+  <!-- RESUMEN PRINCIPAL -->
+
+  <section class="finalizacion-resumen">
+
+    <div
+      class="finalizacion-resumen-icono"
+      aria-hidden="true">
+      &#10003;
+    </div>
+
+    <div class="finalizacion-resumen-contenido">
+
+      <span class="finalizacion-resumen-etiqueta">
+        Documentación procesada
+      </span>
+
+      <h2>
+        Proceso realizado correctamente
+      </h2>
+
+      <p>
+        La documentación correspondiente fue
+        procesada y registrada correctamente.
+      </p>
+
+    </div>
+
+  </section>
+
+
+  <!-- DATOS DEL TRAMITE -->
+
+  <section class="finalizacion-datos">
 
     <div>
 
-      <strong>
-        Código de solicitud:
-      </strong>
+      <span class="finalizacion-etiqueta">
+        Código de solicitud
+      </span>
 
-      <span>
+      <strong>
         {{ codigoSolicitud }}
+      </strong>
+
+    </div>
+
+
+    <div *ngIf="fechaRecepcionDocumentos">
+
+      <span class="finalizacion-etiqueta">
+        Fecha de procesamiento
       </span>
 
+      <strong>
+        {{ fechaRecepcionDocumentos }}
+      </strong>
+
+    </div>
+
+  </section>
+
+
+  <!-- =====================================================
+       SOLO AUTORIZACION
+       ===================================================== -->
+
+  <ng-container *ngIf="esSoloAutorizacion">
+
+    <section class="finalizacion-resultado">
+
+      <div
+        class="finalizacion-resultado-icono"
+        aria-hidden="true">
+        &#10003;
+      </div>
+
+      <div>
+
+        <h3>
+          Afiliación +Vida registrada exitosamente
+        </h3>
+
+        <p>
+          Su Autorización de Descuento por Planilla
+          fue procesada correctamente y quedó
+          registrada para su remisión al área de
+          Personal/Planillas de EsSalud, donde se
+          gestionará el descuento mensual de la prima.
+        </p>
+
+      </div>
+
+    </section>
+
+
+    <!--
+      Se mantiene el mismo lenguaje visual y mensaje
+      recomendado que ya existia para beneficiarios.
+    -->
+
+    <section
+      class="invitacion-beneficiarios finalizacion-invitacion"
+      *ngIf="mostrarInvitacionBeneficiarios">
+
+      <div
+        class="icono-invitacion"
+        aria-hidden="true">
+        &#128101;
+      </div>
+
+      <h4>
+        Complete el registro de sus beneficiarios
+      </h4>
+
+      <p>
+        Se recomienda registrar beneficiarios para
+        facilitar la identificación de las personas
+        que recibirían la cobertura. Si no los
+        registra, se aplicará la prelación legal
+        correspondiente.
+      </p>
+
+      <p class="finalizacion-invitacion-nota">
+        Puede registrarlos ahora o posteriormente
+        para generar y completar el Formulario 6012.
+      </p>
+
+      <div class="botonera-invitacion">
+
+        <button
+          type="button"
+          class="btn-secundario"
+          (click)="omitirBeneficiarios.emit()">
+          Omitir por ahora
+        </button>
+
+        <button
+          type="button"
+          class="btn-success"
+          (click)="registrarBeneficiarios.emit()">
+          Registrar beneficiarios
+        </button>
+
+      </div>
+
+    </section>
+
+  </ng-container>
+
+
+  <!-- =====================================================
+       FLUJO COMPLETO
+       ===================================================== -->
+
+  <ng-container *ngIf="esFlujoCompleto">
+
+    <section class="finalizacion-resultado">
+
+      <div
+        class="finalizacion-resultado-icono"
+        aria-hidden="true">
+        &#10003;
+      </div>
+
+      <div>
+
+        <h3>
+          Afiliación +Vida registrada exitosamente
+        </h3>
+
+        <p>
+          Su Autorización de Descuento por Planilla
+          fue procesada correctamente y quedó
+          registrada para su remisión al área de
+          Personal/Planillas de EsSalud.
+        </p>
+
+      </div>
+
+    </section>
+
+
+    <section class="finalizacion-resultado">
+
+      <div
+        class="finalizacion-resultado-icono"
+        aria-hidden="true">
+        &#10003;
+      </div>
+
+      <div>
+
+        <h3>
+          Registro de beneficiarios completado
+        </h3>
+
+        <p>
+          Sus beneficiarios fueron registrados
+          correctamente y el Formulario 6012 quedó
+          procesado para su remisión a MAPFRE.
+        </p>
+
+      </div>
+
+    </section>
+
+  </ng-container>
+
+
+  <!-- =====================================================
+       FORMULARIO 6012 POSTERIOR
+       ===================================================== -->
+
+  <ng-container *ngIf="esFormulario6012Posterior">
+
+    <section class="finalizacion-resultado">
+
+      <div
+        class="finalizacion-resultado-icono"
+        aria-hidden="true">
+        &#10003;
+      </div>
+
+      <div>
+
+        <h3>
+          Registro de beneficiarios completado
+        </h3>
+
+        <p>
+          Sus beneficiarios fueron registrados
+          correctamente y el Formulario 6012 quedó
+          procesado para su remisión a MAPFRE.
+        </p>
+
+      </div>
+
+    </section>
+
+  </ng-container>
+
+
+  <!-- FALLBACK DEFENSIVO -->
+
+  <section
+    class="finalizacion-resultado"
+    *ngIf="!esSoloAutorizacion && !esFlujoCompleto && !esFormulario6012Posterior">
+
+    <div
+      class="finalizacion-resultado-icono"
+      aria-hidden="true">
+      &#10003;
     </div>
 
     <div>
 
-      <strong>
-        Fecha de recepción:
-      </strong>
+      <h3>
+        Trámite procesado correctamente
+      </h3>
 
-      <span>
-        {{ fechaRecepcionDocumentos }}
-      </span>
+      <p>
+        La documentación del trámite +Vida fue
+        procesada correctamente.
+      </p>
 
     </div>
 
   </section>
 
-  <section class="documentos-publicados-grid">
 
-    <!-- AUTORIZACIÓN DE DESCUENTO -->
-    <article
-      class="documento-publicado-card"
-      *ngIf="autorizacionDescuentoSellada">
+  <!-- BOTON FINAL -->
 
-      <div class="documento-publicado-header">
-
-        <div>
-
-          <h4>
-            Autorización de Descuento
-          </h4>
-
-          <p>
-            Documento validado, sellado y
-            publicado.
-          </p>
-
-        </div>
-
-        <div class="sello-viva">
-
-          <span class="sello-viva-logo">
-            VIVA
-          </span>
-
-          <span>
-            PUBLICADO
-          </span>
-
-        </div>
-
-      </div>
-
-      <div class="metadatos-documento">
-
-        <span>
-
-          <strong>
-            Documento publicado:
-          </strong>
-
-          Autorización de Descuento sellada
-
-        </span>
-
-        <span>
-
-          <strong>
-            Estado:
-          </strong>
-
-          Publicado en plataforma
-
-        </span>
-
-        <span
-          *ngIf="
-            idDocumentoPublicadoAutorizacion
-          ">
-
-          <strong>
-            ID de publicación:
-          </strong>
-
-          {{
-            idDocumentoPublicadoAutorizacion
-          }}
-
-        </span>
-
-      </div>
-
-      <div class="acciones-publicacion">
-
-        <button
-          type="button"
-          class="btn-secundario"
-          [disabled]="
-            consultandoDocumentoPublicado ===
-            'autorizacionDescuento'
-          "
-          (click)="
-            visualizarDocumento.emit(
-                'autorizacionDescuento'
-            )
-            ">
-
-          {{
-            consultandoDocumentoPublicado ===
-            'autorizacionDescuento'
-              ? 'Cargando documento...'
-              : 'Visualizar'
-          }}
-
-        </button>
-
-        <button
-          type="button"
-          class="btn-success"
-          [disabled]="
-            consultandoDocumentoPublicado ===
-            'autorizacionDescuento'
-          "
-          (click)="
-            descargarDocumento.emit(
-                'autorizacionDescuento'
-            )
-            ">
-
-          {{
-            consultandoDocumentoPublicado ===
-            'autorizacionDescuento'
-              ? 'Cargando documento...'
-              : 'Descargar sellado'
-          }}
-
-        </button>
-
-      </div>
-
-    </article>
-
-    <!-- FORMULARIO 6012 -->
-    <article
-      class="documento-publicado-card"
-      *ngIf="formulario6012Sellado">
-
-      <div class="documento-publicado-header">
-
-        <div>
-
-          <h4>
-            Formulario 6012
-          </h4>
-
-          <p>
-            Documento validado, sellado y
-            publicado.
-          </p>
-
-        </div>
-
-        <div class="sello-viva">
-
-          <span class="sello-viva-logo">
-            VIVA
-          </span>
-
-          <span>
-            PUBLICADO
-          </span>
-
-        </div>
-
-      </div>
-
-      <div class="metadatos-documento">
-
-        <span>
-
-          <strong>
-            Documento publicado:
-          </strong>
-
-          Formulario 6012 sellado
-
-        </span>
-
-        <span>
-
-          <strong>
-            Estado:
-          </strong>
-
-          Publicado en plataforma
-
-        </span>
-
-        <span
-          *ngIf="
-            idDocumentoPublicadoFormulario6012
-          ">
-
-          <strong>
-            ID de publicación:
-          </strong>
-
-          {{
-            idDocumentoPublicadoFormulario6012
-          }}
-
-        </span>
-
-      </div>
-
-      <div class="acciones-publicacion">
-
-        <button
-          type="button"
-          class="btn-secundario"
-          [disabled]="
-            consultandoDocumentoPublicado ===
-            'formulario6012'
-          "
-          (click)="
-            visualizarDocumento.emit(
-                'formulario6012'
-            )
-            ">
-
-          {{
-            consultandoDocumentoPublicado ===
-            'formulario6012'
-              ? 'Cargando documento...'
-              : 'Visualizar'
-          }}
-
-        </button>
-
-        <button
-          type="button"
-          class="btn-success"
-          [disabled]="
-            consultandoDocumentoPublicado ===
-            'formulario6012'
-          "
-          (click)="
-            descargarDocumento.emit(
-                'formulario6012'
-            )
-            ">
-
-          {{
-            consultandoDocumentoPublicado ===
-            'formulario6012'
-              ? 'Cargando documento...'
-              : 'Descargar sellado'
-          }}
-
-        </button>
-
-      </div>
-
-    </article>
-
-  </section>
-
-  <!-- INVITACIÓN PARA REGISTRAR BENEFICIARIOS -->
-  <section
-    class="invitacion-beneficiarios"
-    *ngIf="mostrarInvitacionBeneficiarios">
-
-    <div class="icono-invitacion">
-      ✅
-    </div>
-
-    <h4>
-      Autorización de Descuento enviada
-      correctamente
-    </h4>
-
-    <p>
-      Su Autorización de Descuento por Planilla
-      fue registrada. La afiliación al seguro
-      +Vida se sustenta con el descuento mensual
-      de S/ 5.00 en planilla.
-    </p>
-
-    <p>
-      Se recomienda registrar beneficiarios para
-      facilitar la identificación de las personas
-      que recibirían la cobertura en caso de
-      siniestro. Si no registra beneficiarios, el
-      pago se realizará conforme a la prelación
-      legal correspondiente, lo que podría requerir
-      trámites adicionales por parte de los
-      herederos legales.
-    </p>
-
-    <div class="botonera-invitacion">
-
-      <button
-        type="button"
-        class="btn-secundario"
-        (click)="
-        omitirBeneficiarios.emit()
-        ">
-
-        Omitir por ahora
-
-      </button>
-
-      <button
-        type="button"
-        class="btn-success"
-        (click)="
-        registrarBeneficiarios.emit()
-        ">
-
-        Registrar beneficiarios y generar
-        Formulario 6012
-
-      </button>
-
-    </div>
-
-  </section>
-
-  <!-- BOTONERA FINAL -->
   <div
-    class="botonera-pasos"
-    *ngIf="!mostrarInvitacionBeneficiarios">
+    class="finalizacion-botonera"
+    *ngIf="!esSoloAutorizacion || !mostrarInvitacionBeneficiarios">
 
     <button
       type="button"
       class="btn-success"
       (click)="finalizar.emit()">
-
       Finalizar
-
     </button>
 
   </div>

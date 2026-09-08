@@ -1,5 +1,6 @@
 import {
-  HttpClient
+  HttpClient,
+  HttpParams
 } from '@angular/common/http';
 
 import {
@@ -55,30 +56,20 @@ export interface EntregaPublicaResponse {
 
 export interface SolicitarOtpEntregaResponse {
 
-  correoEnmascarado:
-    string | null;
-
-  correoEnviado: boolean;
+  codResultado:
+    string | number;
 
   mensaje: string;
-
-  nuevoOtpGenerado: boolean;
-
-  otpDisponible: boolean;
-
-  otpYaValidado: boolean;
 }
 
 
 export interface ValidarOtpEntregaResponse {
 
-  otpValidado: boolean;
-  yaValidado: boolean;
-
-  correoEnmascarado:
-    string | null;
+  valido: boolean;
 
   mensaje: string;
+
+  intentosRestantes: number;
 }
 
 
@@ -110,6 +101,26 @@ export class EntregaPublicaApiService {
 
   private readonly baseUrl =
     'http://localhost/api/v1/entregas/publicas';
+
+  /*
+   * OTP institucional desplegado en QA.
+   *
+   * Solo generar y validar OTP utilizan
+   * esta base por ahora.
+   *
+   * consultarEntrega() y confirmarRecepcion()
+   * siguen temporalmente con baseUrl local
+   * hasta confirmar sus endpoints QA.
+   */
+  private readonly baseUrlOtpQa =
+    'https://appsqa.essalud.gob.pe/sagw/mia-seguros-hijomenormayor/api/seguro-complementario';
+
+  /*
+   * Correo temporal para pruebas QA
+   * solicitado para la pantalla de acuse.
+   */
+  private readonly correoOtpQa =
+    'diego.inga@essalud.gob.pe';
 
 
   constructor(
@@ -157,85 +168,50 @@ export class EntregaPublicaApiService {
       );
   }
 
-
   solicitarOtp(
-    token: string
   ): Observable<SolicitarOtpEntregaResponse> {
 
-    const tokenLimpio =
-      (token || '').trim();
-
-    if (!tokenLimpio) {
-
-      return throwError(
-        () => new Error(
-          'El enlace de la entrega no es válido.'
-        )
-      );
-    }
+    const params =
+      new HttpParams()
+        .set(
+          'correo',
+          this.correoOtpQa
+        );
 
     const url =
-      `${this.baseUrl}/`
-      + `${encodeURIComponent(tokenLimpio)}`
-      + `/otp/solicitar`;
+      `${this.baseUrlOtpQa}/genera-otp`;
 
     /*
-     * IMPORTANTE:
+     * QA:
      *
-     * No enviamos correo desde Angular.
+     * POST /genera-otp
+     * ?correo=...
      *
-     * El backend resuelve el correo autorizado
-     * usando el token y Oracle.
+     * Este mismo endpoint genera el OTP
+     * y envia el correo.
      */
     return this.http
-      .post<
-        ApiResponseEntrega<
-          SolicitarOtpEntregaResponse
-        >
-      >(
+      .post<SolicitarOtpEntregaResponse>(
         url,
-        null
-      )
-      .pipe(
-
-        map(
-          respuesta =>
-            this.extraerBody(
-              respuesta,
-              'No fue posible solicitar el código OTP.'
-            )
-        )
-
+        null,
+        {
+          params
+        }
       );
   }
 
-
   validarOtp(
-    token: string,
     codigo: string
   ): Observable<ValidarOtpEntregaResponse> {
 
-    const tokenLimpio =
-      (token || '').trim();
-
     const codigoLimpio =
       (codigo || '').trim();
-
-    if (!tokenLimpio) {
-
-      return throwError(
-        () => new Error(
-          'El enlace de la entrega no es válido.'
-        )
-      );
-    }
 
     if (
       !/^\d{6}$/.test(
         codigoLimpio
       )
     ) {
-
       return throwError(
         () => new Error(
           'El código OTP debe contener 6 dígitos.'
@@ -243,40 +219,37 @@ export class EntregaPublicaApiService {
       );
     }
 
+    const params =
+      new HttpParams()
+        .set(
+          'correo',
+          this.correoOtpQa
+        )
+        .set(
+          'codigo',
+          codigoLimpio
+        );
+
     const url =
-      `${this.baseUrl}/`
-      + `${encodeURIComponent(tokenLimpio)}`
-      + `/otp/validar`;
+      `${this.baseUrlOtpQa}/validar-otp`;
 
     /*
-     * El único dato funcional enviado
-     * por Angular es el código OTP.
+     * QA:
      *
-     * NO correo.
+     * GET /validar-otp
+     * ?correo=...
+     * &codigo=XXXXXX
      */
     return this.http
-      .post<
-        ApiResponseEntrega<
-          ValidarOtpEntregaResponse
-        >
-      >(
+      .get<ValidarOtpEntregaResponse>(
         url,
         {
-          codigo: codigoLimpio
+          params
         }
-      )
-      .pipe(
-
-        map(
-          respuesta =>
-            this.extraerBody(
-              respuesta,
-              'No fue posible validar el código OTP.'
-            )
-        )
-
       );
   }
+
+
 
 
   confirmarRecepcion(

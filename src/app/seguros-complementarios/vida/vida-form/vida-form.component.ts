@@ -280,18 +280,12 @@ temporizadorAviso: ReturnType<typeof setTimeout> | null = null;
  * OTP
  * ============================================================
  *
- * Durante las pruebas se utiliza un correo fijo.
+ * El OTP para la generación documental utiliza
+ * directamente los servicios institucionales QA.
  *
- * Para pasar posteriormente al correo institucional recuperado
- * para el titular solamente debe cambiarse
- * usarCorreoTitularParaOtp a true.
+ * El código se envía al correo recuperado del titular.
+ * Angular no recibe ni expone el código generado.
  */
-private readonly usarCorreoTitularParaOtp =
-  false;
-
-private readonly correoOtpPrueba =
-  'diego.inga@essalud.gob.pe';
-
 mostrarModalOtp =
   false;
 
@@ -360,6 +354,15 @@ autorizacionFirmadaBloqueada = false;
 mostrarConfirmacionSinBeneficiarios = false;
 mostrarInvitacionBeneficiarios = false;
 
+/*
+ * Habilita exclusivamente la pantalla visual
+ * de Finalización.
+ *
+ * NO representa REGISTRO_TOTAL.
+ * NO representa disponibilidad de PDFs.
+ */
+finalizacionVisualDisponible = false;
+
 cargandoTipoAsegurado = false;
 tipoAseguradoValidado = false;
 errorTipoAsegurado = '';
@@ -384,11 +387,35 @@ documentosValidadosBackend = false;
 cerrandoDocumentosBackend = false;
 documentosCerradosBackend = false;
 
+
+idDocumentoSelladoAutorizacion = '';
+idDocumentoSelladoFormulario6012 = '';
+
+archivoSelladoAutorizacion: Blob | null = null;
+archivoSelladoFormulario6012: Blob | null = null;
+
+nombreArchivoSelladoAutorizacion = '';
+nombreArchivoSelladoFormulario6012 = '';
+
+autorizacionAlmacenadaSftp = false;
+formulario6012AlmacenadoSftp = false;
+
+rutaSftpAutorizacion = '';
+rutaSftpFormulario6012 = '';
+nombreArchivoSftpAutorizacion = '';
+nombreArchivoSftpFormulario6012 = '';
+
 idDocumentoPublicadoAutorizacion = '';
 
 idDocumentoPublicadoFormulario6012 = '';
 
 mensajeErrorCierre = '';
+
+enviandoCorreoExito = false;
+
+correoAutorizacionEnviadoSesion = false;
+correoFormulario6012EnviadoSesion = false;
+correoCompletoEnviadoSesion = false;
 
 autorizacionValidadaBackend = false;
 formulario6012ValidadoBackend = false;
@@ -647,7 +674,7 @@ private puedeAccederPasoDesdeRuta(
     }
 
     if (paso === 'publicacion') {
-      return this.documentosPublicados;
+      return this.finalizacionVisualDisponible || this.documentosPublicados;
     }
 
     if (paso === 'beneficiarios') {
@@ -688,7 +715,7 @@ private puedeAccederPasoDesdeRuta(
   }
 
   if (paso === 'publicacion') {
-    return this.documentosPublicados;
+    return this.finalizacionVisualDisponible || this.documentosPublicados;
   }
 
   return false;
@@ -2436,6 +2463,16 @@ private aplicarProcesoVidaRecuperado(
 
   /*
    * Datos complementarios
+   *
+   * Mientras SOMOS no exponga código de planilla y
+   * decreto legislativo, se utilizan valores temporales
+   * de prueba.
+   *
+   * RUC y razón social corresponden a EsSalud para el
+   * módulo institucional de trabajadores.
+   *
+   * Si Oracle ya devuelve información persistida,
+   * siempre se prioriza dicho valor.
    */
   const datosComplementarios =
     formulario.datosComplementarios;
@@ -2444,13 +2481,13 @@ private aplicarProcesoVidaRecuperado(
     datosComplementarios
       .codigoPlanilla
       ?.trim()
-    || '';
+    || '77777777';
 
   this.form.decretoLegislativo =
     datosComplementarios
       .decretoLegislativo
       ?.trim()
-    || '';
+    || '728';
 
   this.form.convenioCGBVP =
     datosComplementarios
@@ -2462,13 +2499,13 @@ private aplicarProcesoVidaRecuperado(
     datosComplementarios
       .rucEmpleador
       ?.trim()
-    || '';
+    || '20131257750';
 
   this.form.razonSocial =
     datosComplementarios
       .razonSocial
       ?.trim()
-    || '';
+    || 'SEGURO SOCIAL DE SALUD';
 
   /*
    * Estas banderas son únicamente de interfaz.
@@ -2796,6 +2833,9 @@ private configurarEstadoVisualRecuperado(
   this.documentosPublicados =
     false;
 
+  this.finalizacionVisualDisponible =
+    false;
+
   this.pendienteBeneficiariosPara6012 =
     false;
 
@@ -2939,6 +2979,50 @@ private configurarEstadoVisualRecuperado(
     this.formulario6012Generado =
       false;
 
+    const accionFrontend =
+      (recupero.accionFrontendSugerida || '')
+        .trim()
+        .toUpperCase();
+
+    /*
+     * SOLO_AUTORIZACION completado
+     * documentalmente.
+     *
+     * El backend conserva correctamente:
+     *
+     * codigoEstadoProceso = DOCUMENTOS
+     * estadoOperativo = REGISTRO_PARCIAL
+     *
+     * y utiliza esta señal exclusivamente para
+     * recuperar la pantalla visual correcta.
+     */
+    if (
+      estado === 'DOCUMENTOS'
+      && accionFrontend ===
+        'MOSTRAR_FINALIZACION_PARCIAL'
+    ) {
+      this.seccionesGrabadas.documentos =
+        true;
+
+      this.seccionesGrabadas.publicacion =
+        true;
+
+      this.finalizacionVisualDisponible =
+        true;
+
+      this.documentosPublicados =
+        false;
+
+      this.mostrarInvitacionBeneficiarios =
+        this.tipoGeneracionDocumentos ===
+          'soloAutorizacion';
+
+      this.pasoActual =
+        'publicacion';
+
+      return;
+    }
+
     if (estado === 'DOCUMENTOS') {
       this.pasoActual =
         'documentos';
@@ -2963,10 +3047,14 @@ private configurarEstadoVisualRecuperado(
     this.documentosPublicados =
       true;
 
+    this.finalizacionVisualDisponible =
+      true;
+
+    this.mostrarInvitacionBeneficiarios =
+      false;
+
     this.pasoActual =
       'publicacion';
-
-    this.recuperarDocumentosPublicadosFinalizacion();
 
     return;
   }
@@ -4240,6 +4328,12 @@ this.idDocumentoPublicadoFormulario6012 = '';
 
 this.mensajeErrorCierre = '';
 
+this.enviandoCorreoExito = false;
+
+this.correoAutorizacionEnviadoSesion = false;
+this.correoFormulario6012EnviadoSesion = false;
+this.correoCompletoEnviadoSesion = false;
+
 this.autorizacionDescuentoGenerada = false;
 this.formulario6012Generado = false;
 this.autorizacionFirmadaBloqueada = false;
@@ -4281,6 +4375,7 @@ this.formulario6012ValidadoBackend = false;
 
 this.mensajeRechazoValidacion = '';
 this.documentosPublicados = false;
+this.finalizacionVisualDisponible = false;
 this.fechaRecepcionDocumentos = '';
 
 this.formulario6012Sellado = false;
@@ -4412,7 +4507,7 @@ validarPaso(paso: PasoFormulario): boolean {
 }
 
 if (paso === 'publicacion') {
-  return this.documentosPublicados;
+  return this.finalizacionVisualDisponible || this.documentosPublicados;
 }
 
 return false;
@@ -5182,18 +5277,16 @@ construirPayloadFormularioDescuento():
 private obtenerCorreoOtpDestino():
   string {
 
-  if (
-    this.usarCorreoTitularParaOtp
-  ) {
-    return (
-      this.form.correoViva
-      || ''
-    ).trim();
-  }
-
-  return this.correoOtpPrueba;
+  /*
+   * TEMPORAL QA:
+   * durante las pruebas del OTP institucional
+   * todos los codigos se envian a este correo.
+   *
+   * Antes de produccion debe reemplazarse
+   * por el correo institucional del titular.
+   */
+  return 'diego.inga@essalud.gob.pe';
 }
-
 
 private iniciarVerificacionOtp(
   accionPosteriorOtp: () => void
@@ -5261,6 +5354,7 @@ solicitarCodigoOtp(): void {
     this.correoOtpDestino.trim();
 
   if (!correo) {
+
     this.errorOtp =
       'No existe un correo disponible para solicitar el código.';
 
@@ -5280,7 +5374,7 @@ solicitarCodigoOtp(): void {
     false;
 
   console.log(
-    'Solicitando OTP:',
+    'Generando OTP en QA:',
     {
       correo
     }
@@ -5300,10 +5394,9 @@ solicitarCodigoOtp(): void {
         this.solicitandoOtp =
           false;
 
-        const codigoResultadoGeneracion =
+        const codResultado =
           String(
-            respuesta
-              .codResultadoGeneracion
+            respuesta.codResultado
             ?? ''
           ).trim();
 
@@ -5313,46 +5406,28 @@ solicitarCodigoOtp(): void {
             || ''
           ).trim();
 
-        const codigoGeneradoYEnviado =
-          respuesta.otpGenerado === true
-          && respuesta.correoEnviado === true;
-
         /*
-         * El servicio institucional devuelve
-         * codResultadoGeneracion = "1"
-         * cuando todavía existe un OTP activo.
+         * Contrato QA comprobado:
          *
-         * En ese escenario NO generamos otro:
-         * el trabajador puede introducir el
-         * código que ya recibió.
+         * codResultado = 0
+         * mensaje = "Correo enviado."
+         *
+         * El OTP generado no es utilizado
+         * ni expuesto por Angular.
          */
-        const existeCodigoActivo =
-          codigoResultadoGeneracion === '1'
-          && mensaje
-            .toLowerCase()
-            .includes('activo');
+        const operacionCorrecta =
+          codResultado === '0';
 
         if (
-          codigoGeneradoYEnviado
+          operacionCorrecta
         ) {
+
           this.otpHabilitadoParaValidar =
             true;
 
           this.mensajeOtp =
             mensaje
-            || 'Se envió un código de verificación al correo indicado.';
-
-          return;
-        }
-
-        if (
-          existeCodigoActivo
-        ) {
-          this.otpHabilitadoParaValidar =
-            true;
-
-          this.mensajeOtp =
-            'Ya existe un código de verificación activo. Ingrese el código recibido en su correo.';
+            || 'El código de verificación fue generado y enviado correctamente.';
 
           return;
         }
@@ -5379,13 +5454,12 @@ solicitarCodigoOtp(): void {
           'No fue posible comunicarse con el servicio de verificación. Intente nuevamente.';
 
         console.error(
-          'No fue posible solicitar OTP:',
+          'No fue posible generar OTP en QA:',
           error
         );
       }
     });
 }
-
 
 normalizarCodigoOtp(): void {
 
@@ -5780,6 +5854,13 @@ generarDocumentos(): void {
 
 iniciarRegistroBeneficiarios6012(): void {
   this.mostrarInvitacionBeneficiarios = false;
+
+  /*
+   * Se abandona temporalmente Finalización
+   * mientras se completa el nuevo ciclo 6012.
+   */
+  this.finalizacionVisualDisponible = false;
+
   this.pendienteBeneficiariosPara6012 = true;
 
   /*
@@ -6281,10 +6362,12 @@ validarDocumentoFirmadoDesdeServicio(
   tipoDocumento: TipoDocumentoFirmado,
   callbackAprobado: () => void,
   callbackRechazado: (
-    resultado: ValidacionDocumentalCompletaResponseLocal
+    resultado:
+      ValidacionDocumentalCompletaResponseLocal
   ) => void,
   callbackError: () => void
 ): void {
+
   const documento =
     this.obtenerArchivoDocumento(
       tipoDocumento
@@ -6304,6 +6387,7 @@ validarDocumentoFirmadoDesdeServicio(
     !documento.archivo
     || !documento.cargado
   ) {
+
     this.mostrarAviso(
       `No existe un PDF firmado válido para ${this.obtenerTituloDocumento(tipoDocumento)}.`,
       'error',
@@ -6316,6 +6400,7 @@ validarDocumentoFirmadoDesdeServicio(
   }
 
   if (!idDocumentoCargado) {
+
     this.mostrarAviso(
       `El documento ${this.obtenerTituloDocumento(tipoDocumento)} todavía no cuenta con un ID de carga.`,
       'error',
@@ -6327,8 +6412,683 @@ validarDocumentoFirmadoDesdeServicio(
     return;
   }
 
+  const archivo =
+    documento.archivo;
+
+  const etapasEjecutadas:
+    NonNullable<
+      ValidacionDocumentalCompletaResponseLocal[
+        'etapas'
+      ]
+    > = [];
+
+  const marcarDocumentoNoValidado =
+    (): void => {
+
+      if (
+        tipoDocumento ===
+        'formulario6012'
+      ) {
+        this.formulario6012ValidadoBackend =
+          false;
+      }
+
+      if (
+        tipoDocumento ===
+        'autorizacionDescuento'
+      ) {
+        this.autorizacionValidadaBackend =
+          false;
+      }
+    };
+
+  const agregarEtapa = (
+    codigoEtapa: string,
+    nombreEtapa: string,
+    etapaAprobada: boolean,
+    estadoEtapa: string,
+    mensajeEtapa: string,
+    observaciones: string[] = []
+  ): void => {
+
+    etapasEjecutadas.push({
+      codigoEtapa,
+      nombreEtapa,
+      etapaAprobada,
+      estadoEtapa,
+      mensajeEtapa,
+      observaciones
+    });
+  };
+
+  const construirResultado =
+    (): ValidacionDocumentalCompletaResponseLocal => {
+
+      return {
+        documentoAprobado: false,
+
+        estadoValidacionDocumental:
+          'PENDIENTE_CONSOLIDACION',
+
+        permiteNuevaCargaTrabajador:
+          false,
+
+        mensajeValidacion:
+          'Resultado pendiente de consolidación.',
+
+        registroInternoProceso:
+          this.codigoSolicitud,
+
+        tipoDocumento:
+          tipoDocumentoBackend,
+
+        tipoDocumentoTrabajador:
+          this.form.titular.tipoDocumento,
+
+        numeroDocumentoTrabajador:
+          this.form.titular.numeroDocumento,
+
+        idDocumentoCargado,
+
+        etapas:
+          etapasEjecutadas,
+
+        observaciones:
+          etapasEjecutadas
+            .filter(
+              etapa =>
+                etapa.etapaAprobada === false
+            )
+            .flatMap(
+              etapa =>
+                etapa.observaciones || []
+            )
+      };
+    };
+
+  const consolidar =
+    (): void => {
+
+      const resultado =
+        construirResultado();
+
+      console.log(
+        'Consolidando validación documental individual:',
+        {
+          registroInternoProceso:
+            this.codigoSolicitud,
+
+          tipoDocumento:
+            tipoDocumentoBackend,
+
+          idDocumentoCargado,
+
+          etapas:
+            resultado.etapas
+        }
+      );
+
+      this.vidaApiService
+        .validarDocumentoCompleto(
+          documento.archivo!,
+          this.codigoSolicitud,
+          tipoDocumentoBackend,
+          this.form.titular.tipoDocumento,
+          this.form.titular.numeroDocumento,
+          idDocumentoCargado,
+          this.form.titular.numeroDocumento
+        )
+        .subscribe({
+
+          next: respuesta => {
+
+            const consolidado =
+              respuesta.body;
+
+            if (!consolidado) {
+
+              marcarDocumentoNoValidado();
+
+              console.error(
+                'La consolidación no devolvió body:',
+                respuesta
+              );
+
+              callbackError();
+              return;
+            }
+
+            const aprobado =
+              consolidado.documentoAprobado === true
+              && consolidado
+                .estadoValidacionDocumental ===
+                'VALIDACION_DOCUMENTAL_APROBADA';
+
+            console.log(
+              'Resultado consolidado de validación:',
+              {
+                tipoDocumento:
+                  tipoDocumentoBackend,
+
+                documentoAprobado:
+                  consolidado.documentoAprobado,
+
+                estadoValidacionDocumental:
+                  consolidado
+                    .estadoValidacionDocumental,
+
+                permiteNuevaCargaTrabajador:
+                  consolidado
+                    .permiteNuevaCargaTrabajador,
+
+                etapas:
+                  consolidado.etapas
+              }
+            );
+
+            if (aprobado) {
+
+              if (
+                tipoDocumento ===
+                'formulario6012'
+              ) {
+                this.formulario6012ValidadoBackend =
+                  true;
+              }
+
+              if (
+                tipoDocumento ===
+                'autorizacionDescuento'
+              ) {
+                this.autorizacionValidadaBackend =
+                  true;
+              }
+
+              callbackAprobado();
+              return;
+            }
+
+            marcarDocumentoNoValidado();
+
+            this.mensajeRechazoValidacion =
+              consolidado.mensajeValidacion
+              || respuesta.mensaje
+              || `El documento ${this.obtenerTituloDocumento(tipoDocumento)} no superó la validación.`;
+
+            callbackRechazado(
+              consolidado
+            );
+          },
+
+          error: error => {
+
+            marcarDocumentoNoValidado();
+
+            console.error(
+              'Error consolidando la validación documental:',
+              error
+            );
+
+            callbackError();
+          }
+        });
+    };
+
+  const rechazoFuncional = (
+    codigoEtapa: string,
+    nombreEtapa: string,
+    estadoEtapa: string,
+    mensajeEtapa: string,
+    observaciones: string[] = []
+  ): void => {
+
+    agregarEtapa(
+      codigoEtapa,
+      nombreEtapa,
+      false,
+      estadoEtapa,
+      mensajeEtapa,
+      observaciones
+    );
+
+    consolidar();
+  };
+
+  const errorTecnico = (
+    codigoEtapa: string,
+    nombreEtapa: string,
+    estadoEtapa: string,
+    mensajeEtapa: string,
+    error: unknown
+  ): void => {
+
+    console.error(
+      `Error técnico en etapa ${codigoEtapa} - ${nombreEtapa}:`,
+      error
+    );
+
+    agregarEtapa(
+      codigoEtapa,
+      nombreEtapa,
+      false,
+      estadoEtapa,
+      mensajeEtapa,
+      []
+    );
+
+    consolidar();
+  };
+
+
+  const validarFirma = (): void => {
+
+    this.vidaApiService
+      .validarFirmaTrabajador(
+        archivo,
+        tipoDocumentoBackend
+      )
+      .subscribe({
+
+        next: respuesta => {
+
+          const resultado =
+            respuesta.body;
+
+          if (!resultado) {
+
+            errorTecnico(
+              '21',
+              'Validar presencia de firma manuscrita',
+              'ERROR_VALIDACION_FIRMA',
+              'No se pudo validar la presencia de firma manuscrita.',
+              respuesta
+            );
+
+            return;
+          }
+
+          if (!resultado.firmaValida) {
+
+            rechazoFuncional(
+              '21',
+              'Validar presencia de firma manuscrita',
+              resultado.estadoValidacionDocumental,
+              resultado.mensajeValidacion,
+              resultado.observaciones || []
+            );
+
+            return;
+          }
+
+          agregarEtapa(
+            '21',
+            'Validar presencia de firma manuscrita',
+            true,
+            resultado.estadoValidacionDocumental,
+            resultado.mensajeValidacion,
+            resultado.observaciones || []
+          );
+
+          consolidar();
+        },
+
+        error: error => {
+
+          errorTecnico(
+            '21',
+            'Validar presencia de firma manuscrita',
+            'ERROR_VALIDACION_FIRMA',
+            'No se pudo validar la presencia de firma manuscrita.',
+            error
+          );
+        }
+      });
+  };
+
+
+  const validarElementosVisuales =
+    (): void => {
+
+      this.vidaApiService
+        .validarElementosVisualesDocumento(
+          archivo,
+          tipoDocumentoBackend
+        )
+        .subscribe({
+
+          next: respuesta => {
+
+            const resultado =
+              respuesta.body;
+
+            if (!resultado) {
+
+              errorTecnico(
+                '20',
+                'Validar elementos visuales obligatorios',
+                'ERROR_VALIDACION_ELEMENTOS_VISUALES',
+                'No se pudo validar los elementos visuales obligatorios.',
+                respuesta
+              );
+
+              return;
+            }
+
+            if (
+              !resultado
+                .elementosVisualesValidos
+            ) {
+
+              rechazoFuncional(
+                '20',
+                'Validar elementos visuales obligatorios',
+                resultado.estadoValidacionDocumental,
+                resultado.mensajeValidacion,
+                resultado.observaciones || []
+              );
+
+              return;
+            }
+
+            agregarEtapa(
+              '20',
+              'Validar elementos visuales obligatorios',
+              true,
+              resultado.estadoValidacionDocumental,
+              resultado.mensajeValidacion,
+              resultado.observaciones || []
+            );
+
+            validarFirma();
+          },
+
+          error: error => {
+
+            errorTecnico(
+              '20',
+              'Validar elementos visuales obligatorios',
+              'ERROR_VALIDACION_ELEMENTOS_VISUALES',
+              'No se pudo validar los elementos visuales obligatorios.',
+              error
+            );
+          }
+        });
+    };
+
+
+  const validarLegibilidad =
+    (): void => {
+
+      this.vidaApiService
+        .validarLegibilidadDocumento(
+          archivo,
+          tipoDocumentoBackend
+        )
+        .subscribe({
+
+          next: respuesta => {
+
+            const resultado =
+              respuesta.body;
+
+            if (!resultado) {
+
+              errorTecnico(
+                '19',
+                'Validar legibilidad mediante OCR',
+                'ERROR_VALIDACION_LEGIBILIDAD_OCR',
+                'No se pudo ejecutar la validación de legibilidad del documento.',
+                respuesta
+              );
+
+              return;
+            }
+
+            if (!resultado.legibilidadValida) {
+
+              rechazoFuncional(
+                '19',
+                'Validar legibilidad mediante OCR',
+                resultado.estadoValidacionDocumental,
+                resultado.mensajeValidacion,
+                resultado.observaciones || []
+              );
+
+              return;
+            }
+
+            agregarEtapa(
+              '19',
+              'Validar legibilidad mediante OCR',
+              true,
+              resultado.estadoValidacionDocumental,
+              resultado.mensajeValidacion,
+              resultado.observaciones || []
+            );
+
+            validarElementosVisuales();
+          },
+
+          error: error => {
+
+            errorTecnico(
+              '19',
+              'Validar legibilidad mediante OCR',
+              'ERROR_VALIDACION_LEGIBILIDAD_OCR',
+              'No se pudo ejecutar la validación de legibilidad del documento.',
+              error
+            );
+          }
+        });
+    };
+
+
+  const validarPaginas =
+    (): void => {
+
+      this.vidaApiService
+        .validarPaginasDocumento(
+          archivo,
+          this.codigoSolicitud,
+          tipoDocumentoBackend,
+          this.form.titular.numeroDocumento
+        )
+        .subscribe({
+
+          next: respuesta => {
+
+            const resultado =
+              respuesta.body;
+
+            if (!resultado) {
+
+              errorTecnico(
+                '18',
+                'Validar páginas completas, secuencia y duplicidades',
+                'ERROR_VALIDACION_PAGINAS',
+                'No se pudo validar la secuencia de páginas del documento.',
+                respuesta
+              );
+
+              return;
+            }
+
+            if (!resultado.paginasValidas) {
+
+              rechazoFuncional(
+                '18',
+                'Validar páginas completas, secuencia y duplicidades',
+                resultado.estadoValidacionDocumental,
+                resultado.mensajeValidacion,
+                resultado.observaciones || []
+              );
+
+              return;
+            }
+
+            agregarEtapa(
+              '18',
+              'Validar páginas completas, secuencia y duplicidades',
+              true,
+              resultado.estadoValidacionDocumental,
+              resultado.mensajeValidacion,
+              resultado.observaciones || []
+            );
+
+            validarLegibilidad();
+          },
+
+          error: error => {
+
+            errorTecnico(
+              '18',
+              'Validar páginas completas, secuencia y duplicidades',
+              'ERROR_VALIDACION_PAGINAS',
+              'No se pudo validar la secuencia de páginas del documento.',
+              error
+            );
+          }
+        });
+    };
+
+
+  const validarCorrespondencia =
+    (): void => {
+
+      this.vidaApiService
+        .validarCorrespondenciaDocumento(
+          archivo,
+          this.codigoSolicitud,
+          tipoDocumentoBackend,
+          this.form.titular.numeroDocumento
+        )
+        .subscribe({
+
+          next: respuesta => {
+
+            const resultado =
+              respuesta.body;
+
+          if (!resultado) {
+
+            errorTecnico(
+              '16',
+              'Validar correspondencia QR y metadata',
+              'ERROR_VALIDACION_CORRESPONDENCIA',
+              'No se pudo validar la correspondencia documental.',
+              respuesta
+            );
+
+            return;
+          }
+
+          if (!resultado.correspondenciaValida) {
+
+            rechazoFuncional(
+              '16',
+              'Validar correspondencia QR y metadata',
+              resultado.estadoValidacionDocumental,
+              resultado.mensajeValidacion,
+              resultado.observaciones || []
+            );
+
+            return;
+          }
+
+          agregarEtapa(
+            '16',
+            'Validar correspondencia QR y metadata',
+            true,
+            resultado.estadoValidacionDocumental,
+            resultado.mensajeValidacion,
+            resultado.observaciones || []
+          );
+
+          validarPaginas();
+        },
+
+        error: error => {
+
+          errorTecnico(
+            '16',
+            'Validar correspondencia QR y metadata',
+            'ERROR_VALIDACION_CORRESPONDENCIA',
+            'No se pudo validar la correspondencia documental.',
+            error
+          );
+        }
+      });
+  };
+
+
+  const validarEstructura =
+    (): void => {
+
+      this.vidaApiService
+        .validarEstructuraPdf(
+          archivo
+        )
+        .subscribe({
+
+          next: respuesta => {
+
+            const resultado =
+              respuesta.body;
+
+            if (!resultado) {
+
+              errorTecnico(
+                '17',
+                'Validar estructura técnica del PDF',
+                'ERROR_VALIDACION_ESTRUCTURA_PDF',
+                'No se pudo ejecutar la validación técnica del PDF.',
+                respuesta
+              );
+
+              return;
+            }
+
+            if (!resultado.valido) {
+
+              rechazoFuncional(
+                '17',
+                'Validar estructura técnica del PDF',
+                'PDF_INVALIDO',
+                resultado.mensajeValidacion,
+                resultado.observaciones || []
+              );
+
+              return;
+            }
+
+            agregarEtapa(
+              '17',
+              'Validar estructura técnica del PDF',
+              true,
+              'PDF_VALIDO',
+              resultado.mensajeValidacion,
+              resultado.observaciones || []
+            );
+
+            validarCorrespondencia();
+          },
+
+          error: error => {
+
+            errorTecnico(
+              '17',
+              'Validar estructura técnica del PDF',
+              'ERROR_VALIDACION_ESTRUCTURA_PDF',
+              'No se pudo ejecutar la validación técnica del PDF.',
+              error
+            );
+          }
+        });
+    };
+
+
   console.log(
-    'Ejecutando validación completa:',
+    'Iniciando validación documental individual QA:',
     {
       registroInternoProceso:
         this.codigoSolicitud,
@@ -6339,104 +7099,699 @@ validarDocumentoFirmadoDesdeServicio(
       idDocumentoCargado,
 
       nombreArchivo:
-        documento.archivo.name
+        archivo.name
+    }
+  );
+
+  validarEstructura();
+}
+private enviarCorreoExitoSiCorresponde(
+  callbackContinuar: () => void
+): void {
+
+  const flujo =
+    this.tipoGeneracionDocumentos;
+
+  const correo =
+    (this.form.correoViva || '')
+      .trim();
+
+  const usuario =
+    (this.form.titular.numeroDocumento || '')
+      .trim();
+
+  const nombreCompleto =
+    this.nombreCompletoPersona(
+      this.form.titular
+    ).trim();
+
+  let enviaFormulario =
+    false;
+
+  let yaEnviado =
+    false;
+
+  let archivosAdjuntos:
+    Array<{
+      archivo: Blob;
+      nombreArchivo: string;
+    }> = [];
+
+  let marcarEnviado:
+    () => void =
+      () => {};
+
+
+  /*
+   * SOLO AUTORIZACION
+   */
+  if (flujo === 'soloAutorizacion') {
+
+    if (
+      !this.autorizacionAlmacenadaSftp
+      || !this.idDocumentoPublicadoAutorizacion
+      || !this.archivoSelladoAutorizacion
+    ) {
+      callbackContinuar();
+      return;
+    }
+
+    enviaFormulario =
+      false;
+
+    yaEnviado =
+      this.correoAutorizacionEnviadoSesion;
+
+    archivosAdjuntos = [
+      {
+        archivo:
+          this.archivoSelladoAutorizacion,
+
+        nombreArchivo:
+          this.nombreArchivoSelladoAutorizacion
+          || this.obtenerNombreDocumentoPublicado(
+            'autorizacionDescuento'
+          )
+      }
+    ];
+
+    marcarEnviado =
+      () => {
+        this.correoAutorizacionEnviadoSesion =
+          true;
+      };
+  }
+
+
+  /*
+   * FORMULARIO 6012 POSTERIOR
+   */
+  else if (
+    flujo === 'soloFormulario6012'
+  ) {
+
+    if (
+      !this.formulario6012AlmacenadoSftp
+      || !this.idDocumentoPublicadoFormulario6012
+      || !this.archivoSelladoFormulario6012
+    ) {
+      callbackContinuar();
+      return;
+    }
+
+    enviaFormulario =
+      true;
+
+    yaEnviado =
+      this.correoFormulario6012EnviadoSesion;
+
+    archivosAdjuntos = [
+      {
+        archivo:
+          this.archivoSelladoFormulario6012,
+
+        nombreArchivo:
+          this.nombreArchivoSelladoFormulario6012
+          || this.obtenerNombreDocumentoPublicado(
+            'formulario6012'
+          )
+      }
+    ];
+
+    marcarEnviado =
+      () => {
+        this.correoFormulario6012EnviadoSesion =
+          true;
+      };
+  }
+
+
+  /*
+   * FLUJO COMPLETO
+   *
+   * Solo se envia cuando AMBOS documentos
+   * ya fueron confirmados como PUBLICADOS.
+   */
+  else if (flujo === 'completa') {
+
+    if (
+      !this.autorizacionAlmacenadaSftp
+      || !this.idDocumentoPublicadoAutorizacion
+      || !this.formulario6012AlmacenadoSftp
+      || !this.idDocumentoPublicadoFormulario6012
+    ) {
+      callbackContinuar();
+      return;
+    }
+
+    if (
+      !this.archivoSelladoAutorizacion
+      || !this.archivoSelladoFormulario6012
+    ) {
+
+      console.warn(
+        'No existen ambos PDF sellados para preparar el correo completo +Vida.'
+      );
+
+      callbackContinuar();
+      return;
+    }
+
+    enviaFormulario =
+      true;
+
+    yaEnviado =
+      this.correoCompletoEnviadoSesion;
+
+    archivosAdjuntos = [
+      {
+        archivo:
+          this.archivoSelladoAutorizacion,
+
+        nombreArchivo:
+          this.nombreArchivoSelladoAutorizacion
+          || this.obtenerNombreDocumentoPublicado(
+            'autorizacionDescuento'
+          )
+      },
+
+      {
+        archivo:
+          this.archivoSelladoFormulario6012,
+
+        nombreArchivo:
+          this.nombreArchivoSelladoFormulario6012
+          || this.obtenerNombreDocumentoPublicado(
+            'formulario6012'
+          )
+      }
+    ];
+
+    marcarEnviado =
+      () => {
+        this.correoCompletoEnviadoSesion =
+          true;
+      };
+  }
+
+
+  /*
+   * Tipo de flujo no esperado.
+   */
+  else {
+    callbackContinuar();
+    return;
+  }
+
+
+  /*
+   * Evitar envio duplicado durante
+   * la misma sesion Angular.
+   */
+  if (yaEnviado) {
+
+    console.log(
+      'Correo +Vida ya enviado durante esta sesion:',
+      {
+        flujo,
+        registroInternoProceso:
+          this.codigoSolicitud
+      }
+    );
+
+    callbackContinuar();
+    return;
+  }
+
+
+  /*
+   * El correo nunca debe tumbar un tramite
+   * que ya fue publicado correctamente.
+   */
+  if (
+    !correo
+    || !usuario
+    || !nombreCompleto
+    || archivosAdjuntos.length === 0
+  ) {
+
+    console.warn(
+      'No existen datos suficientes para enviar correo de confirmacion +Vida:',
+      {
+        flujo,
+        correo,
+        usuario,
+        nombreCompleto,
+        cantidadAdjuntos:
+          archivosAdjuntos.length
+      }
+    );
+
+    callbackContinuar();
+    return;
+  }
+
+
+  const payload = {
+
+    correo,
+
+    descripcionSeguro:
+      'Seguro Complementario +vida',
+
+    nombreSeguro:
+      '5-Seguro Complementario +vida',
+
+    usuario,
+
+    nombreCompleto,
+
+    montoVida:
+      5,
+
+    enviaFormulario
+  };
+
+
+  this.enviandoCorreoExito =
+    true;
+
+
+  this.vidaApiService
+    .enviarCorreoExitoVida(
+      payload,
+      archivosAdjuntos
+    )
+    .subscribe({
+
+      next: respuesta => {
+
+        this.enviandoCorreoExito =
+          false;
+
+        marcarEnviado();
+
+        console.log(
+          'Correo de confirmacion +Vida enviado correctamente:',
+          {
+            flujo,
+            registroInternoProceso:
+              this.codigoSolicitud,
+            correo,
+            enviaFormulario,
+            cantidadAdjuntos:
+              archivosAdjuntos.length,
+            respuesta
+          }
+        );
+
+        callbackContinuar();
+      },
+
+
+      error: error => {
+
+        this.enviandoCorreoExito =
+          false;
+
+        /*
+         * La falla del correo NO revierte:
+         * - validacion
+         * - sellado
+         * - SFTP
+         * - PUBLICADO
+         * - finalizacion
+         */
+        console.error(
+          'El tramite +Vida fue publicado correctamente, pero fallo el correo de confirmacion:',
+          error
+        );
+
+        this.mostrarAviso(
+          'Su trámite fue procesado correctamente, pero no fue posible enviar el correo de confirmación en este momento.',
+          'advertencia',
+          'Correo de confirmación pendiente',
+          true
+        );
+
+        callbackContinuar();
+      }
+    });
+}
+
+private confirmarPublicacionSftpDesdeServicio(
+  tipoDocumento: TipoDocumentoFirmado,
+  archivoSellado: Blob,
+  nombreArchivoSellado: string,
+  nombreArchivoSftp: string,
+  rutaArchivo: string,
+  callbackExito: () => void,
+  callbackError: () => void
+): void {
+
+  const esFormulario6012 =
+    tipoDocumento ===
+    'formulario6012';
+
+  const tipoDocumentoBackend =
+    this.obtenerTipoDocumentoCargaBackend(
+      tipoDocumento
+    );
+
+  const registroInternoProceso =
+    this.codigoSolicitud.trim();
+
+  if (
+    !registroInternoProceso
+    || !archivoSellado
+    || archivoSellado.size === 0
+    || !nombreArchivoSellado.trim()
+    || !nombreArchivoSftp.trim()
+    || !rutaArchivo.trim()
+  ) {
+
+    this.mensajeErrorCierre =
+      `No existen datos suficientes para confirmar la publicación de ${this.obtenerTituloDocumento(tipoDocumento)}.`;
+
+    callbackError();
+    return;
+  }
+
+  console.log(
+    'Confirmando publicación SFTP en +Vida:',
+    {
+      registroInternoProceso,
+      tipoDocumento:
+        tipoDocumentoBackend,
+      nombreArchivo:
+        nombreArchivoSftp,
+      rutaArchivo
     }
   );
 
   this.vidaApiService
-    .validarDocumentoCompleto(
-      documento.archivo,
-      this.codigoSolicitud,
+    .confirmarPublicacionSftp(
+      archivoSellado,
+      nombreArchivoSellado,
+      registroInternoProceso,
       tipoDocumentoBackend,
-      this.form.titular.tipoDocumento,
-      this.form.titular.numeroDocumento,
-      idDocumentoCargado,
-      this.form.titular.numeroDocumento
+      nombreArchivoSftp,
+      rutaArchivo
     )
     .subscribe({
+
       next: respuesta => {
-        const resultado =
-          respuesta.body!;
 
-        const validacionAprobada =
-          resultado.documentoAprobado === true
-          && resultado.estadoValidacionDocumental ===
-            'VALIDACION_DOCUMENTAL_APROBADA';
-
-        console.log(
-          'Resultado del orquestador:',
-          {
-            tipoDocumento:
-              tipoDocumentoBackend,
-
-            codResultado:
-              respuesta.codResultado,
-
-            mensaje:
-              respuesta.mensaje,
-
-            documentoAprobado:
-              resultado.documentoAprobado,
-
-            estado:
-              resultado.estadoValidacionDocumental,
-
-            etapas:
-              resultado.etapas,
-
-            permiteNuevaCargaTrabajador:
-              resultado.permiteNuevaCargaTrabajador
-          }
-        );
+        const idDocumentoPublicado =
+          respuesta.idDocumentoPublicado
+            ?.trim()
+          || '';
 
         if (
-          tipoDocumento ===
-          'formulario6012'
+          respuesta.publicado !== true
+          || !idDocumentoPublicado
         ) {
-          this.formulario6012ValidadoBackend =
-            validacionAprobada;
-        }
 
-        if (
-          tipoDocumento ===
-          'autorizacionDescuento'
-        ) {
-          this.autorizacionValidadaBackend =
-            validacionAprobada;
-        }
+          this.mensajeErrorCierre =
+            respuesta.mensaje
+            || `No se pudo confirmar la publicación de ${this.obtenerTituloDocumento(tipoDocumento)}.`;
 
-        if (validacionAprobada) {
-          callbackAprobado();
+          callbackError();
           return;
         }
 
-        const mensajeRechazo =
-          resultado.mensajeValidacion
-          || respuesta.mensaje
-          || `El documento ${this.obtenerTituloDocumento(tipoDocumento)} fue rechazado durante la validación documental.`;
+        if (esFormulario6012) {
 
-        this.mensajeRechazoValidacion =
-          mensajeRechazo;
+          this.formulario6012AlmacenadoSftp =
+            true;
 
-        callbackRechazado(resultado);
+          this.idDocumentoPublicadoFormulario6012 =
+            idDocumentoPublicado;
+
+        } else {
+
+          this.autorizacionAlmacenadaSftp =
+            true;
+
+          this.idDocumentoPublicadoAutorizacion =
+            idDocumentoPublicado;
+        }
+
+        console.log(
+          'Publicación documental confirmada:',
+          {
+            registroInternoProceso,
+            tipoDocumento:
+              tipoDocumentoBackend,
+            idDocumentoPublicado,
+            nombreArchivo:
+              nombreArchivoSftp,
+            rutaArchivo
+          }
+        );
+
+        this.enviarCorreoExitoSiCorresponde(callbackExito);
       },
 
-      error: (error: unknown) => {
+      error: error => {
+
         console.error(
-          `Error validando ${tipoDocumentoBackend}:`,
+          `Error confirmando publicación ${tipoDocumentoBackend}:`,
           error
         );
+
+        this.mensajeErrorCierre =
+          `El documento fue almacenado correctamente en SFTP, pero no se pudo confirmar la publicación de ${this.obtenerTituloDocumento(tipoDocumento)} en +Vida.`;
 
         callbackError();
       }
     });
 }
 
+
+subirDocumentoSelladoSftpDesdeServicio(
+  tipoDocumento: TipoDocumentoFirmado,
+  callbackExito: () => void,
+  callbackError: () => void
+): void {
+
+  const esFormulario6012 =
+    tipoDocumento ===
+    'formulario6012';
+
+  const archivoSellado =
+    esFormulario6012
+      ? this.archivoSelladoFormulario6012
+      : this.archivoSelladoAutorizacion;
+
+  const nombreArchivoSellado =
+    esFormulario6012
+      ? this.nombreArchivoSelladoFormulario6012
+      : this.nombreArchivoSelladoAutorizacion;
+
+  const idDocumentoSellado =
+    esFormulario6012
+      ? this.idDocumentoSelladoFormulario6012
+      : this.idDocumentoSelladoAutorizacion;
+
+  const rutaArchivoRegistrada =
+    esFormulario6012
+      ? this.rutaSftpFormulario6012
+      : this.rutaSftpAutorizacion;
+
+  const nombreArchivoSftpRegistrado =
+    esFormulario6012
+      ? this.nombreArchivoSftpFormulario6012
+      : this.nombreArchivoSftpAutorizacion;
+
+  const publicacionConfirmada =
+    esFormulario6012
+      ? (
+          this.formulario6012AlmacenadoSftp
+          && !!this.idDocumentoPublicadoFormulario6012
+        )
+      : (
+          this.autorizacionAlmacenadaSftp
+          && !!this.idDocumentoPublicadoAutorizacion
+        );
+
+  if (publicacionConfirmada) {
+
+    this.enviarCorreoExitoSiCorresponde(
+      callbackExito
+    );
+
+    return;
+  }
+
+  if (
+    !archivoSellado
+    || archivoSellado.size === 0
+    || !nombreArchivoSellado
+    || !idDocumentoSellado
+  ) {
+
+    this.mensajeErrorCierre =
+      `No existe un PDF sellado válido de ${this.obtenerTituloDocumento(tipoDocumento)} para almacenarlo en SFTP.`;
+
+    callbackError();
+    return;
+  }
+
+  /*
+   * SFTP ya funcionó en esta sesión pero
+   * /docs/confirmar falló.
+   *
+   * No repetimos SFTP.
+   */
+  if (
+    rutaArchivoRegistrada
+    && nombreArchivoSftpRegistrado
+  ) {
+
+    console.log(
+      'SFTP ya ejecutado. Reintentando solamente /docs/confirmar:',
+      {
+        registroInternoProceso:
+          this.codigoSolicitud,
+        tipoDocumento,
+        nombreArchivo:
+          nombreArchivoSftpRegistrado,
+        rutaArchivo:
+          rutaArchivoRegistrada
+      }
+    );
+
+    this.confirmarPublicacionSftpDesdeServicio(
+      tipoDocumento,
+      archivoSellado,
+      nombreArchivoSellado,
+      nombreArchivoSftpRegistrado,
+      rutaArchivoRegistrada,
+      callbackExito,
+      callbackError
+    );
+
+    return;
+  }
+
+  console.log(
+    'Enviando documento sellado a SFTP QA:',
+    {
+      registroInternoProceso:
+        this.codigoSolicitud,
+      tipoDocumento,
+      idDocumentoSellado,
+      nombreArchivo:
+        nombreArchivoSellado,
+      tamanioBytes:
+        archivoSellado.size
+    }
+  );
+
+  this.vidaApiService
+    .subirDocumentoSftp(
+      archivoSellado,
+      nombreArchivoSellado,
+      this.form.titular.tipoDocumento,
+      this.form.titular.numeroDocumento
+    )
+    .subscribe({
+
+      next: respuesta => {
+
+        const nombreArchivoSftp =
+          respuesta.archivo
+            ?.nombreArchivo
+            ?.trim()
+          || '';
+
+        const rutaArchivo =
+          respuesta.archivo
+            ?.rutaArchivo
+            ?.trim()
+          || '';
+
+        if (
+          !nombreArchivoSftp
+          || !rutaArchivo
+        ) {
+
+          this.mensajeErrorCierre =
+            respuesta.mensaje
+            || `SFTP no confirmó el almacenamiento de ${this.obtenerTituloDocumento(tipoDocumento)}.`;
+
+          callbackError();
+          return;
+        }
+
+        /*
+         * Conservamos metadata SFTP,
+         * pero TODAVIA NO marcamos publicado.
+         */
+        if (esFormulario6012) {
+
+          this.rutaSftpFormulario6012 =
+            rutaArchivo;
+
+          this.nombreArchivoSftpFormulario6012 =
+            nombreArchivoSftp;
+
+        } else {
+
+          this.rutaSftpAutorizacion =
+            rutaArchivo;
+
+          this.nombreArchivoSftpAutorizacion =
+            nombreArchivoSftp;
+        }
+
+        console.log(
+          'Documento sellado almacenado en SFTP QA:',
+          {
+            tipoDocumento,
+            idDocumentoSellado,
+            nombreArchivo:
+              nombreArchivoSftp,
+            rutaArchivo
+          }
+        );
+
+        /*
+         * Paso obligatorio:
+         * registrar PUBLICADO en Oracle.
+         */
+        this.confirmarPublicacionSftpDesdeServicio(
+          tipoDocumento,
+          archivoSellado,
+          nombreArchivoSellado,
+          nombreArchivoSftp,
+          rutaArchivo,
+          callbackExito,
+          callbackError
+        );
+      },
+
+      error: error => {
+
+        console.error(
+          `Error almacenando en SFTP ${tipoDocumento}:`,
+          error
+        );
+
+        this.mensajeErrorCierre =
+          `El documento fue sellado correctamente, pero no se pudo almacenar ${this.obtenerTituloDocumento(tipoDocumento)} en SFTP.`;
+
+        callbackError();
+      }
+    });
+}
 procesarCierreDocumentoDesdeServicio(
   tipoDocumento: TipoDocumentoFirmado,
   callbackExito: () => void,
   callbackError: () => void
 ): void {
+
   const documento =
     this.obtenerArchivoDocumento(
       tipoDocumento
@@ -6452,10 +7807,24 @@ procesarCierreDocumentoDesdeServicio(
       ? this.formulario6012ValidadoBackend
       : this.autorizacionValidadaBackend;
 
+  const documentoYaSellado =
+    tipoDocumento === 'formulario6012'
+      ? (
+          !!this.idDocumentoSelladoFormulario6012
+          && !!this.archivoSelladoFormulario6012
+          && this.formulario6012Sellado
+        )
+      : (
+          !!this.idDocumentoSelladoAutorizacion
+          && !!this.archivoSelladoAutorizacion
+          && this.autorizacionDescuentoSellada
+        );
+
   if (
     !documento.archivo
     || !documento.cargado
   ) {
+
     this.mensajeErrorCierre =
       `No se encontró el PDF de ${this.obtenerTituloDocumento(tipoDocumento)}.`;
 
@@ -6464,6 +7833,7 @@ procesarCierreDocumentoDesdeServicio(
   }
 
   if (!documentoValidado) {
+
     this.mensajeErrorCierre =
       `${this.obtenerTituloDocumento(tipoDocumento)} todavía no aprobó la validación documental.`;
 
@@ -6471,8 +7841,68 @@ procesarCierreDocumentoDesdeServicio(
     return;
   }
 
+  const convertirBase64ABlob =
+    (
+      archivoBase64: string,
+      contentType: string
+    ): Blob => {
+
+      const base64Limpio =
+        archivoBase64.includes(',')
+          ? archivoBase64.split(',')[1]
+          : archivoBase64;
+
+      const contenidoBinario =
+        atob(base64Limpio);
+
+      const bytes =
+        new Uint8Array(
+          contenidoBinario.length
+        );
+
+      for (
+        let i = 0;
+        i < contenidoBinario.length;
+        i++
+      ) {
+        bytes[i] =
+          contenidoBinario.charCodeAt(i);
+      }
+
+      return new Blob(
+        [bytes],
+        {
+          type:
+            contentType
+            || 'application/pdf'
+        }
+      );
+    };
+
+  if (documentoYaSellado) {
+
+    console.log(
+      'Documento ya sellado. Se reintentará solamente SFTP:',
+      {
+        registroInternoProceso:
+          this.codigoSolicitud,
+
+        tipoDocumento:
+          tipoDocumentoBackend
+      }
+    );
+
+    this.subirDocumentoSelladoSftpDesdeServicio(
+      tipoDocumento,
+      callbackExito,
+      callbackError
+    );
+
+    return;
+  }
+
   console.log(
-    'Ejecutando cierre documental:',
+    'Generando documento sellado individual:',
     {
       registroInternoProceso:
         this.codigoSolicitud,
@@ -6486,112 +7916,244 @@ procesarCierreDocumentoDesdeServicio(
   );
 
   this.vidaApiService
-    .procesarCierreDocumental(
+    .generarDocumentoSellado(
       documento.archivo,
       this.codigoSolicitud,
       tipoDocumentoBackend,
-      this.form.titular.tipoDocumento,
-      this.form.titular.numeroDocumento,
-      this.nombreCompletoPersona(
-        this.form.titular
-      )
+      this.form.titular.numeroDocumento
     )
     .subscribe({
-      next: respuesta => {
-        const resultado =
-          respuesta.body!;
 
-        const idDocumentoSellado =
-          resultado.idDocumentoSellado
-            ?.trim()
-          || '';
+      next: respuestaSellado => {
 
-        const idDocumentoPublicado =
-          resultado.idDocumentoPublicado
-            ?.trim()
-          || '';
+        const resultadoSellado =
+          respuestaSellado.body;
 
-        const estado =
-        String(
-          resultado.estadoCierreDocumental
-          ?? resultado.estadoDocumento
-          ?? resultado.estadoProceso
-          ?? resultado.estado
-          ?? ''
-        ).trim();
-
-        const cierreCorrecto =
-        String(respuesta.codResultado).trim() === '1'
-        && resultado.cierreCompletado === true
-        && !!idDocumentoSellado
-        && !!idDocumentoPublicado
-        && estado === 'DOCUMENTO_PUBLICADO';
-
-        console.log(
-          'Resultado del cierre documental:',
-          {
-            tipoDocumento:
-              tipoDocumentoBackend,
-
-            codResultado:
-              respuesta.codResultado,
-
-            mensaje:
-              respuesta.mensaje,
-
-            cierreCompletado:
-              resultado.cierreCompletado,
-
-            idDocumentoSellado,
-            idDocumentoPublicado,
-            estado
-          }
-        );
+        const operacionCorrecta =
+          String(
+            respuestaSellado.codResultado
+          ).trim() === '1';
 
         if (
-          tipoDocumento ===
-          'autorizacionDescuento'
+          !operacionCorrecta
+          || !resultadoSellado
+          || resultadoSellado.documentoSellado !== true
+          || !resultadoSellado.idDocumentoSellado
+          || !resultadoSellado.archivoBase64
         ) {
-          this.idDocumentoPublicadoAutorizacion =
-            idDocumentoPublicado;
-        }
 
-        if (
-          tipoDocumento ===
-          'formulario6012'
-        ) {
-          this.idDocumentoPublicadoFormulario6012 =
-            idDocumentoPublicado;
-        }
-
-        if (!cierreCorrecto) {
           this.mensajeErrorCierre =
-            resultado.mensajeCierre
-            || respuesta.mensaje
-            || `No se pudo cerrar y publicar ${this.obtenerTituloDocumento(tipoDocumento)}.`;
+            resultadoSellado?.mensajeSellado
+            || respuestaSellado.mensaje
+            || `No se pudo generar el PDF sellado de ${this.obtenerTituloDocumento(tipoDocumento)}.`;
 
           callbackError();
           return;
         }
 
-        callbackExito();
+        const idDocumentoSellado =
+          resultadoSellado
+            .idDocumentoSellado
+            .trim();
+
+        const nombreArchivoSellado =
+          resultadoSellado.nombreArchivo
+          || (
+            tipoDocumento ===
+            'formulario6012'
+              ? `Formulario-6012-${this.form.titular.numeroDocumento}-sellado.pdf`
+              : `Autorizacion-Descuento-${this.form.titular.numeroDocumento}-sellada.pdf`
+          );
+
+        const blobSellado =
+          convertirBase64ABlob(
+            resultadoSellado.archivoBase64,
+            resultadoSellado.contentType
+          );
+
+        console.log(
+          'Documento sellado generado:',
+          {
+            tipoDocumento:
+              tipoDocumentoBackend,
+
+            idDocumentoSellado,
+
+            nombreArchivo:
+              nombreArchivoSellado,
+
+            numeroPaginasSelladas:
+              resultadoSellado
+                .numeroPaginasSelladas,
+
+            hashSha256DocumentoSellado:
+              resultadoSellado
+                .hashSha256DocumentoSellado,
+
+            estadoDocumentoSellado:
+              resultadoSellado
+                .estadoDocumentoSellado,
+
+            tamanioBytes:
+              blobSellado.size
+          }
+        );
+
+        /*
+         * La salida del sellado todavía NO se considera
+         * definitiva hasta verificar el sello institucional.
+         */
+        this.vidaApiService
+          .validarSelloEssalud(
+            blobSellado,
+            nombreArchivoSellado,
+            tipoDocumentoBackend
+          )
+          .subscribe({
+
+            next: respuestaSello => {
+
+              const resultadoSello =
+                respuestaSello.body;
+
+              if (!resultadoSello) {
+
+                this.mensajeErrorCierre =
+                  respuestaSello.mensaje
+                  || `No se pudo verificar el sello de ${this.obtenerTituloDocumento(tipoDocumento)}.`;
+
+                callbackError();
+                return;
+              }
+
+              const selloCorrecto =
+                resultadoSello.selloValido === true
+                && resultadoSello
+                  .estadoValidacionDocumental ===
+                  'SELLO_ESSALUD_VALIDADO';
+
+              console.log(
+                'Resultado validación sello EsSalud:',
+                {
+                  tipoDocumento:
+                    tipoDocumentoBackend,
+
+                  selloValido:
+                    resultadoSello.selloValido,
+
+                  estado:
+                    resultadoSello
+                      .estadoValidacionDocumental,
+
+                  paginasEvaluadas:
+                    resultadoSello
+                      .paginasEvaluadas,
+
+                  paginasConSello:
+                    resultadoSello
+                      .paginasConSello,
+
+                  paginasSinSello:
+                    resultadoSello
+                      .paginasSinSello,
+
+                  requiereReintentoSellado:
+                    resultadoSello
+                      .requiereReintentoSellado
+                }
+              );
+
+              if (!selloCorrecto) {
+
+                this.mensajeErrorCierre =
+                  resultadoSello
+                    .mensajeValidacion
+                  || `No se pudo verificar correctamente el sello de ${this.obtenerTituloDocumento(tipoDocumento)}.`;
+
+                callbackError();
+                return;
+              }
+
+              /*
+               * Solo después de validar el sello conservamos
+               * este PDF como documento sellado válido.
+               */
+              if (
+                tipoDocumento ===
+                'autorizacionDescuento'
+              ) {
+
+                this.idDocumentoSelladoAutorizacion =
+                  idDocumentoSellado;
+
+                this.archivoSelladoAutorizacion =
+                  blobSellado;
+
+                this.nombreArchivoSelladoAutorizacion =
+                  nombreArchivoSellado;
+
+                this.autorizacionDescuentoSellada =
+                  true;
+              }
+
+              if (
+                tipoDocumento ===
+                'formulario6012'
+              ) {
+
+                this.idDocumentoSelladoFormulario6012 =
+                  idDocumentoSellado;
+
+                this.archivoSelladoFormulario6012 =
+                  blobSellado;
+
+                this.nombreArchivoSelladoFormulario6012 =
+                  nombreArchivoSellado;
+
+                this.formulario6012Sellado =
+                  true;
+              }
+
+              this.subirDocumentoSelladoSftpDesdeServicio(
+                tipoDocumento,
+                callbackExito,
+                callbackError
+              );
+            },
+
+            error: error => {
+
+              console.error(
+                `Error verificando sello ${tipoDocumentoBackend}:`,
+                error
+              );
+
+              this.mensajeErrorCierre =
+                `No se pudo verificar el sello institucional de ${this.obtenerTituloDocumento(tipoDocumento)}.`;
+
+              callbackError();
+            }
+          });
       },
 
-      error: (error: unknown) => {
+      error: error => {
+
         console.error(
-          `Error cerrando ${tipoDocumentoBackend}:`,
+          `Error generando sellado ${tipoDocumentoBackend}:`,
           error
         );
 
         this.mensajeErrorCierre =
-          `No se pudo completar el cierre de ${this.obtenerTituloDocumento(tipoDocumento)}.`;
+          `No se pudo generar el documento sellado de ${this.obtenerTituloDocumento(tipoDocumento)}.`;
 
         callbackError();
       }
     });
 }
 
+
 procesarCierreDocumental(): void {
+
   if (this.cerrandoDocumentosBackend) {
     return;
   }
@@ -6601,6 +8163,7 @@ procesarCierreDocumental(): void {
   }
 
   if (!this.documentosValidadosBackend) {
+
     this.mostrarAviso(
       'Los documentos todavía no han superado la validación documental completa.',
       'advertencia',
@@ -6610,144 +8173,167 @@ procesarCierreDocumental(): void {
     return;
   }
 
-  this.cerrandoDocumentosBackend = true;
-  this.mensajeErrorCierre = '';
+  this.cerrandoDocumentosBackend =
+    true;
 
-  const finalizarCierreCorrecto = (): void => {
-    const fecha =
-      new Date();
+  this.mensajeErrorCierre =
+    '';
 
-    this.cerrandoDocumentosBackend =
-      false;
+  const finalizarSelladoCorrecto =
+    (): void => {
 
-    this.documentosCerradosBackend =
-      true;
-
-    this.documentosPublicados =
-      true;
-
-    this.fechaRecepcionDocumentos =
-      fecha.toLocaleString('es-PE');
-
-    if (
-      this.tipoGeneracionDocumentos
-      !== 'soloFormulario6012'
-    ) {
-      this.autorizacionDescuentoSellada =
-        true;
-    }
-
-    if (
-      this.tipoGeneracionDocumentos
-      !== 'soloAutorizacion'
-    ) {
-      this.formulario6012Sellado =
-        true;
-    }
-
-    this.seccionesGrabadas.documentos =
-      true;
-
-    this.seccionesGrabadas.publicacion =
-      true;
-
-    console.log(
-      'Cierre documental completado:',
-      {
-        registroInternoProceso:
-          this.codigoSolicitud,
-
-        idDocumentoPublicadoAutorizacion:
-          this.idDocumentoPublicadoAutorizacion,
-
-        idDocumentoPublicadoFormulario6012:
-          this.idDocumentoPublicadoFormulario6012
-      }
-    );
-
-    if (
-      this.tipoGeneracionDocumentos ===
-      'soloAutorizacion'
-    ) {
-      this.autorizacionFirmadaBloqueada =
-        true;
-
-      this.pendienteBeneficiariosPara6012 =
+      this.cerrandoDocumentosBackend =
         false;
 
-      this.mostrarInvitacionBeneficiarios =
+      /*
+       * Conservamos temporalmente el nombre de esta bandera
+       * por compatibilidad con el resto del componente.
+       * En este punto significa:
+       * documentos sellados y sello EsSalud verificado.
+       */
+      this.documentosCerradosBackend =
         true;
-    }
 
-    this.pasoActual =
-      'publicacion';
+      /*
+       * Publicación institucional todavía NO ejecutada.
+       */
+      this.documentosPublicados =
+        false;
 
-    this.vista =
-      'formulario';
+      /*
+       * El ciclo documental correspondiente
+       * terminó correctamente.
+       *
+       * Finalización visual no implica
+       * REGISTRO_TOTAL ni disponibilidad de PDF.
+       */
+      this.finalizacionVisualDisponible =
+        true;
 
-    this.intentoEnviar =
-      false;
+      this.seccionesGrabadas.documentos =
+        true;
 
-    this.scrollArriba();
+      this.seccionesGrabadas.publicacion =
+        true;
 
-    this.mostrarAviso(
-      'Los documentos fueron validados, sellados y publicados correctamente.',
-      'exito',
-      'Proceso completado',
-      true
-    );
-  };
+      this.mostrarInvitacionBeneficiarios =
+        this.tipoGeneracionDocumentos ===
+          'soloAutorizacion';
 
-  const finalizarCierreConError = (): void => {
-    this.cerrandoDocumentosBackend =
-      false;
+      this.fechaRecepcionDocumentos =
+        new Date()
+          .toLocaleString('es-PE');
 
-    this.documentosCerradosBackend =
-      false;
+      this.intentoEnviar =
+        false;
 
-    /*
-     * La validación permanece aprobada.
-     * No corresponde pedir otra carga al trabajador.
-     */
-    this.mostrarAviso(
-      this.mensajeErrorCierre
-      || 'Ocurrió una incidencia interna durante el sellado o la publicación. Los documentos siguen validados y no deben cargarse nuevamente.',
-      'error',
-      'Publicación pendiente',
-      true
-    );
-  };
+      /*
+       * El cierre documental correspondiente
+       * terminó. Mostramos la pantalla visual
+       * de Finalización.
+       */
+      this.pasoActual =
+        'publicacion';
 
-  const cerrarFormulario6012 = (): void => {
-    if (
-      this.idDocumentoPublicadoFormulario6012
-    ) {
-      finalizarCierreCorrecto();
-      return;
-    }
+      this.scrollArriba();
 
-    this.procesarCierreDocumentoDesdeServicio(
-      'formulario6012',
-      finalizarCierreCorrecto,
-      finalizarCierreConError
-    );
-  };
+      console.log(
+        'Sellado y almacenamiento SFTP completados:',
+        {
+          registroInternoProceso:
+            this.codigoSolicitud,
+
+          idDocumentoSelladoAutorizacion:
+            this.idDocumentoSelladoAutorizacion,
+
+          idDocumentoSelladoFormulario6012:
+            this.idDocumentoSelladoFormulario6012,
+
+          autorizacionSellada:
+            this.autorizacionDescuentoSellada,
+
+          formulario6012Sellado:
+            this.formulario6012Sellado
+        }
+      );
+
+      /*
+       * No navegamos todavía a "publicacion".
+       * El siguiente paso será distribuir el PDF sellado
+       * y posteriormente ejecutar la finalización real.
+       */
+      this.mostrarAviso(
+        'Los documentos fueron validados, sellados y almacenados correctamente en SFTP.',
+        'exito',
+        'Entrega documental completada',
+        true
+      );
+    };
+
+  const finalizarSelladoConError =
+    (): void => {
+
+      this.cerrandoDocumentosBackend =
+        false;
+
+      this.documentosCerradosBackend =
+        false;
+
+      /*
+       * La firma y la validación documental continúan
+       * aprobadas. No corresponde solicitar al trabajador
+       * una nueva carga por una incidencia interna de sellado.
+       */
+      this.mostrarAviso(
+        this.mensajeErrorCierre
+        || 'Ocurrió una incidencia interna durante el sellado. Los documentos siguen validados y no deben cargarse nuevamente.',
+        'error',
+        'Sellado pendiente',
+        true
+      );
+    };
+
+  const sellarFormulario6012 =
+    (): void => {
+
+      if (
+        this.idDocumentoSelladoFormulario6012
+        && this.archivoSelladoFormulario6012
+        && this.formulario6012Sellado
+        && this.formulario6012AlmacenadoSftp
+      ) {
+
+        finalizarSelladoCorrecto();
+        return;
+      }
+
+      this.procesarCierreDocumentoDesdeServicio(
+        'formulario6012',
+        finalizarSelladoCorrecto,
+        finalizarSelladoConError
+      );
+    };
 
   if (
     this.tipoGeneracionDocumentos ===
     'soloAutorizacion'
   ) {
+
     if (
-      this.idDocumentoPublicadoAutorizacion
+      this.idDocumentoSelladoAutorizacion
+      && this.archivoSelladoAutorizacion
+      && this.autorizacionDescuentoSellada
+      && this.autorizacionAlmacenadaSftp
     ) {
-      finalizarCierreCorrecto();
+
+      finalizarSelladoCorrecto();
       return;
     }
 
     this.procesarCierreDocumentoDesdeServicio(
       'autorizacionDescuento',
-      finalizarCierreCorrecto,
-      finalizarCierreConError
+      finalizarSelladoCorrecto,
+      finalizarSelladoConError
     );
 
     return;
@@ -6757,21 +8343,23 @@ procesarCierreDocumental(): void {
     this.tipoGeneracionDocumentos ===
     'soloFormulario6012'
   ) {
-    cerrarFormulario6012();
+
+    sellarFormulario6012();
     return;
   }
 
   /*
    * Flujo completo:
-   * primero Autorización y luego Formulario 6012.
-   *
-   * Si el primero ya cerró en un intento anterior,
-   * se omite y se reintenta solamente el segundo.
+   * primero Autorización, luego Formulario 6012.
    */
   if (
-    this.idDocumentoPublicadoAutorizacion
+    this.idDocumentoSelladoAutorizacion
+    && this.archivoSelladoAutorizacion
+    && this.autorizacionDescuentoSellada
+    && this.autorizacionAlmacenadaSftp
   ) {
-    cerrarFormulario6012();
+
+    sellarFormulario6012();
     return;
   }
 
@@ -6779,10 +8367,10 @@ procesarCierreDocumental(): void {
     'autorizacionDescuento',
 
     () => {
-      cerrarFormulario6012();
+      sellarFormulario6012();
     },
 
-    finalizarCierreConError
+    finalizarSelladoConError
   );
 }
 
