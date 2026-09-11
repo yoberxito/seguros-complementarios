@@ -62,6 +62,8 @@ export class EntregaPublicaComponent
   mensajeOtp = '';
   errorOtp = '';
 
+  identidadValidadaLocal = false;
+
 
   confirmandoAcuse = false;
 
@@ -113,15 +115,14 @@ export class EntregaPublicaComponent
 
   get identidadValidada(): boolean {
 
-    return this.entrega
-      ?.otpValidado === true;
+    return this.identidadValidadaLocal;
   }
 
 
   get puedeVerificarIdentidad(): boolean {
 
     return !!this.entrega
-      && !this.entrega.otpValidado
+      && !this.identidadValidadaLocal
       && !this.entrega.acuseRegistrado;
   }
 
@@ -129,7 +130,7 @@ export class EntregaPublicaComponent
   get puedeConfirmarRecepcion(): boolean {
 
     return !!this.entrega
-      && this.entrega.otpValidado
+      && this.identidadValidadaLocal
       && !this.entrega.acuseRegistrado;
   }
 
@@ -396,13 +397,14 @@ export class EntregaPublicaComponent
           this.errorAccion = '';
 
           /*
-           * Consultamos nuevamente la entrega.
-           * El estado persistido sigue siendo
-           * responsabilidad del backend.
+           * El OTP se valida contra el servicio institucional.
+           *
+           * Nuestro backend de entregas no persiste este estado.
+           * La validacion se conserva solamente durante
+           * la sesion actual de esta pantalla.
            */
-          this.cargarEntrega(
-            false
-          );
+          this.identidadValidadaLocal =
+            true;
         },
 
 

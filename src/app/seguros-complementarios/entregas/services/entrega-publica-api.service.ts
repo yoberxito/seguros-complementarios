@@ -42,7 +42,6 @@ export interface EntregaPublicaResponse {
 
   fechaAcuse:
   string | null;
-  otpValidado: boolean;
   acuseRegistrado: boolean;
 
   accesoDisponible: boolean;

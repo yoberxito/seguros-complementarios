@@ -411,6 +411,37 @@ idDocumentoPublicadoFormulario6012 = '';
 
 mensajeErrorCierre = '';
 
+/*
+ * ============================================================
+ * REGISTRO SAS
+ * ============================================================
+ *
+ * Estas banderas controlan solamente
+ * la sesion Angular actual.
+ *
+ * No sustituyen idempotencia ni persistencia backend.
+ */
+registrandoSeguroSas = false;
+
+sasAutorizacionRegistradoSesion = false;
+sasFormulario6012RegistradoSesion = false;
+sasCompletoRegistradoSesion = false;
+
+/*
+ * Codigos +Vida informados para SAS.
+ *
+ * Se centralizan para poder corregir
+ * el contrato en un solo punto si fuese necesario.
+ */
+private readonly codigoModalidadCoberturaSas =
+  '06';
+
+private readonly codigoClasificacionCoberturaSas =
+  '0600';
+
+private readonly codigoDocumentoSustentoSas =
+  '810';
+
 enviandoCorreoExito = false;
 
 correoAutorizacionEnviadoSesion = false;
@@ -4328,6 +4359,12 @@ this.idDocumentoPublicadoFormulario6012 = '';
 
 this.mensajeErrorCierre = '';
 
+this.registrandoSeguroSas = false;
+
+this.sasAutorizacionRegistradoSesion = false;
+this.sasFormulario6012RegistradoSesion = false;
+this.sasCompletoRegistradoSesion = false;
+
 this.enviandoCorreoExito = false;
 
 this.correoAutorizacionEnviadoSesion = false;
@@ -7105,6 +7142,762 @@ validarDocumentoFirmadoDesdeServicio(
 
   validarEstructura();
 }
+
+private obtenerFechaSasActual(): string {
+
+  const fecha =
+    new Date();
+
+  const anio =
+    String(
+      fecha.getFullYear()
+    );
+
+  const mes =
+    String(
+      fecha.getMonth() + 1
+    ).padStart(
+      2,
+      '0'
+    );
+
+  const dia =
+    String(
+      fecha.getDate()
+    ).padStart(
+      2,
+      '0'
+    );
+
+  return `${anio}-${mes}-${dia}`;
+}
+
+private construirSustentoSas(
+  tipoDocumento:
+    'autorizacion'
+    | 'formulario6012',
+  fecha: string
+): {
+  codEDocumentoSustento: string;
+  nombreArchivo: string;
+  descSustento: string;
+  fechaEmision: string;
+  fechaVencimiento: string;
+  numDocumentoSustento: string;
+  codTipoDocumentoSustento: number;
+  rutaArchivo: string;
+} {
+
+  /*
+   * ========================================================
+   * FORMULARIO 6012
+   * ========================================================
+   */
+
+  if (
+    tipoDocumento ===
+    'formulario6012'
+  ) {
+
+    return {
+
+      codEDocumentoSustento:
+        this.codigoDocumentoSustentoSas,
+
+      nombreArchivo:
+        (
+          this.nombreArchivoSftpFormulario6012
+          || ''
+        ).trim(),
+
+      descSustento:
+        'Formulario 6012 (+Vida)',
+
+      fechaEmision:
+        fecha,
+
+      fechaVencimiento:
+        fecha,
+
+      numDocumentoSustento:
+        '01',
+
+      codTipoDocumentoSustento:
+        244,
+
+      rutaArchivo:
+        (
+          this.rutaSftpFormulario6012
+          || ''
+        ).trim()
+    };
+  }
+
+  /*
+   * ========================================================
+   * AUTORIZACION / DECLARACION DE DESCUENTO
+   * ========================================================
+   */
+
+  return {
+
+    codEDocumentoSustento:
+      this.codigoDocumentoSustentoSas,
+
+    nombreArchivo:
+      (
+        this.nombreArchivoSftpAutorizacion
+        || ''
+      ).trim(),
+
+    descSustento:
+      'DECLARACION JURADA DE DESCUENTO',
+
+    fechaEmision:
+      fecha,
+
+    fechaVencimiento:
+      fecha,
+
+    numDocumentoSustento:
+      '02',
+
+    codTipoDocumentoSustento:
+      247,
+
+    rutaArchivo:
+      (
+        this.rutaSftpAutorizacion
+        || ''
+      ).trim()
+  };
+}
+
+private construirBeneficiariosSas():
+  Array<{
+    tpDocumento: string;
+    nroDocumento: string;
+    apellidoPaterno: string;
+    apellidoMaterno: string;
+    nombres: string;
+    porcentaje: number;
+  }> {
+
+  return this
+    .beneficiariosRegistrados()
+    .map(
+      beneficiario => ({
+
+        /*
+         * SAS requiere el codigo institucional
+         * original del documento.
+         *
+         * Ejemplo:
+         * 01 = DNI
+         *
+         * NO usar aqui la conversion
+         * DNI / CE / OTRO del PDF 6012.
+         */
+        tpDocumento:
+          (
+            beneficiario.tipoDocumento
+            || ''
+          ).trim(),
+
+        nroDocumento:
+          (
+            beneficiario.numeroDocumento
+            || ''
+          ).trim(),
+
+        apellidoPaterno:
+          (
+            beneficiario.apellidoPaterno
+            || ''
+          ).trim(),
+
+        apellidoMaterno:
+          (
+            beneficiario.apellidoMaterno
+            || ''
+          ).trim(),
+
+        nombres:
+          [
+            beneficiario.primerNombre,
+            beneficiario.segundoNombre
+          ]
+            .map(
+              nombre =>
+                (
+                  nombre
+                  || ''
+                ).trim()
+            )
+            .filter(
+              nombre =>
+                !!nombre
+            )
+            .join(
+              ' '
+            ),
+
+        porcentaje:
+          Number(
+            beneficiario.porcentaje
+          )
+      })
+    );
+}
+
+/*
+ * ============================================================
+ * ORQUESTADOR SAS
+ * ============================================================
+ */
+
+private registrarSeguroSasSiCorresponde(
+  callbackContinuar: () => void,
+  callbackError: () => void
+): void {
+
+  const flujo =
+    this.tipoGeneracionDocumentos;
+
+  /*
+   * El helper solo participa
+   * en los tres cierres documentales +Vida.
+   */
+
+  if (
+    flujo !==
+      'soloAutorizacion'
+    && flujo !==
+      'soloFormulario6012'
+    && flujo !==
+      'completa'
+  ) {
+
+    callbackContinuar();
+    return;
+  }
+
+  const tpDocumento =
+    (
+      this.form.titular.tipoDocumento
+      || ''
+    ).trim();
+
+  const numeroDocumento =
+    (
+      this.form.titular.numeroDocumento
+      || ''
+    ).trim();
+
+  /*
+   * ========================================================
+   * ERROR SAS
+   *
+   * No se revierte:
+   *
+   * - validacion
+   * - sellado
+   * - SFTP
+   * - /docs/confirmar
+   *
+   * SAS bloquea correo/finalizacion
+   * hasta que pueda completarse.
+   * ========================================================
+   */
+
+  const fallarRegistroSas =
+    (
+      mensaje: string
+    ): void => {
+
+      this.registrandoSeguroSas =
+        false;
+
+      this.mensajeErrorCierre =
+        mensaje;
+
+      this.mostrarAviso(
+        mensaje,
+        'error',
+        'Registro SAS pendiente',
+        true
+      );
+
+      callbackError();
+    };
+
+  if (
+    !tpDocumento
+    || !numeroDocumento
+  ) {
+
+    fallarRegistroSas(
+      'No existen datos suficientes del titular para registrar la afiliacion +Vida en SAS.'
+    );
+
+    return;
+  }
+
+  const fecha =
+    this.obtenerFechaSasActual();
+
+  let sustentos:
+    Array<{
+      codEDocumentoSustento: string;
+      nombreArchivo: string;
+      descSustento: string;
+      fechaEmision: string;
+      fechaVencimiento: string;
+      numDocumentoSustento: string;
+      codTipoDocumentoSustento: number;
+      rutaArchivo: string;
+    }> =
+      [];
+
+  let beneficiarios:
+    Array<{
+      tpDocumento: string;
+      nroDocumento: string;
+      apellidoPaterno: string;
+      apellidoMaterno: string;
+      nombres: string;
+      porcentaje: number;
+    }> =
+      [];
+
+  let yaRegistrado =
+    false;
+
+  let marcarRegistrado:
+    () => void =
+      () => {};
+
+  /*
+   * ========================================================
+   * SOLO AUTORIZACION
+   *
+   * titular
+   * + 247
+   * + beneficiarios []
+   * ========================================================
+   */
+
+  if (
+    flujo ===
+    'soloAutorizacion'
+  ) {
+
+    if (
+      !this.autorizacionAlmacenadaSftp
+      || !this.idDocumentoPublicadoAutorizacion
+    ) {
+
+      fallarRegistroSas(
+        'La Autorizacion de Descuento todavia no se encuentra publicada para registrar la afiliacion +Vida en SAS.'
+      );
+
+      return;
+    }
+
+    if (
+      !(
+        this.nombreArchivoSftpAutorizacion
+        || ''
+      ).trim()
+      || !(
+        this.rutaSftpAutorizacion
+        || ''
+      ).trim()
+    ) {
+
+      fallarRegistroSas(
+        'No existe metadata SFTP de la Autorizacion de Descuento para registrar la afiliacion +Vida en SAS.'
+      );
+
+      return;
+    }
+
+    sustentos = [
+      this.construirSustentoSas(
+        'autorizacion',
+        fecha
+      )
+    ];
+
+    beneficiarios =
+      [];
+
+    yaRegistrado =
+      this
+        .sasAutorizacionRegistradoSesion;
+
+    marcarRegistrado =
+      () => {
+
+        this
+          .sasAutorizacionRegistradoSesion =
+            true;
+      };
+  }
+
+  /*
+   * ========================================================
+   * FORMULARIO 6012 POSTERIOR
+   *
+   * titular
+   * + 244
+   * + beneficiarios
+   *
+   * El flag adicional que Yober agregara
+   * NO se inventa en este frontend.
+   * ========================================================
+   */
+
+  else if (
+    flujo ===
+    'soloFormulario6012'
+  ) {
+
+    if (
+      !this.formulario6012AlmacenadoSftp
+      || !this.idDocumentoPublicadoFormulario6012
+    ) {
+
+      fallarRegistroSas(
+        'El Formulario 6012 todavia no se encuentra publicado para completar la afiliacion +Vida en SAS.'
+      );
+
+      return;
+    }
+
+    if (
+      !(
+        this.nombreArchivoSftpFormulario6012
+        || ''
+      ).trim()
+      || !(
+        this.rutaSftpFormulario6012
+        || ''
+      ).trim()
+    ) {
+
+      fallarRegistroSas(
+        'No existe metadata SFTP del Formulario 6012 para completar la afiliacion +Vida en SAS.'
+      );
+
+      return;
+    }
+
+    beneficiarios =
+      this.construirBeneficiariosSas();
+
+    if (
+      beneficiarios.length ===
+      0
+    ) {
+
+      fallarRegistroSas(
+        'No existen beneficiarios validos para completar el registro +Vida en SAS.'
+      );
+
+      return;
+    }
+
+    sustentos = [
+      this.construirSustentoSas(
+        'formulario6012',
+        fecha
+      )
+    ];
+
+    yaRegistrado =
+      this
+        .sasFormulario6012RegistradoSesion;
+
+    marcarRegistrado =
+      () => {
+
+        this
+          .sasFormulario6012RegistradoSesion =
+            true;
+      };
+  }
+
+  /*
+   * ========================================================
+   * FLUJO COMPLETO
+   *
+   * Esperar ambos documentos PUBLICADOS.
+   *
+   * Al publicarse el primero:
+   * continuar el cierre sin SAS.
+   *
+   * Al publicarse el segundo:
+   * registrar SAS UNA sola vez.
+   * ========================================================
+   */
+
+  else {
+
+    const ambosPublicados =
+      this.autorizacionAlmacenadaSftp
+      && !!this.idDocumentoPublicadoAutorizacion
+      && this.formulario6012AlmacenadoSftp
+      && !!this.idDocumentoPublicadoFormulario6012;
+
+    if (
+      !ambosPublicados
+    ) {
+
+      callbackContinuar();
+      return;
+    }
+
+    if (
+      !(
+        this.nombreArchivoSftpAutorizacion
+        || ''
+      ).trim()
+      || !(
+        this.rutaSftpAutorizacion
+        || ''
+      ).trim()
+      || !(
+        this.nombreArchivoSftpFormulario6012
+        || ''
+      ).trim()
+      || !(
+        this.rutaSftpFormulario6012
+        || ''
+      ).trim()
+    ) {
+
+      fallarRegistroSas(
+        'No existe metadata SFTP completa para registrar la afiliacion +Vida en SAS.'
+      );
+
+      return;
+    }
+
+    beneficiarios =
+      this.construirBeneficiariosSas();
+
+    if (
+      beneficiarios.length ===
+      0
+    ) {
+
+      fallarRegistroSas(
+        'No existen beneficiarios validos para registrar el flujo completo +Vida en SAS.'
+      );
+
+      return;
+    }
+
+    /*
+     * Orden recibido en el ejemplo de Yober:
+     *
+     * 244 Formulario 6012
+     * 247 Autorizacion
+     */
+
+    sustentos = [
+
+      this.construirSustentoSas(
+        'formulario6012',
+        fecha
+      ),
+
+      this.construirSustentoSas(
+        'autorizacion',
+        fecha
+      )
+    ];
+
+    yaRegistrado =
+      this
+        .sasCompletoRegistradoSesion;
+
+    marcarRegistrado =
+      () => {
+
+        this
+          .sasCompletoRegistradoSesion =
+            true;
+      };
+  }
+
+  /*
+   * Si SAS funciono y solamente fallo
+   * el correo posteriormente,
+   * no repetir SAS en la misma sesion.
+   */
+
+  if (
+    yaRegistrado
+  ) {
+
+    console.log(
+      'Registro SAS +Vida ya confirmado en esta sesion:',
+      {
+        flujo,
+
+        registroInternoProceso:
+          this.codigoSolicitud
+      }
+    );
+
+    callbackContinuar();
+    return;
+  }
+
+  /*
+   * Evita llamadas simultaneas
+   * dentro de la misma instancia Angular.
+   */
+
+  if (
+    this.registrandoSeguroSas
+  ) {
+
+    console.warn(
+      'Ya existe un registro SAS +Vida en curso.'
+    );
+
+    return;
+  }
+
+  const payload = {
+
+    tpDocumento,
+
+    nrDocumento:
+      numeroDocumento,
+
+    codEModalidadCobertura:
+      this.codigoModalidadCoberturaSas,
+
+    codEClasificacionCobertura:
+      this.codigoClasificacionCoberturaSas,
+
+    /*
+     * Confirmado:
+     * mismo documento del titular.
+     */
+    codUsuarioSistema:
+      numeroDocumento,
+
+    sustentos,
+
+    beneficiarios
+  };
+
+  /*
+   * ========================================================
+   * EXTENSION PENDIENTE
+   * ========================================================
+   *
+   * Yober agregara el flag para distinguir
+   * FORMULARIO_6012_POSTERIOR.
+   *
+   * Cuando nos entregue:
+   *
+   * - nombre exacto
+   * - tipo
+   * - valor
+   *
+   * se agrega aqui, sin cambiar
+   * la orquestacion documental.
+   */
+
+  console.log(
+    'Payload SAS +Vida preparado:',
+    {
+      flujo,
+
+      registroInternoProceso:
+        this.codigoSolicitud,
+
+      payload
+    }
+  );
+
+  this.registrandoSeguroSas =
+    true;
+
+  this.vidaApiService
+    .registrarSeguroSas(
+      payload
+    )
+    .subscribe({
+
+      next:
+        respuesta => {
+
+          this.registrandoSeguroSas =
+            false;
+
+          marcarRegistrado();
+
+          console.log(
+            'Registro SAS +Vida confirmado:',
+            {
+              flujo,
+
+              registroInternoProceso:
+                this.codigoSolicitud,
+
+              respuesta
+            }
+          );
+
+          /*
+           * SAS OK
+           * -> continuar correo
+           * -> finalizacion
+           */
+
+          callbackContinuar();
+        },
+
+      error:
+        error => {
+
+          console.error(
+            'Los documentos quedaron publicados, pero fallo SAS:',
+            {
+              flujo,
+
+              registroInternoProceso:
+                this.codigoSolicitud,
+
+              error
+            }
+          );
+
+          /*
+           * NO repetir:
+           *
+           * - sellado
+           * - SFTP
+           * - /docs/confirmar
+           *
+           * La rama PUBLICADO ya existente
+           * permitira reintentar desde SAS.
+           */
+
+          fallarRegistroSas(
+            'Los documentos fueron publicados correctamente, pero no fue posible registrar la afiliacion +Vida en SAS. Intente nuevamente.'
+          );
+        }
+    });
+}
+
 private enviarCorreoExitoSiCorresponde(
   callbackContinuar: () => void
 ): void {
@@ -7112,9 +7905,27 @@ private enviarCorreoExitoSiCorresponde(
   const flujo =
     this.tipoGeneracionDocumentos;
 
+  const registroBeneficiarios =
+    flujo === 'soloFormulario6012';
+
+  /*
+   * TEMPORAL QA:
+   * mientras correoExitoPrueba tenga valor,
+   * todos los correos de exito se envian
+   * al destinatario de pruebas.
+   *
+   * Para volver al correo real del trabajador,
+   * dejar correoExitoPrueba = ''.
+   */
+  const correoExitoPrueba =
+    'diego.inga@essalud.gob.pe';
+
   const correo =
-    (this.form.correoViva || '')
-      .trim();
+    (
+      correoExitoPrueba
+      || this.form.correoViva
+      || ''
+    ).trim();
 
   const usuario =
     (this.form.titular.numeroDocumento || '')
@@ -7369,7 +8180,9 @@ private enviarCorreoExitoSiCorresponde(
     montoVida:
       5,
 
-    enviaFormulario
+    enviaFormulario,
+
+    registroBeneficiarios
   };
 
 
@@ -7550,7 +8363,13 @@ private confirmarPublicacionSftpDesdeServicio(
           }
         );
 
-        this.enviarCorreoExitoSiCorresponde(callbackExito);
+        this.registrarSeguroSasSiCorresponde(
+      () =>
+        this.enviarCorreoExitoSiCorresponde(
+          callbackExito
+        ),
+      callbackError
+    );
       },
 
       error: error => {
@@ -7617,8 +8436,12 @@ subirDocumentoSelladoSftpDesdeServicio(
 
   if (publicacionConfirmada) {
 
-    this.enviarCorreoExitoSiCorresponde(
-      callbackExito
+    this.registrarSeguroSasSiCorresponde(
+      () =>
+        this.enviarCorreoExitoSiCorresponde(
+          callbackExito
+        ),
+      callbackError
     );
 
     return;

@@ -75,6 +75,37 @@ export interface DatosAseguradoApi {
   [key: string]: unknown;
 }
 
+
+export interface RegistrarSeguroSasSustentoRequest {
+  codEDocumentoSustento: string;
+  nombreArchivo: string;
+  descSustento: string;
+  fechaEmision: string;
+  fechaVencimiento: string;
+  numDocumentoSustento: string;
+  codTipoDocumentoSustento: number;
+  rutaArchivo: string;
+}
+
+export interface RegistrarSeguroSasBeneficiarioRequest {
+  tpDocumento: string;
+  nroDocumento: string;
+  apellidoPaterno: string;
+  apellidoMaterno: string;
+  nombres: string;
+  porcentaje: number;
+}
+
+export interface RegistrarSeguroSasRequest {
+  tpDocumento: string;
+  nrDocumento: string;
+  codEModalidadCobertura: string;
+  codEClasificacionCobertura: string;
+  codUsuarioSistema: string;
+  sustentos: RegistrarSeguroSasSustentoRequest[];
+  beneficiarios: RegistrarSeguroSasBeneficiarioRequest[];
+}
+
 export interface TipoAseguradoApi {
   codEmodalidadCobertura:
     string | null;
@@ -179,6 +210,7 @@ export interface EnviarCorreoExitoVidaRequest {
   nombreCompleto: string;
   montoVida: number;
   enviaFormulario: boolean;
+  registroBeneficiarios: boolean;
 }
 
 export interface ArchivoAdjuntoCorreoVida {
@@ -905,8 +937,7 @@ export class VidaApiService {
       );
 
   const url =
-    `${this.baseUrl}`
-    + `/seguro-complementario/genera-otp`;
+    `${this.baseUrl}/genera-otp`;
 
   return this.http
     .post<SolicitarOtpResponseLocal>(
@@ -999,7 +1030,7 @@ subirDocumentoSftp(
   );
 
   const url =
-    `${this.baseUrl}/sftp/upload`;
+    `${this.baseUrlSeguros}/sftp/upload`;
 
   return this.http
     .post<SubirDocumentoSftpResponse>(
@@ -1060,6 +1091,164 @@ subirDocumentoSftp(
       })
     );
 }
+
+registrarSeguroSas(
+  payload: RegistrarSeguroSasRequest
+): Observable<string> {
+
+  const tpDocumento =
+    (
+      payload.tpDocumento
+      || ''
+    ).trim();
+
+  const nrDocumento =
+    (
+      payload.nrDocumento
+      || ''
+    ).trim();
+
+  if (!tpDocumento) {
+
+    return throwError(
+      () =>
+        new Error(
+          'El tipo de documento del titular es obligatorio para registrar +Vida en SAS.'
+        )
+    );
+  }
+
+  if (!nrDocumento) {
+
+    return throwError(
+      () =>
+        new Error(
+          'El numero de documento del titular es obligatorio para registrar +Vida en SAS.'
+        )
+    );
+  }
+
+  if (
+    !Array.isArray(
+      payload.sustentos
+    )
+    || payload.sustentos.length === 0
+  ) {
+
+    return throwError(
+      () =>
+        new Error(
+          'Debe existir al menos un sustento para registrar +Vida en SAS.'
+        )
+    );
+  }
+
+  const req:
+    RegistrarSeguroSasRequest = {
+
+      ...payload,
+
+      tpDocumento,
+
+      nrDocumento,
+
+      /*
+       * Regla confirmada:
+       * codUsuarioSistema es el documento
+       * del propio titular.
+       */
+      codUsuarioSistema:
+        nrDocumento,
+
+      sustentos:
+        payload.sustentos,
+
+      beneficiarios:
+        Array.isArray(
+          payload.beneficiarios
+        )
+          ? payload.beneficiarios
+          : []
+    };
+
+  console.log(
+    'Registrando afiliacion +Vida en SAS:',
+    {
+      tpDocumento:
+        req.tpDocumento,
+
+      nrDocumento:
+        req.nrDocumento,
+
+      codEModalidadCobertura:
+        req.codEModalidadCobertura,
+
+      codEClasificacionCobertura:
+        req.codEClasificacionCobertura,
+
+      codUsuarioSistema:
+        req.codUsuarioSistema,
+
+      sustentos:
+        req.sustentos.map(
+          sustento => ({
+            codTipoDocumentoSustento:
+              sustento.codTipoDocumentoSustento,
+
+            numDocumentoSustento:
+              sustento.numDocumentoSustento,
+
+            nombreArchivo:
+              sustento.nombreArchivo,
+
+            rutaArchivo:
+              sustento.rutaArchivo
+          })
+        ),
+
+      cantidadBeneficiarios:
+        req.beneficiarios.length
+    }
+  );
+
+  /*
+   * Yober aun no ha entregado el contrato
+   * formal de respuesta.
+   *
+   * Por ahora se considera correcta
+   * una respuesta HTTP 2xx.
+   *
+   * responseType text evita inventar
+   * un DTO de respuesta.
+   */
+
+  return this.http
+    .post(
+      `${this.baseUrl}/save-seg-complemnt`,
+      req,
+      {
+        responseType:
+          'text'
+      }
+    )
+    .pipe(
+      catchError(
+        (error: unknown) => {
+
+          console.error(
+            'Error registrando afiliacion +Vida en SAS:',
+            error
+          );
+
+          return throwError(
+            () =>
+              error
+          );
+        }
+      )
+    );
+}
+
 enviarCorreoExitoVida(
   payload: EnviarCorreoExitoVidaRequest,
   archivosAdjuntos: ArchivoAdjuntoCorreoVida[]
@@ -1129,7 +1318,9 @@ enviarCorreoExitoVida(
     montoVida:
       payload.montoVida,
     enviaFormulario:
-      payload.enviaFormulario
+      payload.enviaFormulario,
+    registroBeneficiarios:
+      payload.registroBeneficiarios
   };
 
   const formData =
@@ -1513,8 +1704,7 @@ validarOtp(
       );
 
   const url =
-    `${this.baseUrl}`
-    + `/seguro-complementario/validar-otp`;
+    `${this.baseUrl}/validar-otp`;
 
   return this.http
     .get<ValidarOtpResponseLocal>(
@@ -2250,7 +2440,7 @@ guardarBorradorBeneficiarios(
   ): Observable<ExpedienteDigitalResponseLocal> {
     return this.http
       .post<ApiResponseLocal<ExpedienteDigitalResponseLocal>>(
-        `${this.baseUrl}/seguro-complementario/expedientes/registrar-avance`,
+        `${this.baseUrl}/expedientes/registrar-avance`,
         payload
       )
       .pipe(
@@ -2284,7 +2474,7 @@ guardarBorradorBeneficiarios(
   ): Observable<RegistrarAceptacionResponseLocal> {
     return this.http
       .post<ApiResponseLocal<RegistrarAceptacionResponseLocal>>(
-        `${this.baseUrl}/seguro-complementario/aceptaciones/registrar`,
+        `${this.baseUrl}/aceptaciones/registrar`,
         payload
       )
       .pipe(
@@ -2383,7 +2573,7 @@ guardarBorradorBeneficiarios(
 
     return this.http
       .get<RespuestaConyugeConcubinoApi>(
-        `${this.baseUrl}/informacion-titular/val-conguye-concubina`,
+        `${this.baseUrlSeguros}/informacion-titular/val-conguye-concubina`,
         { params }
       )
       .pipe(
