@@ -43,6 +43,7 @@ export interface EntregaPublicaResponse {
   fechaAcuse:
   string | null;
   acuseRegistrado: boolean;
+  descargaRegistrada: boolean;
 
   accesoDisponible: boolean;
 
@@ -91,6 +92,13 @@ export interface ConfirmarAcuseEntregaResponse {
 
   urlAcceso:
     string | null;
+}
+
+
+export interface DescargaLoteArchivoResponse {
+
+  blob: Blob;
+  nombreArchivo: string | null;
 }
 
 
@@ -252,6 +260,144 @@ export class EntregaPublicaApiService {
 
 
 
+  registrarOtpValidado(
+    token: string
+  ): Observable<boolean> {
+
+    const tokenLimpio =
+      (token || '').trim();
+
+    if (!tokenLimpio) {
+      return throwError(
+        () => new Error(
+          'El enlace de la entrega no es válido.'
+        )
+      );
+    }
+    const url =
+      this.baseUrl
+      + '/'
+      + encodeURIComponent(tokenLimpio)
+      + '/otp-validado';
+
+    return this.http
+      .post<ApiResponseEntrega<boolean>>(
+        url,
+        null
+      )
+      .pipe(
+        map(
+          respuesta =>
+            this.extraerBody(
+              respuesta,
+              'No fue posible registrar la validación OTP.'
+            )
+        )
+      );
+  }
+
+  descargarLote(
+    token: string
+  ): Observable<DescargaLoteArchivoResponse> {
+
+    const tokenLimpio =
+      (token || '').trim();
+
+    if (!tokenLimpio) {
+
+      return throwError(
+        () => new Error(
+          'El enlace de la entrega no es válido.'
+        )
+      );
+    }
+
+    const url =
+      this.baseUrl
+      + '/'
+      + encodeURIComponent(tokenLimpio)
+      + '/lote';
+
+    return this.http
+      .get(
+        url,
+        {
+          observe: 'response',
+          responseType: 'blob'
+        }
+      )
+      .pipe(
+
+        map(respuesta => {
+
+          const blob =
+            respuesta.body;
+
+          if (
+            !blob
+            || blob.size <= 0
+          ) {
+            throw new Error(
+              'El backend devolvió un lote vacío.'
+            );
+          }
+
+          return {
+            blob: blob,
+            nombreArchivo:
+              this.extraerNombreArchivo(
+                respuesta.headers.get(
+                  'content-disposition'
+                )
+              )
+          };
+        })
+
+      );
+  }
+
+
+  registrarDescargaCompletada(
+    token: string
+  ): Observable<boolean> {
+
+    const tokenLimpio =
+      (token || '').trim();
+
+    if (!tokenLimpio) {
+
+      return throwError(
+        () => new Error(
+          'El enlace de la entrega no es válido.'
+        )
+      );
+    }
+
+    const url =
+      this.baseUrl
+      + '/'
+      + encodeURIComponent(tokenLimpio)
+      + '/descarga-completada';
+
+    return this.http
+      .post<ApiResponseEntrega<boolean>>(
+        url,
+        null
+      )
+      .pipe(
+
+        map(
+          respuesta =>
+            this.extraerBody(
+              respuesta,
+              'No fue posible registrar la descarga completa del lote.'
+            )
+        )
+
+      );
+  }
+
+
   confirmarRecepcion(
     token: string
   ): Observable<ConfirmarAcuseEntregaResponse> {
@@ -306,6 +452,52 @@ export class EntregaPublicaApiService {
         )
 
       );
+  }
+
+
+  private extraerNombreArchivo(
+    contentDisposition: string | null
+  ): string | null {
+
+    if (!contentDisposition) {
+      return null;
+    }
+
+    const utf8 =
+      /filename\*=UTF-8''([^;]+)/i.exec(
+        contentDisposition
+      );
+
+    if (
+      utf8
+      && utf8[1]
+    ) {
+
+      try {
+
+        return decodeURIComponent(
+          utf8[1]
+        ).trim();
+
+      } catch {
+
+        return utf8[1].trim();
+      }
+    }
+
+    const simple =
+      /filename="?([^";]+)"?/i.exec(
+        contentDisposition
+      );
+
+    if (
+      simple
+      && simple[1]
+    ) {
+      return simple[1].trim();
+    }
+
+    return null;
   }
 
 

@@ -64,6 +64,18 @@ export class EntregaPublicaComponent
 
   identidadValidadaLocal = false;
 
+  private otpValidadoInstitucionalmenteLocal =
+    false;
+
+  private mensajeOtpValidadoInstitucional =
+    '';
+
+
+  descargandoLote = false;
+  registrandoDescarga = false;
+
+  private descargaTransferidaLocal =
+    false;
 
   confirmandoAcuse = false;
 
@@ -119,6 +131,20 @@ export class EntregaPublicaComponent
   }
 
 
+  get descargaRegistrada(): boolean {
+
+    return this.entrega
+      ?.descargaRegistrada === true;
+  }
+
+
+  get descargaPendienteRegistro(): boolean {
+
+    return this.descargaTransferidaLocal
+      && !this.descargaRegistrada;
+  }
+
+
   get puedeVerificarIdentidad(): boolean {
 
     return !!this.entrega
@@ -127,10 +153,20 @@ export class EntregaPublicaComponent
   }
 
 
+  get puedeDescargarLote(): boolean {
+
+    return !!this.entrega
+      && this.identidadValidadaLocal
+      && !this.entrega.descargaRegistrada
+      && !this.entrega.acuseRegistrado;
+  }
+
+
   get puedeConfirmarRecepcion(): boolean {
 
     return !!this.entrega
       && this.identidadValidadaLocal
+      && this.entrega.descargaRegistrada
       && !this.entrega.acuseRegistrado;
   }
 
@@ -147,6 +183,10 @@ export class EntregaPublicaComponent
     if (
       this.identidadValidada
     ) {
+
+      if (!this.descargaRegistrada) {
+        return 'Pendiente de descarga';
+      }
 
       return 'Pendiente de confirmación';
     }
@@ -343,6 +383,20 @@ export class EntregaPublicaComponent
       return;
     }
 
+    if (
+      this.otpValidadoInstitucionalmenteLocal
+    ) {
+
+      this.validandoOtp =
+        true;
+
+      this.errorOtp = '';
+
+      this.registrarTrazabilidadOtp();
+
+      return;
+    }
+
     this.normalizarCodigoOtp();
 
     if (
@@ -378,6 +432,9 @@ export class EntregaPublicaComponent
             respuesta.valido !== true
           ) {
 
+            this.validandoOtp =
+              false;
+
             this.errorOtp =
               respuesta.mensaje
               || 'El código OTP ingresado no es válido.';
@@ -385,26 +442,14 @@ export class EntregaPublicaComponent
             return;
           }
 
-          this.codigoOtp = '';
+          this.otpValidadoInstitucionalmenteLocal =
+            true;
 
-          this.mostrarModalOtp =
-            false;
-
-          this.mensajeAccion =
+          this.mensajeOtpValidadoInstitucional =
             respuesta.mensaje
             || 'Identidad verificada correctamente.';
 
-          this.errorAccion = '';
-
-          /*
-           * El OTP se valida contra el servicio institucional.
-           *
-           * Nuestro backend de entregas no persiste este estado.
-           * La validacion se conserva solamente durante
-           * la sesion actual de esta pantalla.
-           */
-          this.identidadValidadaLocal =
-            true;
+          this.registrarTrazabilidadOtp();
         },
 
 
@@ -426,6 +471,58 @@ export class EntregaPublicaComponent
 
 
 
+  private registrarTrazabilidadOtp(): void {
+
+    this.validandoOtp =
+      true;
+
+    this.errorOtp = '';
+    this.entregaApi
+      .registrarOtpValidado(
+        this.token
+      )
+      .subscribe({
+
+        next: () => {
+
+          this.validandoOtp =
+            false;
+
+          this.codigoOtp = '';
+          this.mostrarModalOtp = false;
+
+          this.mensajeAccion =
+            this.mensajeOtpValidadoInstitucional
+            || 'Identidad verificada correctamente.';
+
+          this.errorAccion = '';
+          this.errorOtp = '';
+
+          this.identidadValidadaLocal =
+            true;
+
+          this.otpValidadoInstitucionalmenteLocal =
+            false;
+
+          this.mensajeOtpValidadoInstitucional =
+            '';
+        },
+
+        error: error => {
+
+          this.validandoOtp =
+            false;
+
+          this.errorOtp =
+            this.obtenerMensajeError(
+              error,
+              'El OTP fue validado, pero no fue posible registrar la trazabilidad. Intente nuevamente.'
+            );
+        }
+
+      });
+  }
+
   cerrarModalOtp(): void {
 
     if (
@@ -443,6 +540,230 @@ export class EntregaPublicaComponent
 
     this.mensajeOtp = '';
     this.errorOtp = '';
+    this.otpValidadoInstitucionalmenteLocal =
+      false;
+
+    this.mensajeOtpValidadoInstitucional =
+      '';
+  }
+
+
+  descargarLote(): void {
+
+    if (
+      !this.puedeDescargarLote
+      || this.descargandoLote
+      || this.registrandoDescarga
+    ) {
+      return;
+    }
+
+    this.mensajeAccion = '';
+    this.errorAccion = '';
+
+    /*
+     * Si el ZIP ya fue transferido pero falló
+     * solamente el registro de trazabilidad,
+     * reintentamos solo el POST.
+     */
+    if (
+      this.descargaTransferidaLocal
+    ) {
+
+      this.registrarTrazabilidadDescarga();
+
+      return;
+    }
+
+    this.descargandoLote =
+      true;
+
+    this.entregaApi
+      .descargarLote(
+        this.token
+      )
+      .subscribe({
+
+        next: resultado => {
+
+          this.descargandoLote =
+            false;
+
+          const nombreArchivo =
+            resultado.nombreArchivo
+            || this.construirNombreLoteLocal();
+
+          try {
+
+            this.dispararDescargaArchivo(
+              resultado.blob,
+              nombreArchivo
+            );
+
+          } catch {
+
+            this.errorAccion =
+              'El lote fue recibido, pero el navegador no pudo iniciar la descarga del archivo.';
+
+            return;
+          }
+
+          this.descargaTransferidaLocal =
+            true;
+
+          this.registrarTrazabilidadDescarga();
+        },
+
+
+        error: error => {
+
+          this.descargandoLote =
+            false;
+
+          this.errorAccion =
+            this.obtenerMensajeError(
+              error,
+              'No fue posible descargar el lote.'
+            );
+        }
+
+      });
+  }
+
+
+  private registrarTrazabilidadDescarga(): void {
+
+    if (
+      this.registrandoDescarga
+    ) {
+      return;
+    }
+
+    this.registrandoDescarga =
+      true;
+
+    this.errorAccion = '';
+
+    this.entregaApi
+      .registrarDescargaCompletada(
+        this.token
+      )
+      .subscribe({
+
+        next: () => {
+
+          this.registrandoDescarga =
+            false;
+
+          this.descargaTransferidaLocal =
+            false;
+
+          if (this.entrega) {
+
+            this.entrega = {
+              ...this.entrega,
+              descargaRegistrada: true
+            };
+          }
+
+          this.mensajeAccion =
+            'Descarga del lote registrada correctamente. Ya puede confirmar la recepción.';
+
+          this.errorAccion = '';
+        },
+
+
+        error: error => {
+
+          this.registrandoDescarga =
+            false;
+
+          this.errorAccion =
+            this.obtenerMensajeError(
+              error,
+              'El lote fue descargado, pero no fue posible registrar la trazabilidad. Intente nuevamente.'
+            );
+        }
+
+      });
+  }
+
+
+  private dispararDescargaArchivo(
+    blob: Blob,
+    nombreArchivo: string
+  ): void {
+
+    if (
+      !blob
+      || blob.size <= 0
+    ) {
+      throw new Error(
+        'El lote descargado se encuentra vacío.'
+      );
+    }
+
+    const url =
+      URL.createObjectURL(
+        blob
+      );
+
+    const enlace =
+      document.createElement(
+        'a'
+      );
+
+    enlace.href =
+      url;
+
+    enlace.download =
+      nombreArchivo;
+
+    enlace.style.display =
+      'none';
+
+    document.body.appendChild(
+      enlace
+    );
+
+    enlace.click();
+
+    enlace.remove();
+
+    window.setTimeout(
+      () => {
+        URL.revokeObjectURL(
+          url
+        );
+      },
+      1000
+    );
+  }
+
+
+  private construirNombreLoteLocal(): string {
+
+    const inicio =
+      (
+        this.entrega
+          ?.fechaInicioPeriodo
+        || 'inicio'
+      ).split('T')[0];
+
+    const fin =
+      (
+        this.entrega
+          ?.fechaFinPeriodo
+        || 'fin'
+      ).split('T')[0];
+
+    return (
+      'Lote_Mas_Vida_PERSONAL_'
+      + inicio
+      + '_'
+      + fin
+      + '.zip'
+    );
   }
 
 

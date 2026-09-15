@@ -281,7 +281,7 @@
 
         <!-- ==================================================
              ESTADO 2
-             OTP VALIDADO / PENDIENTE DE ACUSE
+             OTP VALIDADO / ENTREGA CONTROLADA
              ================================================== -->
 
         <section
@@ -304,8 +304,8 @@
               </strong>
 
               <span>
-                Puede continuar con la confirmación
-                de recepción.
+                Puede continuar con la entrega controlada
+                de este lote.
               </span>
 
             </div>
@@ -313,43 +313,114 @@
           </div>
 
 
-          <div class="declaracion">
+          <ng-container *ngIf="!descargaRegistrada">
 
-            <span class="declaracion-etiqueta">
-              Declaración de recepción
-            </span>
+            <div class="declaracion">
+
+              <span class="declaracion-etiqueta">
+                Descarga del lote
+              </span>
+
+              <p>
+                Descargue el archivo ZIP que contiene el
+                reporte Excel y los documentos de este lote.
+                La recepción solo podrá confirmarse después
+                de completar esta descarga.
+              </p>
+
+            </div>
 
 
-            <p>
-              {{ entrega.textoAcuse }}
-            </p>
+            <button
+              type="button"
+              class="btn-principal"
 
-          </div>
+              [disabled]="
+                !puedeDescargarLote
+                || descargandoLote
+                || registrandoDescarga
+              "
+
+              (click)="
+                descargarLote()
+              ">
+
+              {{
+                descargandoLote
+                  ? 'Preparando lote...'
+                  : registrandoDescarga
+                    ? 'Registrando descarga...'
+                    : descargaPendienteRegistro
+                      ? 'Reintentar registro de descarga'
+                      : 'Descargar lote'
+              }}
+
+            </button>
+
+          </ng-container>
 
 
-          <button
-            type="button"
-            class="btn-principal"
+          <ng-container *ngIf="descargaRegistrada">
 
-            [disabled]="
-              !puedeConfirmarRecepcion
-              || confirmandoAcuse
-            "
+            <div class="identidad-confirmada">
 
-            (click)="
-              confirmarRecepcion()
-            ">
+              <span class="check-pequeno">
+                ✓
+              </span>
 
-            {{
-              confirmandoAcuse
-                ? 'Registrando recepción...'
-                : 'Confirmar recepción'
-            }}
+              <div>
 
-          </button>
+                <strong>
+                  Lote descargado
+                </strong>
+
+                <span>
+                  La descarga completa ya se encuentra
+                  registrada para esta entrega.
+                </span>
+
+              </div>
+
+            </div>
+
+
+            <div class="declaracion">
+
+              <span class="declaracion-etiqueta">
+                Declaración de recepción
+              </span>
+
+              <p>
+                {{ entrega.textoAcuse }}
+              </p>
+
+            </div>
+
+
+            <button
+              type="button"
+              class="btn-principal"
+
+              [disabled]="
+                !puedeConfirmarRecepcion
+                || confirmandoAcuse
+              "
+
+              (click)="
+                confirmarRecepcion()
+              ">
+
+              {{
+                confirmandoAcuse
+                  ? 'Registrando recepción...'
+                  : 'Confirmar recepción'
+              }}
+
+            </button>
+
+          </ng-container>
 
         </section>
-
 
         <!-- ==================================================
              ESTADO 3
