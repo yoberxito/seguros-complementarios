@@ -758,7 +758,7 @@ export class EntregaPublicaComponent
       ).split('T')[0];
 
     return (
-      'Lote_Mas_Vida_PERSONAL_'
+      'Lote_Mas_Vida_' + (this.entrega?.destinatario || 'LOTE').trim().toUpperCase() + '_'
       + inicio
       + '_'
       + fin
