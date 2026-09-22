@@ -397,13 +397,13 @@ archivoSelladoFormulario6012: Blob | null = null;
 nombreArchivoSelladoAutorizacion = '';
 nombreArchivoSelladoFormulario6012 = '';
 
-autorizacionAlmacenadaSftp = false;
-formulario6012AlmacenadoSftp = false;
+autorizacionAlmacenadaDrive = false;
+formulario6012AlmacenadoDrive = false;
 
-rutaSftpAutorizacion = '';
-rutaSftpFormulario6012 = '';
-nombreArchivoSftpAutorizacion = '';
-nombreArchivoSftpFormulario6012 = '';
+rutaDriveAutorizacion = '';
+rutaDriveFormulario6012 = '';
+nombreArchivoDriveAutorizacion = '';
+nombreArchivoDriveFormulario6012 = '';
 
 idDocumentoPublicadoAutorizacion = '';
 
@@ -7206,7 +7206,7 @@ private construirSustentoSas(
 
       nombreArchivo:
         (
-          this.nombreArchivoSftpFormulario6012
+          this.nombreArchivoDriveFormulario6012
           || ''
         ).trim(),
 
@@ -7227,7 +7227,7 @@ private construirSustentoSas(
 
       rutaArchivo:
         (
-          this.rutaSftpFormulario6012
+          this.rutaDriveFormulario6012
           || ''
         ).trim()
     };
@@ -7246,7 +7246,7 @@ private construirSustentoSas(
 
     nombreArchivo:
       (
-        this.nombreArchivoSftpAutorizacion
+        this.nombreArchivoDriveAutorizacion
         || ''
       ).trim(),
 
@@ -7267,7 +7267,7 @@ private construirSustentoSas(
 
     rutaArchivo:
       (
-        this.rutaSftpAutorizacion
+        this.rutaDriveAutorizacion
         || ''
       ).trim()
   };
@@ -7402,7 +7402,7 @@ private registrarSeguroSasSiCorresponde(
    *
    * - validacion
    * - sellado
-   * - SFTP
+   * - Google Drive
    * - /docs/confirmar
    *
    * SAS bloquea correo/finalizacion
@@ -7493,7 +7493,7 @@ private registrarSeguroSasSiCorresponde(
   ) {
 
     if (
-      !this.autorizacionAlmacenadaSftp
+      !this.autorizacionAlmacenadaDrive
       || !this.idDocumentoPublicadoAutorizacion
     ) {
 
@@ -7506,17 +7506,17 @@ private registrarSeguroSasSiCorresponde(
 
     if (
       !(
-        this.nombreArchivoSftpAutorizacion
+        this.nombreArchivoDriveAutorizacion
         || ''
       ).trim()
       || !(
-        this.rutaSftpAutorizacion
+        this.rutaDriveAutorizacion
         || ''
       ).trim()
     ) {
 
       fallarRegistroSas(
-        'No existe metadata SFTP de la Autorizacion de Descuento para registrar la afiliacion +Vida en SAS.'
+        'No existe metadata Google Drive de la Autorizacion de Descuento para registrar la afiliacion +Vida en SAS.'
       );
 
       return;
@@ -7564,7 +7564,7 @@ private registrarSeguroSasSiCorresponde(
   ) {
 
     if (
-      !this.formulario6012AlmacenadoSftp
+      !this.formulario6012AlmacenadoDrive
       || !this.idDocumentoPublicadoFormulario6012
     ) {
 
@@ -7577,17 +7577,17 @@ private registrarSeguroSasSiCorresponde(
 
     if (
       !(
-        this.nombreArchivoSftpFormulario6012
+        this.nombreArchivoDriveFormulario6012
         || ''
       ).trim()
       || !(
-        this.rutaSftpFormulario6012
+        this.rutaDriveFormulario6012
         || ''
       ).trim()
     ) {
 
       fallarRegistroSas(
-        'No existe metadata SFTP del Formulario 6012 para completar la afiliacion +Vida en SAS.'
+        'No existe metadata Google Drive del Formulario 6012 para completar la afiliacion +Vida en SAS.'
       );
 
       return;
@@ -7645,9 +7645,9 @@ private registrarSeguroSasSiCorresponde(
   else {
 
     const ambosPublicados =
-      this.autorizacionAlmacenadaSftp
+      this.autorizacionAlmacenadaDrive
       && !!this.idDocumentoPublicadoAutorizacion
-      && this.formulario6012AlmacenadoSftp
+      && this.formulario6012AlmacenadoDrive
       && !!this.idDocumentoPublicadoFormulario6012;
 
     if (
@@ -7660,25 +7660,25 @@ private registrarSeguroSasSiCorresponde(
 
     if (
       !(
-        this.nombreArchivoSftpAutorizacion
+        this.nombreArchivoDriveAutorizacion
         || ''
       ).trim()
       || !(
-        this.rutaSftpAutorizacion
+        this.rutaDriveAutorizacion
         || ''
       ).trim()
       || !(
-        this.nombreArchivoSftpFormulario6012
+        this.nombreArchivoDriveFormulario6012
         || ''
       ).trim()
       || !(
-        this.rutaSftpFormulario6012
+        this.rutaDriveFormulario6012
         || ''
       ).trim()
     ) {
 
       fallarRegistroSas(
-        'No existe metadata SFTP completa para registrar la afiliacion +Vida en SAS.'
+        'No existe metadata Google Drive completa para registrar la afiliacion +Vida en SAS.'
       );
 
       return;
@@ -7884,7 +7884,7 @@ private registrarSeguroSasSiCorresponde(
            * NO repetir:
            *
            * - sellado
-           * - SFTP
+           * - Google Drive
            * - /docs/confirmar
            *
            * La rama PUBLICADO ya existente
@@ -7959,7 +7959,7 @@ private enviarCorreoExitoSiCorresponde(
   if (flujo === 'soloAutorizacion') {
 
     if (
-      !this.autorizacionAlmacenadaSftp
+      !this.autorizacionAlmacenadaDrive
       || !this.idDocumentoPublicadoAutorizacion
       || !this.archivoSelladoAutorizacion
     ) {
@@ -8002,7 +8002,7 @@ private enviarCorreoExitoSiCorresponde(
   ) {
 
     if (
-      !this.formulario6012AlmacenadoSftp
+      !this.formulario6012AlmacenadoDrive
       || !this.idDocumentoPublicadoFormulario6012
       || !this.archivoSelladoFormulario6012
     ) {
@@ -8046,9 +8046,9 @@ private enviarCorreoExitoSiCorresponde(
   else if (flujo === 'completa') {
 
     if (
-      !this.autorizacionAlmacenadaSftp
+      !this.autorizacionAlmacenadaDrive
       || !this.idDocumentoPublicadoAutorizacion
-      || !this.formulario6012AlmacenadoSftp
+      || !this.formulario6012AlmacenadoDrive
       || !this.idDocumentoPublicadoFormulario6012
     ) {
       callbackContinuar();
@@ -8231,7 +8231,7 @@ private enviarCorreoExitoSiCorresponde(
          * La falla del correo NO revierte:
          * - validacion
          * - sellado
-         * - SFTP
+         * - Google Drive
          * - PUBLICADO
          * - finalizacion
          */
@@ -8252,11 +8252,11 @@ private enviarCorreoExitoSiCorresponde(
     });
 }
 
-private confirmarPublicacionSftpDesdeServicio(
+private confirmarPublicacionDriveDesdeServicio(
   tipoDocumento: TipoDocumentoFirmado,
   archivoSellado: Blob,
   nombreArchivoSellado: string,
-  nombreArchivoSftp: string,
+  nombreArchivoDrive: string,
   rutaArchivo: string,
   callbackExito: () => void,
   callbackError: () => void
@@ -8279,7 +8279,7 @@ private confirmarPublicacionSftpDesdeServicio(
     || !archivoSellado
     || archivoSellado.size === 0
     || !nombreArchivoSellado.trim()
-    || !nombreArchivoSftp.trim()
+    || !nombreArchivoDrive.trim()
     || !rutaArchivo.trim()
   ) {
 
@@ -8291,24 +8291,24 @@ private confirmarPublicacionSftpDesdeServicio(
   }
 
   console.log(
-    'Confirmando publicación SFTP en +Vida:',
+    'Confirmando publicación Google Drive en +Vida:',
     {
       registroInternoProceso,
       tipoDocumento:
         tipoDocumentoBackend,
       nombreArchivo:
-        nombreArchivoSftp,
+        nombreArchivoDrive,
       rutaArchivo
     }
   );
 
   this.vidaApiService
-    .confirmarPublicacionSftp(
+    .confirmarPublicacionDrive(
       archivoSellado,
       nombreArchivoSellado,
       registroInternoProceso,
       tipoDocumentoBackend,
-      nombreArchivoSftp,
+      nombreArchivoDrive,
       rutaArchivo
     )
     .subscribe({
@@ -8335,7 +8335,7 @@ private confirmarPublicacionSftpDesdeServicio(
 
         if (esFormulario6012) {
 
-          this.formulario6012AlmacenadoSftp =
+          this.formulario6012AlmacenadoDrive =
             true;
 
           this.idDocumentoPublicadoFormulario6012 =
@@ -8343,7 +8343,7 @@ private confirmarPublicacionSftpDesdeServicio(
 
         } else {
 
-          this.autorizacionAlmacenadaSftp =
+          this.autorizacionAlmacenadaDrive =
             true;
 
           this.idDocumentoPublicadoAutorizacion =
@@ -8358,7 +8358,7 @@ private confirmarPublicacionSftpDesdeServicio(
               tipoDocumentoBackend,
             idDocumentoPublicado,
             nombreArchivo:
-              nombreArchivoSftp,
+              nombreArchivoDrive,
             rutaArchivo
           }
         );
@@ -8380,7 +8380,7 @@ private confirmarPublicacionSftpDesdeServicio(
         );
 
         this.mensajeErrorCierre =
-          `El documento fue almacenado correctamente en SFTP, pero no se pudo confirmar la publicación de ${this.obtenerTituloDocumento(tipoDocumento)} en +Vida.`;
+          `El documento fue almacenado correctamente en Google Drive, pero no se pudo confirmar la publicación de ${this.obtenerTituloDocumento(tipoDocumento)} en +Vida.`;
 
         callbackError();
       }
@@ -8388,7 +8388,7 @@ private confirmarPublicacionSftpDesdeServicio(
 }
 
 
-subirDocumentoSelladoSftpDesdeServicio(
+subirDocumentoSelladoDriveDesdeServicio(
   tipoDocumento: TipoDocumentoFirmado,
   callbackExito: () => void,
   callbackError: () => void
@@ -8415,22 +8415,22 @@ subirDocumentoSelladoSftpDesdeServicio(
 
   const rutaArchivoRegistrada =
     esFormulario6012
-      ? this.rutaSftpFormulario6012
-      : this.rutaSftpAutorizacion;
+      ? this.rutaDriveFormulario6012
+      : this.rutaDriveAutorizacion;
 
-  const nombreArchivoSftpRegistrado =
+  const nombreArchivoDriveRegistrado =
     esFormulario6012
-      ? this.nombreArchivoSftpFormulario6012
-      : this.nombreArchivoSftpAutorizacion;
+      ? this.nombreArchivoDriveFormulario6012
+      : this.nombreArchivoDriveAutorizacion;
 
   const publicacionConfirmada =
     esFormulario6012
       ? (
-          this.formulario6012AlmacenadoSftp
+          this.formulario6012AlmacenadoDrive
           && !!this.idDocumentoPublicadoFormulario6012
         )
       : (
-          this.autorizacionAlmacenadaSftp
+          this.autorizacionAlmacenadaDrive
           && !!this.idDocumentoPublicadoAutorizacion
         );
 
@@ -8455,41 +8455,41 @@ subirDocumentoSelladoSftpDesdeServicio(
   ) {
 
     this.mensajeErrorCierre =
-      `No existe un PDF sellado válido de ${this.obtenerTituloDocumento(tipoDocumento)} para almacenarlo en SFTP.`;
+      `No existe un PDF sellado válido de ${this.obtenerTituloDocumento(tipoDocumento)} para almacenarlo en Google Drive.`;
 
     callbackError();
     return;
   }
 
   /*
-   * SFTP ya funcionó en esta sesión pero
+   * Google Drive ya funcionó en esta sesión pero
    * /docs/confirmar falló.
    *
-   * No repetimos SFTP.
+   * No repetimos Google Drive.
    */
   if (
     rutaArchivoRegistrada
-    && nombreArchivoSftpRegistrado
+    && nombreArchivoDriveRegistrado
   ) {
 
     console.log(
-      'SFTP ya ejecutado. Reintentando solamente /docs/confirmar:',
+      'Google Drive ya ejecutado. Reintentando solamente /docs/confirmar:',
       {
         registroInternoProceso:
           this.codigoSolicitud,
         tipoDocumento,
         nombreArchivo:
-          nombreArchivoSftpRegistrado,
+          nombreArchivoDriveRegistrado,
         rutaArchivo:
           rutaArchivoRegistrada
       }
     );
 
-    this.confirmarPublicacionSftpDesdeServicio(
+    this.confirmarPublicacionDriveDesdeServicio(
       tipoDocumento,
       archivoSellado,
       nombreArchivoSellado,
-      nombreArchivoSftpRegistrado,
+      nombreArchivoDriveRegistrado,
       rutaArchivoRegistrada,
       callbackExito,
       callbackError
@@ -8499,7 +8499,7 @@ subirDocumentoSelladoSftpDesdeServicio(
   }
 
   console.log(
-    'Enviando documento sellado a SFTP QA:',
+    'Enviando documento sellado a Google Drive QA:',
     {
       registroInternoProceso:
         this.codigoSolicitud,
@@ -8512,10 +8512,16 @@ subirDocumentoSelladoSftpDesdeServicio(
     }
   );
 
+  const idTpDocDrive: '244' | '247' =
+    esFormulario6012
+      ? '244'
+      : '247';
+
   this.vidaApiService
-    .subirDocumentoSftp(
+    .subirDocumentoDrive(
       archivoSellado,
       nombreArchivoSellado,
+      idTpDocDrive,
       this.form.titular.tipoDocumento,
       this.form.titular.numeroDocumento
     )
@@ -8523,7 +8529,7 @@ subirDocumentoSelladoSftpDesdeServicio(
 
       next: respuesta => {
 
-        const nombreArchivoSftp =
+        const nombreArchivoDrive =
           respuesta.archivo
             ?.nombreArchivo
             ?.trim()
@@ -8536,46 +8542,46 @@ subirDocumentoSelladoSftpDesdeServicio(
           || '';
 
         if (
-          !nombreArchivoSftp
+          !nombreArchivoDrive
           || !rutaArchivo
         ) {
 
           this.mensajeErrorCierre =
             respuesta.mensaje
-            || `SFTP no confirmó el almacenamiento de ${this.obtenerTituloDocumento(tipoDocumento)}.`;
+            || `Google Drive no confirmó el almacenamiento de ${this.obtenerTituloDocumento(tipoDocumento)}.`;
 
           callbackError();
           return;
         }
 
         /*
-         * Conservamos metadata SFTP,
+         * Conservamos metadata Google Drive,
          * pero TODAVIA NO marcamos publicado.
          */
         if (esFormulario6012) {
 
-          this.rutaSftpFormulario6012 =
+          this.rutaDriveFormulario6012 =
             rutaArchivo;
 
-          this.nombreArchivoSftpFormulario6012 =
-            nombreArchivoSftp;
+          this.nombreArchivoDriveFormulario6012 =
+            nombreArchivoDrive;
 
         } else {
 
-          this.rutaSftpAutorizacion =
+          this.rutaDriveAutorizacion =
             rutaArchivo;
 
-          this.nombreArchivoSftpAutorizacion =
-            nombreArchivoSftp;
+          this.nombreArchivoDriveAutorizacion =
+            nombreArchivoDrive;
         }
 
         console.log(
-          'Documento sellado almacenado en SFTP QA:',
+          'Documento sellado almacenado en Google Drive QA:',
           {
             tipoDocumento,
             idDocumentoSellado,
             nombreArchivo:
-              nombreArchivoSftp,
+              nombreArchivoDrive,
             rutaArchivo
           }
         );
@@ -8584,11 +8590,11 @@ subirDocumentoSelladoSftpDesdeServicio(
          * Paso obligatorio:
          * registrar PUBLICADO en Oracle.
          */
-        this.confirmarPublicacionSftpDesdeServicio(
+        this.confirmarPublicacionDriveDesdeServicio(
           tipoDocumento,
           archivoSellado,
           nombreArchivoSellado,
-          nombreArchivoSftp,
+          nombreArchivoDrive,
           rutaArchivo,
           callbackExito,
           callbackError
@@ -8598,12 +8604,12 @@ subirDocumentoSelladoSftpDesdeServicio(
       error: error => {
 
         console.error(
-          `Error almacenando en SFTP ${tipoDocumento}:`,
+          `Error almacenando en Google Drive ${tipoDocumento}:`,
           error
         );
 
         this.mensajeErrorCierre =
-          `El documento fue sellado correctamente, pero no se pudo almacenar ${this.obtenerTituloDocumento(tipoDocumento)} en SFTP.`;
+          `El documento fue sellado correctamente, pero no se pudo almacenar ${this.obtenerTituloDocumento(tipoDocumento)} en Google Drive.`;
 
         callbackError();
       }
@@ -8705,7 +8711,7 @@ procesarCierreDocumentoDesdeServicio(
   if (documentoYaSellado) {
 
     console.log(
-      'Documento ya sellado. Se reintentará solamente SFTP:',
+      'Documento ya sellado. Se reintentará solamente Google Drive:',
       {
         registroInternoProceso:
           this.codigoSolicitud,
@@ -8715,7 +8721,7 @@ procesarCierreDocumentoDesdeServicio(
       }
     );
 
-    this.subirDocumentoSelladoSftpDesdeServicio(
+    this.subirDocumentoSelladoDriveDesdeServicio(
       tipoDocumento,
       callbackExito,
       callbackError
@@ -8937,7 +8943,7 @@ procesarCierreDocumentoDesdeServicio(
                   true;
               }
 
-              this.subirDocumentoSelladoSftpDesdeServicio(
+              this.subirDocumentoSelladoDriveDesdeServicio(
                 tipoDocumento,
                 callbackExito,
                 callbackError
@@ -9061,7 +9067,7 @@ procesarCierreDocumental(): void {
       this.scrollArriba();
 
       console.log(
-        'Sellado y almacenamiento SFTP completados:',
+        'Sellado y almacenamiento Google Drive completados:',
         {
           registroInternoProceso:
             this.codigoSolicitud,
@@ -9086,7 +9092,7 @@ procesarCierreDocumental(): void {
        * y posteriormente ejecutar la finalización real.
        */
       this.mostrarAviso(
-        'Los documentos fueron validados, sellados y almacenados correctamente en SFTP.',
+        'Los documentos fueron validados, sellados y almacenados correctamente en Google Drive.',
         'exito',
         'Entrega documental completada',
         true
@@ -9123,7 +9129,7 @@ procesarCierreDocumental(): void {
         this.idDocumentoSelladoFormulario6012
         && this.archivoSelladoFormulario6012
         && this.formulario6012Sellado
-        && this.formulario6012AlmacenadoSftp
+        && this.formulario6012AlmacenadoDrive
       ) {
 
         finalizarSelladoCorrecto();
@@ -9146,7 +9152,7 @@ procesarCierreDocumental(): void {
       this.idDocumentoSelladoAutorizacion
       && this.archivoSelladoAutorizacion
       && this.autorizacionDescuentoSellada
-      && this.autorizacionAlmacenadaSftp
+      && this.autorizacionAlmacenadaDrive
     ) {
 
       finalizarSelladoCorrecto();
@@ -9179,7 +9185,7 @@ procesarCierreDocumental(): void {
     this.idDocumentoSelladoAutorizacion
     && this.archivoSelladoAutorizacion
     && this.autorizacionDescuentoSellada
-    && this.autorizacionAlmacenadaSftp
+    && this.autorizacionAlmacenadaDrive
   ) {
 
     sellarFormulario6012();

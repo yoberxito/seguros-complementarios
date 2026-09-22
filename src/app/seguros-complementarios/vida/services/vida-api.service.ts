@@ -181,18 +181,7 @@ export interface SubirDocumentoDriveResponse {
   flagResultado: string;
   mensaje: string;
 }
-export interface ArchivoSftpResponse {
-  nombreArchivo: string;
-  rutaArchivo: string;
-}
-
-export interface SubirDocumentoSftpResponse {
-  archivo: ArchivoSftpResponse | null;
-  flagResultado: string;
-  mensaje: string;
-}
-
-export interface ConfirmarPublicacionSftpResponse {
+export interface ConfirmarPublicacionDriveResponse {
   codResultado: string;
   mensaje: string;
   registroInternoProceso: string;
@@ -910,9 +899,7 @@ export class VidaApiService {
   /*private readonly baseUrl =
   'http://localhost/api/v1';*/
   private readonly baseUrlBackendDocumentosQa =`${environment.apiUrlServices}/api/docs`;
-
-
-  constructor(private http: HttpClient) {}
+constructor(private http: HttpClient) {}
 
   solicitarOtp(
   correo: string
@@ -952,136 +939,6 @@ export class VidaApiService {
 
         console.error(
           'Error generando código OTP en QA:',
-          error
-        );
-
-        return throwError(
-          () => error
-        );
-      })
-    );
-}
-
-subirDocumentoSftp(
-  archivo: Blob,
-  nombreArchivo: string,
-  tpDocument: string,
-  numDocument: string
-): Observable<SubirDocumentoSftpResponse> {
-
-  const nombre =
-    (nombreArchivo || '').trim();
-
-  const tipoDocumento =
-    (tpDocument || '').trim();
-
-  const numeroDocumento =
-    (numDocument || '').trim();
-
-  if (!archivo || archivo.size === 0) {
-    return throwError(
-      () => new Error(
-        'El PDF sellado es obligatorio para SFTP.'
-      )
-    );
-  }
-
-  if (!nombre) {
-    return throwError(
-      () => new Error(
-        'El nombre del PDF sellado es obligatorio para SFTP.'
-      )
-    );
-  }
-
-  if (!tipoDocumento) {
-    return throwError(
-      () => new Error(
-        'El tipo de documento del titular es obligatorio para SFTP.'
-      )
-    );
-  }
-
-  if (!numeroDocumento) {
-    return throwError(
-      () => new Error(
-        'El número de documento del titular es obligatorio para SFTP.'
-      )
-    );
-  }
-
-  const formData =
-    new FormData();
-
-  formData.append(
-    'archivo',
-    archivo,
-    nombre
-  );
-
-  formData.append(
-    'tpDocument',
-    tipoDocumento
-  );
-
-  formData.append(
-    'numDocument',
-    numeroDocumento
-  );
-
-  const url =
-    `${this.baseUrlSeguros}/sftp/upload`;
-
-  return this.http
-    .post<SubirDocumentoSftpResponse>(
-      url,
-      formData
-    )
-    .pipe(
-      map(respuesta => {
-
-        const nombreArchivoSftp =
-          respuesta.archivo
-            ?.nombreArchivo
-            ?.trim()
-          || '';
-
-        const rutaArchivoSftp =
-          respuesta.archivo
-            ?.rutaArchivo
-            ?.trim()
-          || '';
-
-        if (
-          !respuesta.archivo
-          || !nombreArchivoSftp
-          || !rutaArchivoSftp
-        ) {
-          throw new Error(
-            respuesta.mensaje
-            || 'SFTP no confirmó el almacenamiento del documento.'
-          );
-        }
-
-        console.log(
-          'Documento almacenado en SFTP QA:',
-          {
-            nombreArchivo:
-              nombreArchivoSftp,
-            rutaArchivo:
-              rutaArchivoSftp,
-            tipoDocumento,
-            numeroDocumento
-          }
-        );
-
-        return respuesta;
-      }),
-
-      catchError((error: unknown) => {
-
-        console.error(
-          'Error almacenando documento en SFTP QA:',
           error
         );
 
@@ -1390,14 +1247,14 @@ enviarCorreoExitoVida(
     );
 }
 
-confirmarPublicacionSftp(
+confirmarPublicacionDrive(
   archivo: Blob,
   nombreArchivoSellado: string,
   registroInternoProceso: string,
   tipoDocumento: TipoDocumentoCargaLocal,
-  nombreArchivoSftp: string,
+  nombreArchivoDrive: string,
   rutaArchivo: string
-): Observable<ConfirmarPublicacionSftpResponse> {
+): Observable<ConfirmarPublicacionDriveResponse> {
 
   const registro =
     (registroInternoProceso || '').trim();
@@ -1405,10 +1262,10 @@ confirmarPublicacionSftp(
   const nombreSellado =
     (nombreArchivoSellado || '').trim();
 
-  const nombreSftp =
-    (nombreArchivoSftp || '').trim();
+  const nombreDrive =
+    (nombreArchivoDrive || '').trim();
 
-  const rutaSftp =
+  const rutaDrive =
     (rutaArchivo || '').trim();
 
   if (!archivo || archivo.size === 0) {
@@ -1435,10 +1292,10 @@ confirmarPublicacionSftp(
     );
   }
 
-  if (!nombreSftp || !rutaSftp) {
+  if (!nombreDrive || !rutaDrive) {
     return throwError(
       () => new Error(
-        'La metadata devuelta por SFTP es obligatoria para confirmar la publicación.'
+        'La metadata devuelta por Google Drive es obligatoria para confirmar la publicación.'
       )
     );
   }
@@ -1464,16 +1321,16 @@ confirmarPublicacionSftp(
 
   formData.append(
     'nombreArchivo',
-    nombreSftp
+    nombreDrive
   );
 
   formData.append(
     'rutaArchivo',
-    rutaSftp
+    rutaDrive
   );
 
   return this.http
-    .post<ConfirmarPublicacionSftpResponse>(
+    .post<ConfirmarPublicacionDriveResponse>(
       `${this.baseUrlBackendDocumentosQa}/confirmar`,
       formData
     )
@@ -1499,7 +1356,7 @@ confirmarPublicacionSftp(
         }
 
         console.log(
-          'Publicación SFTP confirmada en +Vida:',
+          'Publicación Google Drive confirmada en +Vida:',
           {
             registroInternoProceso:
               respuesta.registroInternoProceso,
@@ -1520,7 +1377,7 @@ confirmarPublicacionSftp(
       catchError((error: unknown) => {
 
         console.error(
-          'Error confirmando publicación SFTP en +Vida:',
+          'Error confirmando publicación Google Drive en +Vida:',
           error
         );
 
