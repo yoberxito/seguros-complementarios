@@ -1,0 +1,90 @@
+﻿:host {
+  display: block;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.vida-pantalla {
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  min-height: 75vh;
+  padding: 32px 16px;
+  background: #f2f7fa;
+}
+
+.vida-tarjeta {
+  box-sizing: border-box;
+  width: min(100%, 560px);
+  padding: 48px;
+  border: 1px solid #dce8ee;
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 16px 40px rgba(18, 69, 99, 0.08);
+}
+
+.vida-icono {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  margin-bottom: 24px;
+  border-radius: 50%;
+  background: #e5f5f5;
+  color: #087e87;
+  font-size: 34px;
+  font-weight: bold;
+}
+
+.vida-etiqueta {
+  margin: 0 0 12px;
+  color: #087e87;
+  font-size: 13px;
+  font-weight: bold;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+h1 {
+  margin: 0;
+  color: #17364f;
+  font-size: clamp(26px, 5vw, 34px);
+  line-height: 1.2;
+}
+
+.vida-mensaje {
+  margin: 20px 0 32px;
+  color: #486174;
+  font-size: 16px;
+  line-height: 1.65;
+}
+
+.vida-boton {
+  min-height: 46px;
+  padding: 11px 20px;
+  border: 0;
+  border-radius: 8px;
+  background: #08709c;
+  color: white;
+  font: inherit;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.vida-boton:hover {
+  background: #075b80;
+}
+
+.vida-boton:focus-visible {
+  outline: 3px solid #88ced6;
+  outline-offset: 3px;
+}
+
+@media (max-width: 600px) {
+  .vida-tarjeta {
+    padding: 32px 24px;
+  }
+
+  .vida-boton {
+    width: 100%;
+  }
+}
