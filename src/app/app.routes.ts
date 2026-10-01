@@ -9,6 +9,8 @@ import {
 import {
   EntregaPublicaComponent
 } from './seguros-complementarios/entregas/pages/entrega-publica/entrega-publica.component';
+import { AccesoIntegracionComponent } from './seguros-complementarios/integracion/pages/acceso-integracion/acceso-integracion.component';
+import { VidaAfiliacionExistenteComponent } from './seguros-complementarios/vida/vida-afiliacion-existente/vida-afiliacion-existente.component';
 
 
 export const routes: Routes = [
@@ -18,6 +20,15 @@ export const routes: Routes = [
     pathMatch: 'full',
     redirectTo: 'vida/titular'
   },
+    {
+    path: 'acceso/:token',
+    component: AccesoIntegracionComponent
+  },
+    {
+    path: 'valida-seguro-mas-vida',
+    component: VidaAfiliacionExistenteComponent
+  },
+
 
   {
     path: 'vida/:paso',

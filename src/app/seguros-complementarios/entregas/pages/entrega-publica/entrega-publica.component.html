@@ -9,9 +9,7 @@
     <header class="encabezado web-header">
 
       <div class="logo-essalud-real">
-        <img
-          src="assets/essaludlogo.png"
-          alt="EsSalud">
+        <img src="assets/essaludlogo.png" alt="EsSalud">
       </div>
 
       <div class="web-header-texto">
@@ -38,9 +36,7 @@
          CARGA
          ====================================================== -->
 
-    <div
-      class="estado-carga"
-      *ngIf="cargandoEntrega">
+    <div class="estado-carga" *ngIf="cargandoEntrega">
 
       Consultando información de la entrega...
 
@@ -51,9 +47,7 @@
          ERROR GENERAL
          ====================================================== -->
 
-    <div
-      class="alerta-error"
-      *ngIf="
+    <div class="alerta-error" *ngIf="
         !cargandoEntrega
         && errorCarga
       ">
@@ -73,9 +67,7 @@
          ENTREGA
          ====================================================== -->
 
-    <section
-      class="entrega-contenido"
-      *ngIf="
+    <section class="entrega-contenido" *ngIf="
         !cargandoEntrega
         && !errorCarga
         && entrega
@@ -104,10 +96,7 @@
           </div>
 
 
-          <span
-            class="estado-chip"
-
-            [class.estado-chip-exito]="
+          <span class="estado-chip" [class.estado-chip-exito]="
               recepcionRegistrada
             ">
 
@@ -162,9 +151,9 @@
 
             <strong>
               {{
-                formatearFecha(
-                  entrega.fechaPublicacion
-                )
+              formatearFecha(
+              entrega.fechaPublicacion
+              )
               }}
             </strong>
 
@@ -175,9 +164,7 @@
 
         <!-- MENSAJES DE OPERACIÓN -->
 
-        <div
-          class="alerta-exito"
-          *ngIf="
+        <div class="alerta-exito" *ngIf="
             mensajeAccion
             && !recepcionRegistrada
           ">
@@ -187,106 +174,80 @@
         </div>
 
 
-        <div
-          class="alerta-error"
-          *ngIf="errorAccion">
+        <div class="alerta-error" *ngIf="errorAccion">
 
           {{ errorAccion }}
 
         </div>
 
+<!--
 
-        <!-- ==================================================
-             ESTADO 1
-             PENDIENTE DE VERIFICACIÓN
-             ================================================== -->
-
-        <section
-          class="estado-principal"
-          *ngIf="
+        <section class="estado-principal" *ngIf="
             !identidadValidada
             && !recepcionRegistrada
           ">
 
           <div class="estado-icono estado-icono-identidad">
 
-          <svg
-            class="icono-seguridad"
-            viewBox="0 0 24 24"
-            aria-hidden="true">
+            <svg class="icono-seguridad" viewBox="0 0 24 24" aria-hidden="true">
 
-            <path d="M7 10V7a5 5 0 0 1 10 0v3"></path>
+              <path d="M7 10V7a5 5 0 0 1 10 0v3"></path>
 
-            <rect
-              x="5"
-              y="10"
-              width="14"
-              height="10"
-              rx="2">
-            </rect>
+              <rect x="5" y="10" width="14" height="10" rx="2">
+              </rect>
 
-            <path d="M12 14v2"></path>
+              <path d="M12 14v2"></path>
 
-          </svg>
+            </svg>
 
-        </div>
+          </div>
 
 
-        <h3>
-          Verifique su identidad
-        </h3>
+          <h3>
+            Verifique su identidad
+          </h3>
 
 
-        <p class="estado-descripcion">
+          <p class="estado-descripcion">
 
-          Para confirmar la recepción de este lote,
-          necesitamos validar previamente su identidad.
+            Para confirmar la recepción de este lote,
+            necesitamos validar previamente su identidad.
 
-        </p>
-
-
-        <div
-          class="correo-autorizado"
-          *ngIf="entrega.correoEnmascarado">
-
-          <span>
-            Enviaremos un código de verificación a
-          </span>
-
-          <strong>
-            {{ entrega.correoEnmascarado }}
-          </strong>
-
-        </div>
+          </p>
 
 
-        <button
-          type="button"
-          class="btn-principal"
+          <div class="correo-autorizado" *ngIf="entrega.correoEnmascarado">
 
-          [disabled]="
+            <span>
+              Enviaremos un código de verificación a
+            </span>
+
+            <strong>
+              {{ entrega.correoEnmascarado }}
+            </strong>
+
+          </div>
+
+
+          <button type="button" class="btn-principal" [disabled]="
             !puedeVerificarIdentidad
-          "
-
-          (click)="
+          " (click)="
             iniciarVerificacionIdentidad()
           ">
 
-          Enviar código de verificación
+            Enviar código de verificación
 
-        </button>
+          </button>
 
         </section>
-
+-->
 
         <!-- ==================================================
              ESTADO 2
              OTP VALIDADO / ENTREGA CONTROLADA
              ================================================== -->
 
-        <section
-          class="estado-principal estado-confirmacion"
-          *ngIf="
+        <section class="estado-principal estado-confirmacion" *ngIf="
             identidadValidada
             && !recepcionRegistrada
           ">
@@ -331,28 +292,22 @@
             </div>
 
 
-            <button
-              type="button"
-              class="btn-principal"
-
-              [disabled]="
+            <button type="button" class="btn-principal" [disabled]="
                 !puedeDescargarLote
                 || descargandoLote
                 || registrandoDescarga
-              "
-
-              (click)="
+              " (click)="
                 descargarLote()
               ">
 
               {{
-                descargandoLote
-                  ? 'Preparando lote...'
-                  : registrandoDescarga
-                    ? 'Registrando descarga...'
-                    : descargaPendienteRegistro
-                      ? 'Reintentar registro de descarga'
-                      : 'Descargar lote'
+              descargandoLote
+              ? 'Preparando lote...'
+              : registrandoDescarga
+              ? 'Registrando descarga...'
+              : descargaPendienteRegistro
+              ? 'Reintentar registro de descarga'
+              : 'Descargar lote'
               }}
 
             </button>
@@ -397,23 +352,17 @@
             </div>
 
 
-            <button
-              type="button"
-              class="btn-principal"
-
-              [disabled]="
+            <button type="button" class="btn-principal" [disabled]="
                 !puedeConfirmarRecepcion
                 || confirmandoAcuse
-              "
-
-              (click)="
+              " (click)="
                 confirmarRecepcion()
               ">
 
               {{
-                confirmandoAcuse
-                  ? 'Registrando recepción...'
-                  : 'Confirmar recepción'
+              confirmandoAcuse
+              ? 'Registrando recepción...'
+              : 'Confirmar recepción'
               }}
 
             </button>
@@ -427,9 +376,7 @@
              RECEPCIÓN REGISTRADA
              ================================================== -->
 
-        <section
-          class="estado-principal estado-final"
-          *ngIf="recepcionRegistrada">
+        <section class="estado-principal estado-final" *ngIf="recepcionRegistrada">
 
           <div class="check-final">
             ✓
@@ -454,9 +401,7 @@
           </p>
 
 
-          <p
-            class="fecha-confirmacion"
-            *ngIf="entrega.fechaAcuse">
+          <p class="fecha-confirmacion" *ngIf="entrega.fechaAcuse">
 
             Registrado el
             <strong>
@@ -478,28 +423,17 @@
           </div>
 
 
-          <a
-            *ngIf="
+          <a *ngIf="
               entrega.accesoDisponible
               && entrega.urlAcceso
-            "
-
-            class="btn-principal btn-enlace"
-
-            [href]="entrega.urlAcceso"
-
-            target="_blank"
-
-            rel="noopener noreferrer">
+            " class="btn-principal btn-enlace" [href]="entrega.urlAcceso" target="_blank" rel="noopener noreferrer">
 
             Acceder al lote
 
           </a>
 
 
-          <div
-            class="acceso-pendiente"
-            *ngIf="
+          <div class="acceso-pendiente" *ngIf="
               !entrega.accesoDisponible
               || !entrega.urlAcceso
             ">
@@ -539,9 +473,7 @@
        MODAL OTP
        ======================================================== -->
 
-  <div
-    class="modal-fondo"
-    *ngIf="mostrarModalOtp">
+  <div class="modal-fondo" *ngIf="mostrarModalOtp">
 
     <div class="modal-otp">
 
@@ -563,9 +495,7 @@
       </p>
 
 
-      <div
-        class="otp-correo"
-        *ngIf="entrega?.correoEnmascarado">
+      <div class="otp-correo" *ngIf="entrega?.correoEnmascarado">
 
         <span>
           Código enviado a
@@ -578,18 +508,14 @@
       </div>
 
 
-      <div
-        class="otp-cargando"
-        *ngIf="solicitandoOtp">
+      <div class="otp-cargando" *ngIf="solicitandoOtp">
 
         Enviando código de verificación...
 
       </div>
 
 
-      <div
-        class="otp-mensaje"
-        *ngIf="
+      <div class="otp-mensaje" *ngIf="
           mensajeOtp
           && !solicitandoOtp
         ">
@@ -599,35 +525,17 @@
       </div>
 
 
-      <div
-        class="otp-campo"
-        *ngIf="!solicitandoOtp">
+      <div class="otp-campo" *ngIf="!solicitandoOtp">
 
         <label for="codigoOtpEntrega">
           Código de verificación
         </label>
 
 
-        <input
-          id="codigoOtpEntrega"
-
-          type="text"
-
-          inputmode="numeric"
-
-          autocomplete="one-time-code"
-
-          maxlength="6"
-
-          placeholder="000000"
-
-          [(ngModel)]="codigoOtp"
-
-          (input)="
+        <input id="codigoOtpEntrega" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6"
+          placeholder="000000" [(ngModel)]="codigoOtp" (input)="
             normalizarCodigoOtp()
-          "
-
-          [disabled]="
+          " [disabled]="
             validandoOtp
           ">
 
@@ -640,9 +548,7 @@
       </div>
 
 
-      <div
-        class="otp-error"
-        *ngIf="errorOtp">
+      <div class="otp-error" *ngIf="errorOtp">
 
         {{ errorOtp }}
 
@@ -651,16 +557,10 @@
 
       <div class="otp-acciones">
 
-        <button
-          type="button"
-          class="btn-secundario"
-
-          [disabled]="
+        <button type="button" class="btn-secundario" [disabled]="
             solicitandoOtp
             || validandoOtp
-          "
-
-          (click)="
+          " (click)="
             cerrarModalOtp()
           ">
 
@@ -669,16 +569,10 @@
         </button>
 
 
-        <button
-          type="button"
-          class="btn-secundario"
-
-          [disabled]="
+        <button type="button" class="btn-secundario" [disabled]="
             solicitandoOtp
             || validandoOtp
-          "
-
-          (click)="
+          " (click)="
             solicitarCodigoOtp()
           ">
 
@@ -687,24 +581,18 @@
         </button>
 
 
-        <button
-          type="button"
-          class="btn-modal-principal"
-
-          [disabled]="
+        <button type="button" class="btn-modal-principal" [disabled]="
             codigoOtp.length !== 6
             || solicitandoOtp
             || validandoOtp
-          "
-
-          (click)="
+          " (click)="
             validarCodigoOtp()
           ">
 
           {{
-            validandoOtp
-              ? 'Validando...'
-              : 'Validar código'
+          validandoOtp
+          ? 'Validando...'
+          : 'Validar código'
           }}
 
         </button>

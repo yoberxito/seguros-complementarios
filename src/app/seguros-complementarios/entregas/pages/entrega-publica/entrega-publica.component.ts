@@ -4,7 +4,10 @@ import {
 
 import {
   Component,
-  OnInit
+  inject,
+  OnInit,
+  signal,
+  Signal
 } from '@angular/core';
 
 import {
@@ -19,6 +22,7 @@ import {
   EntregaPublicaApiService,
   EntregaPublicaResponse
 } from '../../services/entrega-publica-api.service';
+import { IntegracionService } from 'src/app/seguros-complementarios/integracion/services/IntegracionService';
 
 
 @Component({
@@ -38,13 +42,13 @@ import {
     './entrega-publica.component.css'
 })
 export class EntregaPublicaComponent
-        implements OnInit {
+  implements OnInit {
 
   token = '';
 
   entrega:
     EntregaPublicaResponse | null =
-      null;
+    null;
 
 
   cargandoEntrega = true;
@@ -61,8 +65,9 @@ export class EntregaPublicaComponent
 
   mensajeOtp = '';
   errorOtp = '';
+  correo = signal<string>('');
 
-  identidadValidadaLocal = false;
+  identidadValidadaLocal = true;
 
   private otpValidadoInstitucionalmenteLocal =
     false;
@@ -82,7 +87,8 @@ export class EntregaPublicaComponent
   mensajeAccion = '';
   errorAccion = '';
 
-
+  private readonly integracionService =
+    inject(IntegracionService);
   constructor(
     private route: ActivatedRoute,
 
@@ -93,6 +99,13 @@ export class EntregaPublicaComponent
 
 
   ngOnInit(): void {
+    const contexto =
+      this.integracionService.obtenerContexto();
+    if (contexto) {
+      this.correo.set(contexto?.correo)
+
+    };
+
 
     this.token =
       (
@@ -206,7 +219,7 @@ export class EntregaPublicaComponent
     if (
       destinatario
         .toUpperCase()
-        === 'PERSONAL'
+      === 'PERSONAL'
     ) {
 
       return 'Personal / Planillas EsSalud';
@@ -303,7 +316,7 @@ export class EntregaPublicaComponent
     this.errorOtp = '';
 
     this.entregaApi
-      .solicitarOtp()
+      .solicitarOtp(this.correo())
       .subscribe({
 
         next: respuesta => {
@@ -418,7 +431,8 @@ export class EntregaPublicaComponent
 
     this.entregaApi
       .validarOtp(
-        this.codigoOtp
+        this.codigoOtp,
+        this.correo()
       )
       .subscribe({
 
@@ -891,38 +905,38 @@ export class EntregaPublicaComponent
 
 
   formatearFechaHora(
-  valor:
-    string | null | undefined
-): string {
+    valor:
+      string | null | undefined
+  ): string {
 
-  if (!valor) {
+    if (!valor) {
 
-    return '';
+      return '';
+    }
+
+    const coincidencia =
+      /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/
+        .exec(
+          valor.trim()
+        );
+
+    if (!coincidencia) {
+
+      return valor;
+    }
+
+    return (
+      coincidencia[3]
+      + '/'
+      + coincidencia[2]
+      + '/'
+      + coincidencia[1]
+      + ' a las '
+      + coincidencia[4]
+      + ':'
+      + coincidencia[5]
+    );
   }
-
-  const coincidencia =
-    /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/
-      .exec(
-        valor.trim()
-      );
-
-  if (!coincidencia) {
-
-    return valor;
-  }
-
-  return (
-    coincidencia[3]
-    + '/'
-    + coincidencia[2]
-    + '/'
-    + coincidencia[1]
-    + ' a las '
-    + coincidencia[4]
-    + ':'
-    + coincidencia[5]
-  );
-}
 
   private obtenerMensajeError(
     error: unknown,

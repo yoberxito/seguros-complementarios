@@ -108,7 +108,7 @@ export interface DescargaLoteArchivoResponse {
 export class EntregaPublicaApiService {
 
   private readonly baseUrl =
-    'http://localhost/api/v1/entregas/publicas';
+    `${environment.apiUrlServices}/api/seguro-complementario/entregas/publicas`;
 
   /*
    * OTP institucional desplegado en QA.
@@ -127,8 +127,7 @@ export class EntregaPublicaApiService {
    * Correo temporal para pruebas QA
    * solicitado para la pantalla de acuse.
    */
-  private readonly correoOtpQa =
-    'diego.inga@essalud.gob.pe';
+
 
 
   constructor(
@@ -177,13 +176,14 @@ export class EntregaPublicaApiService {
   }
 
   solicitarOtp(
+    correo:string
   ): Observable<SolicitarOtpEntregaResponse> {
 
     const params =
       new HttpParams()
         .set(
           'correo',
-          this.correoOtpQa
+          correo
         );
 
     const url =
@@ -209,7 +209,8 @@ export class EntregaPublicaApiService {
   }
 
   validarOtp(
-    codigo: string
+    codigo: string,
+    correo:string
   ): Observable<ValidarOtpEntregaResponse> {
 
     const codigoLimpio =
@@ -231,7 +232,7 @@ export class EntregaPublicaApiService {
       new HttpParams()
         .set(
           'correo',
-          this.correoOtpQa
+          correo
         )
         .set(
           'codigo',

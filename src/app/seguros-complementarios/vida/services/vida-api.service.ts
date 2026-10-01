@@ -21,10 +21,13 @@ interface RespuestaTiposDocumentoApi {
 }
 
 export interface ValidarSeguroComplementarioResponse {
-  tieneSeguro: boolean;
-  nombreSeguro: string | null;
-  tipoSeguro: string | null;
-  dataCronogramaSegComplemt: unknown;
+  tieneSeguroSctr: boolean;
+  tieneSeguroVida:boolean;
+  dataCronogramaMasVida: DataCronogramaMasVida;
+}
+export interface DataCronogramaMasVida{
+  tipoSeguro:string;
+
 }
 
 export interface RepresentanteDtoApi {
@@ -36,7 +39,7 @@ export interface RepresentanteDtoApi {
 }
 
 export interface RespuestaPersonaContactoApi {
-  representanteDto: RepresentanteDtoApi | null;
+  asegurado: RepresentanteDtoApi | null;
   codResultado: string;
   mensaje: string;
 }
@@ -1461,7 +1464,7 @@ subirDocumentoDrive(
   );
 
   const url =
-    `${this.baseUrl}/google-drive/upload`;
+    `${this.baseUrlSeguros}/google-drive/upload`;
 
   return this.http
     .post<SubirDocumentoDriveResponse>(
@@ -2409,7 +2412,7 @@ guardarBorradorBeneficiarios(
 
     return this.http
       .get<RespuestaPersonaContactoApi>(
-        `${this.baseUrlVivaSolicitud}/consultas/get-data-representante`,
+        `${this.baseUrlSeguros}/informacion-general/get-data-asegurado`,
         { params }
       )
       .pipe(

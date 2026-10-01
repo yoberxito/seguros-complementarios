@@ -5,7 +5,13 @@ export const environment = {
   imagesPath: 'assets/images',
   entorno: 'QA',
   
-  urlDondeMeAtiendoService: 'https://appsqa.essalud.gob.pe/dondemeatiendo-service',
+  apiUrlServices: 'https://appsqa.essalud.gob.pe/sagw/mia-seguros-hijomenormayor',
+  baseUrlVivaSolicitud: 'https://appsqa.essalud.gob.pe/sagw/viva-essalud/mia-api-solicitud-incapacidad',
+  baseUrlDatosMaestros: 'https://appsqa.essalud.gob.pe/sagw/viva-essalud/viva-apidatosmaestros',
+  baseUrlNotificaciones: 'https://appsqa.essalud.gob.pe/kgw/viva-essalud/viva-apinotificaciones',
+  urlSomos:'https://appsqa.essalud.gob.pe/somosessalud/',
+ 
+
   sentry: {
     dsn: '',
     environment: 'local',
