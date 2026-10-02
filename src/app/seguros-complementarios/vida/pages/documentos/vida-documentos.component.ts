@@ -69,6 +69,9 @@ export class VidaDocumentosComponent {
   autorizacionFirmadaBloqueada = false;
 
   @Input()
+  esFormulario6012Posterior = false;
+
+  @Input()
   formulario6012Generado = false;
 
   @Input()

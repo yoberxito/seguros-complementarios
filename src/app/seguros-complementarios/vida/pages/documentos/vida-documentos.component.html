@@ -127,7 +127,7 @@
 
       <div
         class="upload-card documento-bloqueado"
-        *ngIf="autorizacionFirmadaBloqueada">
+        *ngIf="autorizacionFirmadaBloqueada || esFormulario6012Posterior">
 
         <div>
 
@@ -136,7 +136,11 @@
             firmada
           </strong>
 
-          <p>
+          <p *ngIf="esFormulario6012Posterior">
+            Autorización ya fue enviada correctamente.
+          </p>
+
+          <p *ngIf="!esFormulario6012Posterior">
             Este documento ya fue cargado, validado
             para esta solicitud y quedó bloqueado.
           </p>
@@ -224,6 +228,7 @@
         *ngIf="
           autorizacionDescuentoGenerada
           && !autorizacionFirmadaBloqueada
+          && !esFormulario6012Posterior
         ">
 
         <div>
