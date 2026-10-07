@@ -1333,6 +1333,7 @@ export class VidaFormComponent
             .subscribe((tieneMasVida: boolean) => {
 
               if (tieneMasVida) {
+                console.log("tieneMasVida-return")
                 // Ya tiene +Vida. No continúa con la afiliación.
                 return;
               }
@@ -1741,19 +1742,26 @@ export class VidaFormComponent
           this.seguroComplementarioValidado = true;
 
           if (respuesta.tieneSeguroVida) {
-            this.cuentaConMasVida = true;
+           
 
-            this.mensajeSeguroComplementario =
+            
+            if (respuesta.dataCronogramaMasVida.tieneBeneficiarios) {
+               this.cuentaConMasVida = true;
+              this.mensajeSeguroComplementario =
               `El titular ya cuenta con +Vida Seguro de Accidentes registrado. 
              No corresponde una nueva afiliación${respuesta.dataCronogramaMasVida?.tipoSeguro
                 ? ` (${respuesta.dataCronogramaMasVida.tipoSeguro}).`
                 : '.'
               }`;
+              this.router.navigate(
+                ['/valida-seguro-mas-vida'],
+                { replaceUrl: true }
+              );
+              
+            }
+             this.cuentaConMasVida = false;
 
-            this.router.navigate(
-              ['/valida-seguro-mas-vida'],
-              { replaceUrl: true }
-            );
+
           } else {
             this.mensajeSeguroComplementario =
               'El titular no cuenta con +Vida Seguro de Accidentes registrado. Puede continuar con la afiliación.';
@@ -1766,7 +1774,7 @@ export class VidaFormComponent
           }
         }),
 
-        map(respuesta => respuesta.tieneSeguroVida),
+        map(respuesta => this.cuentaConMasVida),
 
         catchError(() => {
           this.seguroComplementarioValidado = false;

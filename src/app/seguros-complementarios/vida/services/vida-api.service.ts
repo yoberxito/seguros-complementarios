@@ -27,6 +27,7 @@ export interface ValidarSeguroComplementarioResponse {
 }
 export interface DataCronogramaMasVida{
   tipoSeguro:string;
+  tieneBeneficiarios:boolean;
 
 }
 
