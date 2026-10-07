@@ -191,6 +191,15 @@
   [edicionBloqueada]="
     beneficiariosBloqueados()
   "
+  [modoActualizacionBeneficiarios]="
+    modoActualizacionBeneficiarios
+  "
+  [beneficiariosExistentesActualizacion]="
+    beneficiariosExistentesActualizacion
+  "
+  [actualizacionBeneficiariosListaCargada]="
+    actualizacionBeneficiariosListaCargada
+  "
 
   (borradorModificado)="
     programarGuardadoBorradorBeneficiarios()
@@ -207,7 +216,7 @@
   (avanzarSinBeneficiarios)="
     abrirConfirmacionSinBeneficiarios()
   "
-  (volver)="volverPaso()"
+  (volver)="volverDesdeBeneficiarios()"
   (continuar)="continuarPaso()"
   (confirmarBeneficiarios)="
     generarFormulario6012Pendiente()
@@ -733,7 +742,13 @@
   <div class="modal-fondo" *ngIf="vista === 'exito'">
     <div class="modal-exito">
       <div class="check">✅</div>
-      <h2>¡Afiliación procesada correctamente!</h2>
+      <h2>
+        {{
+          modoActualizacionBeneficiarios
+            ? '¡Actualización de beneficiarios procesada correctamente!'
+            : '¡Afiliación procesada correctamente!'
+        }}
+      </h2>
       <p *ngIf="tipoGeneracionDocumentos === 'soloAutorizacion'">
         La Autorización de Descuento fue validada, sellada y publicada correctamente.
         Podrá registrar beneficiarios posteriormente para generar el Formulario 6012.

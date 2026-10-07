@@ -4,14 +4,24 @@
 
   <div class="paso-header">
     <h4>
-      4. Información de Beneficiario(s)
+      {{
+        modoActualizacionBeneficiarios
+          ? 'Actualización de Beneficiarios'
+          : '4. Información de Beneficiario(s)'
+      }}
     </h4>
 
-    <p>
+    <p *ngIf="!modoActualizacionBeneficiarios">
       Registre los beneficiarios que correspondan
       y asigne el porcentaje de distribución del
       beneficio. La suma total de porcentajes debe
       ser igual al 100%.
+    </p>
+
+    <p *ngIf="modoActualizacionBeneficiarios">
+      Revise sus beneficiarios actuales. Puede editar únicamente
+      el porcentaje de un beneficiario existente, eliminarlo o
+      añadir un nuevo beneficiario. La suma total debe ser 100%.
     </p>
   </div>
 
@@ -29,6 +39,16 @@
   </span>
 
 </div>
+
+  <div
+    class="alerta-neutral"
+    *ngIf="
+      modoActualizacionBeneficiarios
+      && !actualizacionBeneficiariosListaCargada
+    ">
+    No fue posible cargar todavía la lista actual de beneficiarios.
+    La actualización permanecerá bloqueada hasta completar esa consulta.
+  </div>
 
   <div
     *ngIf="hayBeneficiariosIniciados()"
@@ -59,6 +79,7 @@
     *ngIf="
       !hayBeneficiariosRegistrados()
       && !pendienteBeneficiariosPara6012
+      && !modoActualizacionBeneficiarios
     "
     class="alerta-neutral">
 
@@ -97,8 +118,8 @@
           (change)="
             alCambiarTipoDocumento(beneficiario)
           "
-          [disabled]="edicionBloqueada"
-          [class.bg-light]="edicionBloqueada"
+          [disabled]="bloquearIdentidadBeneficiario(beneficiario)"
+          [class.bg-light]="bloquearIdentidadBeneficiario(beneficiario)"
           [class.is-invalid]="
             intentoEnviar
             && tipoDocumentoVacio(beneficiario)
@@ -142,8 +163,8 @@
             beneficiario.otroTipoDocumento =
               convertirMayusculas($event)
           "
-          [readonly]="edicionBloqueada"
-          [class.bg-light]="edicionBloqueada"
+          [readonly]="bloquearIdentidadBeneficiario(beneficiario)"
+          [class.bg-light]="bloquearIdentidadBeneficiario(beneficiario)"
           [class.is-invalid]="
             intentoEnviar
             && otroDocumentoInvalido(beneficiario)
@@ -175,8 +196,8 @@
           "
           [ngModelOptions]="{ standalone: true }"
           (input)="limpiarDocumento(beneficiario)"
-          [readonly]="edicionBloqueada"
-          [class.bg-light]="edicionBloqueada"
+          [readonly]="bloquearIdentidadBeneficiario(beneficiario)"
+          [class.bg-light]="bloquearIdentidadBeneficiario(beneficiario)"
           [class.is-invalid]="
             numeroDocumentoInvalido(beneficiario)
             && !campoVacio(
@@ -187,7 +208,10 @@
         <button
           type="button"
           class="btn-consulta-persona"
-          *ngIf="!edicionBloqueada"
+          *ngIf="
+            !edicionBloqueada
+            && !esBeneficiarioExistente(beneficiario)
+          "
           [disabled]="
             consultandoInformacionPersona
             || tipoDocumentoVacio(beneficiario)
@@ -244,8 +268,8 @@
             beneficiario.apellidoPaterno =
               convertirMayusculas($event)
           "
-          [readonly]="edicionBloqueada"
-          [class.bg-light]="edicionBloqueada"
+          [readonly]="bloquearIdentidadBeneficiario(beneficiario)"
+          [class.bg-light]="bloquearIdentidadBeneficiario(beneficiario)"
           [class.is-invalid]="
             intentoEnviar
             && campoVacio(
@@ -285,8 +309,8 @@
             beneficiario.apellidoMaterno =
               convertirMayusculas($event)
           "
-          [readonly]="edicionBloqueada"
-          [class.bg-light]="edicionBloqueada"
+          [readonly]="bloquearIdentidadBeneficiario(beneficiario)"
+          [class.bg-light]="bloquearIdentidadBeneficiario(beneficiario)"
           [class.is-invalid]="
             intentoEnviar
             && campoVacio(
@@ -326,8 +350,8 @@
             beneficiario.primerNombre =
               convertirMayusculas($event)
           "
-          [readonly]="edicionBloqueada"
-          [class.bg-light]="edicionBloqueada"
+          [readonly]="bloquearIdentidadBeneficiario(beneficiario)"
+          [class.bg-light]="bloquearIdentidadBeneficiario(beneficiario)"
           [class.is-invalid]="
             intentoEnviar
             && campoVacio(
@@ -367,8 +391,8 @@
             beneficiario.segundoNombre =
               convertirMayusculas($event)
           "
-          [readonly]="edicionBloqueada"
-          [class.bg-light]="edicionBloqueada">
+          [readonly]="bloquearIdentidadBeneficiario(beneficiario)"
+          [class.bg-light]="bloquearIdentidadBeneficiario(beneficiario)">
 
       </div>
 
@@ -386,8 +410,8 @@
           [(ngModel)]="beneficiario.porcentaje"
           [ngModelOptions]="{ standalone: true }"
           (input)="limpiarPorcentaje(beneficiario)"
-          [readonly]="edicionBloqueada"
-          [class.bg-light]="edicionBloqueada"
+          [readonly]="bloquearPorcentajeBeneficiario(beneficiario)"
+          [class.bg-light]="bloquearPorcentajeBeneficiario(beneficiario)"
           [class.is-invalid]="
             mostrarErrorPorcentajeBeneficiario(
               beneficiario
@@ -419,6 +443,23 @@
       *ngIf="!edicionBloqueada">
 
       <button
+        *ngIf="
+          modoActualizacionBeneficiarios
+          && esBeneficiarioExistente(beneficiario)
+        "
+        type="button"
+        class="btn-outline"
+        (click)="alternarEdicionPorcentaje(beneficiario)">
+
+        {{
+          porcentajeEnEdicion(beneficiario)
+            ? 'Guardar'
+            : 'Editar'
+        }}
+
+      </button>
+
+      <button
         type="button"
         class="
           btn-danger-small
@@ -426,7 +467,12 @@
         "
         (click)="quitar.emit(i)">
 
-        Quitar beneficiario
+        {{
+          modoActualizacionBeneficiarios
+            && esBeneficiarioExistente(beneficiario)
+              ? 'Eliminar'
+              : 'Quitar beneficiario'
+        }}
 
       </button>
 
@@ -435,7 +481,13 @@
   </section>
 
   <button
-    *ngIf="!edicionBloqueada"
+    *ngIf="
+      !edicionBloqueada
+      && (
+        !modoActualizacionBeneficiarios
+        || actualizacionBeneficiariosListaCargada
+      )
+    "
     type="button"
     class="btn-outline ancho-completo"
     (click)="agregar.emit()">
@@ -446,7 +498,10 @@
 
   <div
     class="botonera-pasos"
-    *ngIf="!pendienteBeneficiariosPara6012">
+    *ngIf="
+      !pendienteBeneficiariosPara6012
+      && !modoActualizacionBeneficiarios
+    ">
 
     <button
       type="button"
@@ -480,7 +535,10 @@
 
   <div
     class="botonera-pasos"
-    *ngIf="pendienteBeneficiariosPara6012">
+    *ngIf="
+      pendienteBeneficiariosPara6012
+      && !modoActualizacionBeneficiarios
+    ">
 
     <button
       type="button"
@@ -494,6 +552,38 @@
       (click)="confirmarBeneficiarios.emit()">
 
       Confirmar beneficiarios y continuar
+
+    </button>
+
+  </div>
+
+  <div
+    class="botonera-pasos"
+    *ngIf="modoActualizacionBeneficiarios">
+
+    <button
+      type="button"
+      class="btn-secundario"
+      (click)="volver.emit()">
+
+      Volver
+
+    </button>
+
+    <button
+      type="button"
+      class="btn-success"
+      [disabled]="
+        !actualizacionBeneficiariosListaCargada
+        || !beneficiariosValidosPara6012()
+      "
+      [class.btn-deshabilitado]="
+        !actualizacionBeneficiariosListaCargada
+        || !beneficiariosValidosPara6012()
+      "
+      (click)="confirmarBeneficiarios.emit()">
+
+      Confirmar actualización y continuar
 
     </button>
 

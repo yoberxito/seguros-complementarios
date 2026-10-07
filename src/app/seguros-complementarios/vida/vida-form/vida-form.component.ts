@@ -272,6 +272,20 @@ export class VidaFormComponent
       valor;
   }
 
+  get modoActualizacionBeneficiarios():
+    boolean {
+    return this.vidaTramiteStateService
+      .modoActualizacionBeneficiarios;
+  }
+
+  set modoActualizacionBeneficiarios(
+    valor: boolean
+  ) {
+    this.vidaTramiteStateService
+      .modoActualizacionBeneficiarios =
+      valor;
+  }
+
   get documentosPublicados(): boolean {
     return this.vidaTramiteStateService
       .documentosPublicados;
@@ -365,6 +379,12 @@ export class VidaFormComponent
 
   mostrarConfirmacionSinBeneficiarios = false;
   mostrarInvitacionBeneficiarios = false;
+
+  actualizacionBeneficiariosListaCargada =
+    false;
+
+  beneficiariosExistentesActualizacion:
+    string[] = [];
 
   /*
    * Habilita exclusivamente la pantalla visual
@@ -568,6 +588,9 @@ export class VidaFormComponent
 
     };
 
+    if (this.modoActualizacionBeneficiarios) {
+      this.prepararActualizacionBeneficiarios();
+    }
 
   }
   private escucharPasoDesdeRuta(): void {
@@ -724,6 +747,13 @@ export class VidaFormComponent
   private puedeAccederPasoDesdeRuta(
     paso: PasoFormulario
   ): boolean {
+    if (
+      this.modoActualizacionBeneficiarios
+      && paso === 'beneficiarios'
+    ) {
+      return !this.solicitudBloqueada;
+    }
+
     if (this.solicitudBloqueada) {
       if (paso === 'declaracion') {
         return true;
@@ -784,6 +814,10 @@ export class VidaFormComponent
   private persistirNavegacionActual(
     paso: PasoFormulario
   ): void {
+
+    if (this.modoActualizacionBeneficiarios) {
+      return;
+    }
 
     /*
      * En fase documental la navegación editable
@@ -1040,6 +1074,10 @@ export class VidaFormComponent
 
   programarGuardadoBorradorBeneficiarios():
     void {
+
+    if (this.modoActualizacionBeneficiarios) {
+      return;
+    }
 
     if (
       this.solicitudBloqueada
@@ -1746,20 +1784,21 @@ export class VidaFormComponent
 
             
             if (respuesta.dataCronogramaMasVida.tieneBeneficiarios) {
-               this.cuentaConMasVida = true;
+              this.cuentaConMasVida = true;
               this.mensajeSeguroComplementario =
               `El titular ya cuenta con +Vida Seguro de Accidentes registrado. 
              No corresponde una nueva afiliación${respuesta.dataCronogramaMasVida?.tipoSeguro
                 ? ` (${respuesta.dataCronogramaMasVida.tipoSeguro}).`
                 : '.'
               }`;
-              this.router.navigate(
+
+              void this.router.navigate(
                 ['/valida-seguro-mas-vida'],
                 { replaceUrl: true }
               );
-              
+            } else {
+              this.cuentaConMasVida = false;
             }
-             this.cuentaConMasVida = false;
 
 
           } else {
@@ -1913,6 +1952,23 @@ export class VidaFormComponent
     index: number
   ): void {
 
+    const beneficiarioEliminado =
+      this.form.beneficiarios[index];
+
+    if (
+      this.modoActualizacionBeneficiarios
+      && beneficiarioEliminado
+    ) {
+      const clave =
+        this.claveBeneficiarioActualizacion(
+          beneficiarioEliminado
+        );
+
+      this.beneficiariosExistentesActualizacion =
+        this.beneficiariosExistentesActualizacion
+          .filter(item => item !== clave);
+    }
+
     this.form.beneficiarios.splice(
       index,
       1
@@ -1928,6 +1984,230 @@ export class VidaFormComponent
 
     this
       .programarGuardadoBorradorBeneficiarios();
+  }
+
+  private claveBeneficiarioActualizacion(
+    beneficiario: Beneficiario
+  ): string {
+    return `${
+      (beneficiario.tipoDocumento || '').trim()
+    }|${
+      (beneficiario.numeroDocumento || '').trim()
+    }`;
+  }
+
+  private marcarBeneficiariosActualesComoExistentes():
+    void {
+    this.beneficiariosExistentesActualizacion =
+      this.form.beneficiarios
+        .filter(beneficiario =>
+          this.beneficiarioTieneDatos(
+            beneficiario
+          )
+        )
+        .map(beneficiario =>
+          this.claveBeneficiarioActualizacion(
+            beneficiario
+          )
+        );
+  }
+
+  private prepararActualizacionBeneficiarios():
+    void {
+    this.pendienteBeneficiariosPara6012 =
+      false;
+
+    this.solicitudBloqueada =
+      false;
+
+    this.documentosGenerados =
+      false;
+
+    this.tipoGeneracionDocumentos =
+      null;
+
+    this.pasoActual =
+      'beneficiarios';
+
+    this.cargarTiposDocumentoDesdeServicio();
+    this.precargarDatosLaboralesSimulados();
+    this.precargarEmpleadorEssalud();
+    this.obtenerTipoAseguradoTitularDesdeServicio();
+    this.consultarConyugeConcubino(true);
+
+    this.cargarBeneficiariosActualesParaActualizacion();
+  }
+
+  private cargarBeneficiariosActualesParaActualizacion():
+    void {
+    /*
+     * INTEGRACION YOBER - PUNTO 1
+     * ======================================================
+     * Conectar aquí el servicio que devuelva la última
+     * lista vigente de beneficiarios del asegurado.
+     *
+     * La respuesta NO debe reutilizar un proceso histórico.
+     * Después de mapear la lista a this.form.beneficiarios:
+     *
+     * this.marcarBeneficiariosActualesComoExistentes();
+     * this.actualizacionBeneficiariosListaCargada = true;
+     */
+
+    this.actualizacionBeneficiariosListaCargada =
+      false;
+
+    console.warn(
+      'Pendiente integrar servicio de beneficiarios actuales para actualización +Vida.'
+    );
+
+    this.mostrarAviso(
+      'No fue posible cargar los beneficiarios actuales en este momento.',
+      'advertencia',
+      'Beneficiarios no disponibles',
+      true
+    );
+  }
+
+  private confirmarActualizacionBeneficiarios():
+    void {
+    this.intentoEnviar =
+      true;
+
+    if (!this.actualizacionBeneficiariosListaCargada) {
+      this.mostrarAviso(
+        'Primero debe cargarse la lista vigente de beneficiarios.',
+        'advertencia',
+        'Beneficiarios no disponibles'
+      );
+
+      return;
+    }
+
+    if (!this.beneficiariosValidosPara6012()) {
+      this.mostrarAviso(
+        'Debe mantener al menos un beneficiario válido y distribuir exactamente el 100% para continuar.',
+        'advertencia',
+        'Beneficiarios incompletos'
+      );
+
+      return;
+    }
+
+    this.iniciarVerificacionOtp(
+      () =>
+        this.guardarActualizacionBeneficiarios()
+    );
+  }
+
+  private guardarActualizacionBeneficiarios():
+    void {
+    /*
+     * INTEGRACION YOBER - PUNTO 2
+     * ======================================================
+     * Este es el único punto que debe persistir la nueva
+     * composición de beneficiarios y crear/confirmar un
+     * NUEVO registroInternoProceso de actualización.
+     *
+     * El backend debe devolver el identificador del nuevo
+     * proceso y dejarlo listo para DOCUMENTOS.
+     *
+     * Cuando Yober entregue el contrato, al confirmar una
+     * respuesta correcta debe ejecutarse:
+     *
+     * this.confirmarActualizacionBeneficiariosGuardada(
+     *   respuesta.registroInternoProceso
+     * );
+     */
+
+    console.warn(
+      'Pendiente integrar servicio de registro de actualización de beneficiarios +Vida.'
+    );
+
+    this.mostrarAviso(
+      'No fue posible registrar la actualización de beneficiarios en este momento.',
+      'error',
+      'Actualización no registrada',
+      true
+    );
+  }
+
+  private confirmarActualizacionBeneficiariosGuardada(
+    registroInternoProceso: string
+  ): void {
+    const registro =
+      (registroInternoProceso || '').trim();
+
+    if (!registro) {
+      this.mostrarAviso(
+        'El backend no devolvió el identificador del nuevo trámite de actualización.',
+        'error',
+        'Proceso no confirmado',
+        true
+      );
+
+      return;
+    }
+
+    this.codigoSolicitud =
+      registro;
+
+    this.fechaGeneracionDocumentos =
+      new Date().toLocaleString('es-PE');
+
+    this.tipoGeneracionDocumentos =
+      'soloFormulario6012';
+
+    this.formulario6012Generado =
+      false;
+
+    this.documentosGenerados =
+      true;
+
+    this.solicitudBloqueada =
+      true;
+
+    this.seccionesGrabadas.beneficiarios =
+      true;
+
+    this.pasoActual =
+      'documentos';
+
+    this.intentoEnviar =
+      false;
+
+    this.scrollArriba();
+
+    this.mostrarAviso(
+      'La actualización fue registrada. Descargue el nuevo Formulario 6012 para continuar.',
+      'exito',
+      'Formulario preparado'
+    );
+  }
+
+  volverDesdeBeneficiarios(): void {
+    if (!this.modoActualizacionBeneficiarios) {
+      this.volverPaso();
+      return;
+    }
+
+    this.modoActualizacionBeneficiarios =
+      false;
+
+    this.vidaTramiteStateService
+      .pasoActual = 'titular';
+
+    this.codigoSolicitud =
+      '';
+
+    this.beneficiariosExistentesActualizacion =
+      [];
+
+    this.actualizacionBeneficiariosListaCargada =
+      false;
+
+    void this.router.navigate([
+      '/valida-seguro-mas-vida'
+    ]);
   }
 
   soloNumeros(valor: string): string {
@@ -4344,6 +4624,9 @@ export class VidaFormComponent
   }
 
   cerrarExito(): void {
+    this.modoActualizacionBeneficiarios =
+      false;
+
     this.cargarCasoNuevo();
   }
 
@@ -4463,6 +4746,12 @@ export class VidaFormComponent
     this.pendienteBeneficiariosPara6012 = false;
     this.mostrarConfirmacionSinBeneficiarios = false;
     this.mostrarInvitacionBeneficiarios = false;
+
+    this.actualizacionBeneficiariosListaCargada =
+      false;
+
+    this.beneficiariosExistentesActualizacion =
+      [];
 
     this.aceptaTerminosDeclaracion = false;
     this.aceptaTratamientoDatos = false;
@@ -4760,7 +5049,12 @@ export class VidaFormComponent
   }
 
   beneficiariosBloqueados(): boolean {
-    return this.solicitudBloqueada && !this.pendienteBeneficiariosPara6012;
+    if (this.modoActualizacionBeneficiarios) {
+      return this.solicitudBloqueada;
+    }
+
+    return this.solicitudBloqueada
+      && !this.pendienteBeneficiariosPara6012;
   }
 
   textoBotonGenerarDocumentos(): string {
@@ -6029,6 +6323,11 @@ export class VidaFormComponent
   }
 
   generarFormulario6012Pendiente(): void {
+
+    if (this.modoActualizacionBeneficiarios) {
+      this.confirmarActualizacionBeneficiarios();
+      return;
+    }
 
     this.intentoEnviar =
       true;
@@ -7433,6 +7732,11 @@ export class VidaFormComponent
     callbackContinuar: () => void,
     callbackError: () => void
   ): void {
+
+    if (this.modoActualizacionBeneficiarios) {
+      callbackContinuar();
+      return;
+    }
 
     const flujo =
       this.tipoGeneracionDocumentos;

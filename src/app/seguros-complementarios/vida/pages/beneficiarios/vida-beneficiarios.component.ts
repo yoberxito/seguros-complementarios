@@ -50,6 +50,18 @@ export class VidaBeneficiariosComponent {
   @Input()
   edicionBloqueada = false;
 
+  @Input()
+  modoActualizacionBeneficiarios = false;
+
+  @Input()
+  beneficiariosExistentesActualizacion: string[] = [];
+
+  @Input()
+  actualizacionBeneficiariosListaCargada = true;
+
+  private beneficiariosPorcentajeEnEdicion =
+    new Set<string>();
+
   @Output()
   borradorModificado =
     new EventEmitter<void>();
@@ -81,6 +93,89 @@ export class VidaBeneficiariosComponent {
   @Output()
   confirmarBeneficiarios =
     new EventEmitter<void>();
+
+  claveBeneficiario(
+    beneficiario: Beneficiario
+  ): string {
+    return `${
+      (beneficiario.tipoDocumento || '').trim()
+    }|${
+      (beneficiario.numeroDocumento || '').trim()
+    }`;
+  }
+
+  esBeneficiarioExistente(
+    beneficiario: Beneficiario
+  ): boolean {
+    if (!this.modoActualizacionBeneficiarios) {
+      return false;
+    }
+
+    return this
+      .beneficiariosExistentesActualizacion
+      .includes(
+        this.claveBeneficiario(beneficiario)
+      );
+  }
+
+  porcentajeEnEdicion(
+    beneficiario: Beneficiario
+  ): boolean {
+    return this
+      .beneficiariosPorcentajeEnEdicion
+      .has(
+        this.claveBeneficiario(beneficiario)
+      );
+  }
+
+  alternarEdicionPorcentaje(
+    beneficiario: Beneficiario
+  ): void {
+    const clave =
+      this.claveBeneficiario(beneficiario);
+
+    if (
+      this.beneficiariosPorcentajeEnEdicion
+        .has(clave)
+    ) {
+      this.beneficiariosPorcentajeEnEdicion
+        .delete(clave);
+
+      return;
+    }
+
+    this.beneficiariosPorcentajeEnEdicion
+      .add(clave);
+  }
+
+  bloquearIdentidadBeneficiario(
+    beneficiario: Beneficiario
+  ): boolean {
+    return this.edicionBloqueada
+      || this.esBeneficiarioExistente(
+        beneficiario
+      );
+  }
+
+  bloquearPorcentajeBeneficiario(
+    beneficiario: Beneficiario
+  ): boolean {
+    if (this.edicionBloqueada) {
+      return true;
+    }
+
+    if (
+      !this.esBeneficiarioExistente(
+        beneficiario
+      )
+    ) {
+      return false;
+    }
+
+    return !this.porcentajeEnEdicion(
+      beneficiario
+    );
+  }
 
   get sumaPorcentajes(): number {
     return this.form.beneficiarios.reduce(

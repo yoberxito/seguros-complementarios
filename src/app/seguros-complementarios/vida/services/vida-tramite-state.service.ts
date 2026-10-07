@@ -38,6 +38,8 @@ export class VidaTramiteStateService {
 
     pendienteBeneficiariosPara6012 = false;
 
+    modoActualizacionBeneficiarios = false;
+
     documentosPublicados = false;
 
 

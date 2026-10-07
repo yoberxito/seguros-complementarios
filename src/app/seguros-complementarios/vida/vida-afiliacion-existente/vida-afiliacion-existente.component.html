@@ -9,12 +9,24 @@
     </h1>
 
     <p class="vida-mensaje">
-      Si desea actualizar sus beneficiarios, realice el trámite
-      correspondiente mediante la OSPE.
+      Si desea modificar la distribución o registrar nuevos
+      beneficiarios, puede realizar la actualización en línea.
     </p>
 
-    <button type="button" class="vida-boton"  (click)="irAlEnlaceSomos()">
-      Volver al inicio
-    </button>
+    <div class="vida-acciones">
+      <button
+        type="button"
+        class="vida-boton"
+        (click)="iniciarActualizacionBeneficiarios()">
+        Actualizar beneficiarios
+      </button>
+
+      <button
+        type="button"
+        class="vida-boton vida-boton-secundario"
+        (click)="irAlEnlaceSomos()">
+        Volver al inicio
+      </button>
+    </div>
   </div>
 </section>
