@@ -67,6 +67,9 @@ export interface PersonaDocumento {
 
 export interface Beneficiario extends PersonaDocumento {
   porcentaje: string;
+  fechaNacimiento?: string;
+codSexo?: string;
+codEstadoCivil?: string;
 }
 
 export interface FormularioVida {

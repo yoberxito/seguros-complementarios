@@ -2035,6 +2035,7 @@ export class VidaFormComponent
     this.obtenerTipoAseguradoTitularDesdeServicio();
     this.consultarConyugeConcubino(true);
 
+   
     this.cargarBeneficiariosActualesParaActualizacion();
   }
 
@@ -2048,13 +2049,14 @@ export class VidaFormComponent
      *
      * La respuesta NO debe reutilizar un proceso histórico.
      * Después de mapear la lista a this.form.beneficiarios:
-     *
-     * this.marcarBeneficiariosActualesComoExistentes();
-     * this.actualizacionBeneficiariosListaCargada = true;
-     */
+     *  */
+    this.actualizacionBeneficiariosListaCargada;
+      this.marcarBeneficiariosActualesComoExistentes();
+    /* this.actualizacionBeneficiariosListaCargada = true;
+   
 
     this.actualizacionBeneficiariosListaCargada =
-      false;
+      false;*/
 
     console.warn(
       'Pendiente integrar servicio de beneficiarios actuales para actualización +Vida.'

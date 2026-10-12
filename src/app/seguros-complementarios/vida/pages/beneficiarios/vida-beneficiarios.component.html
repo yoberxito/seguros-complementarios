@@ -43,8 +43,7 @@
   <div
     class="alerta-neutral"
     *ngIf="
-      modoActualizacionBeneficiarios
-      && !actualizacionBeneficiariosListaCargada
+      !actualizacionBeneficiariosListaCargada
     ">
     No fue posible cargar todavía la lista actual de beneficiarios.
     La actualización permanecerá bloqueada hasta completar esa consulta.
@@ -581,7 +580,7 @@
         !actualizacionBeneficiariosListaCargada
         || !beneficiariosValidosPara6012()
       "
-      (click)="confirmarBeneficiarios.emit()">
+      (click)="confirmarActualizarBeneficiarios()">
 
       Confirmar actualización y continuar
 

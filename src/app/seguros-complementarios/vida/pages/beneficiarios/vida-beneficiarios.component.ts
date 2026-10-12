@@ -3,8 +3,10 @@ import { CommonModule } from '@angular/common';
 import {
   Component,
   EventEmitter,
+  inject,
   Input,
-  Output
+  Output,
+  signal
 } from '@angular/core';
 
 import { FormsModule } from '@angular/forms';
@@ -15,6 +17,10 @@ import {
   PersonaDocumento,
   TipoDocumento
 } from '../../models/vida-form.models';
+import { BeneficiarioService } from '../../services/beneficiario.service';
+import { IntegracionService } from 'src/app/seguros-complementarios/integracion/services/IntegracionService';
+import { Beneficiarios, BenfMasVIdaRes } from '../../models/beneficiarios';
+import { finalize } from 'rxjs';
 
 @Component({
   selector: 'app-vida-beneficiarios',
@@ -53,11 +59,18 @@ export class VidaBeneficiariosComponent {
   @Input()
   modoActualizacionBeneficiarios = false;
 
-  @Input()
+
   beneficiariosExistentesActualizacion: string[] = [];
 
-  @Input()
-  actualizacionBeneficiariosListaCargada = true;
+  
+  actualizacionBeneficiariosListaCargada = signal(false);
+actualizandoBeneficiarios = false;
+errorActualizacionBeneficiarios = '';
+mensajeActualizacionBeneficiarios = '';
+
+@Output()
+actualizacionBeneficiariosConfirmada =
+  new EventEmitter<void>();
 
   private beneficiariosPorcentajeEnEdicion =
     new Set<string>();
@@ -94,14 +107,76 @@ export class VidaBeneficiariosComponent {
   confirmarBeneficiarios =
     new EventEmitter<void>();
 
+  private readonly integracionService =
+    inject(IntegracionService);
+
+  constructor(
+    private beneficiarioService: BeneficiarioService
+  ) {
+  }
+
+  ngOnInit(): void {
+  if (!this.modoActualizacionBeneficiarios) {
+    return;
+  }
+
+  const contexto = this.integracionService.obtenerContexto();
+
+  if (!contexto?.tipoDocumento || !contexto?.numeroDocumento) {
+    this.errorActualizacionBeneficiarios =
+      'No se encontró la información del titular.';
+    return;
+  }
+
+  this.beneficiarioService.getBeneficiarios(
+    contexto.tipoDocumento,
+    contexto.numeroDocumento
+  ).subscribe({
+    next: (data: BenfMasVIdaRes) => {
+      if (data.codResultado !== '0') {
+        this.errorActualizacionBeneficiarios =
+          data.message || 'No se pudieron cargar los beneficiarios.';
+        return;
+      }
+
+      this.form.beneficiarios = (data.beneficiarios ?? []).map(b => {
+        const nombres = (b.nombres ?? '').trim().split(/\s+/);
+
+        return {
+          tipoDocumento: b.tpDocumento,
+          numeroDocumento: b.nroDocumento,
+          apellidoPaterno: b.apellidoPaterno,
+          apellidoMaterno: b.apellidoMaterno,
+          primerNombre: nombres[0] ?? '',
+          segundoNombre: nombres.slice(1).join(' '),
+          fechaNacimiento: b.fechaNacimiento,
+          codSexo: b.codSexo,
+          codEstadoCivil: b.codEstadoCivil,
+          porcentaje: String(b.porcentaje)
+        };
+      });
+
+      this.beneficiariosExistentesActualizacion =
+        this.form.beneficiarios.map(b =>
+          this.claveBeneficiario(b)
+        );
+
+      this.actualizacionBeneficiariosListaCargada.set(true);
+    },
+    error: (error) => {
+      this.errorActualizacionBeneficiarios =
+        error?.error?.mensaje ||
+        'Ocurrió un error al consultar los beneficiarios.';
+    }
+  });
+}
+
   claveBeneficiario(
     beneficiario: Beneficiario
   ): string {
-    return `${
-      (beneficiario.tipoDocumento || '').trim()
-    }|${
-      (beneficiario.numeroDocumento || '').trim()
-    }`;
+    return `${(beneficiario.tipoDocumento || '').trim()
+      }|${(beneficiario.numeroDocumento || '').trim()
+      }`;
   }
 
   esBeneficiarioExistente(
@@ -117,7 +192,98 @@ export class VidaBeneficiariosComponent {
         this.claveBeneficiario(beneficiario)
       );
   }
+confirmarActualizarBeneficiarios(): void {
+  console.log("Entra actualizar")
 
+  if (this.actualizandoBeneficiarios) {
+    return;
+  }
+
+  this.intentoEnviar = true;
+  this.errorActualizacionBeneficiarios = '';
+  this.mensajeActualizacionBeneficiarios = '';
+
+  // Validar que se haya cargado la lista
+  if (!this.actualizacionBeneficiariosListaCargada()) {
+    this.errorActualizacionBeneficiarios =
+      'No se pudo cargar la lista de beneficiarios.';
+    return;
+  }
+
+  // Validar beneficiarios y suma del 100%
+  if (!this.beneficiariosValidosPara6012()) {
+    this.errorActualizacionBeneficiarios =
+      'Verifique los datos de los beneficiarios. ' +
+      'La suma de porcentajes debe ser exactamente 100%.';
+    return;
+  }
+
+  const contexto = this.integracionService.obtenerContexto();
+
+  const tpDocTitular = contexto?.tipoDocumento;
+  const numDocTitular = contexto?.numeroDocumento;
+
+  if (!tpDocTitular || !numDocTitular) {
+    this.errorActualizacionBeneficiarios =
+      'No se encontró la información del titular.';
+    return;
+  }
+
+  // Convertir modelo del formulario al DTO del backend
+    console.log("Llega beneficiarios")
+
+  const listBeneficiarios: Beneficiarios[] =
+    this.form.beneficiarios.map(b => ({
+      tpDocumento: b.tipoDocumento,
+      nroDocumento: b.numeroDocumento,
+      apellidoPaterno: b.apellidoPaterno,
+      apellidoMaterno: b.apellidoMaterno,
+      nombres: [
+        b.primerNombre,
+        b.segundoNombre
+      ]
+        .filter(nombre => !!nombre?.trim())
+        .join(' '),
+      fechaNacimiento: b.fechaNacimiento ?? '',
+      codSexo: b.codSexo ?? '',
+      codEstadoCivil: b.codEstadoCivil ?? '',
+      porcentaje: String(b.porcentaje)
+    }));
+
+  this.actualizandoBeneficiarios = true;
+
+  this.beneficiarioService.updateBenefciarios(
+    tpDocTitular,
+    numDocTitular,
+    listBeneficiarios
+  )
+  .pipe(
+    finalize(() => {
+      this.actualizandoBeneficiarios = false;
+    })
+  )
+  .subscribe({
+    next: () => {
+      console.log("actualizados correctamente")
+      this.mensajeActualizacionBeneficiarios =
+        'Beneficiarios actualizados correctamente.';
+
+      this.actualizacionBeneficiariosConfirmada.emit();
+    },
+
+    error: (error) => {
+      console.error(
+        'Error al actualizar beneficiarios:',
+        error
+      );
+
+      this.errorActualizacionBeneficiarios =
+        error?.error?.mensaje ||
+        error?.error?.message ||
+        'No fue posible actualizar los beneficiarios.';
+    }
+  });
+}
   porcentajeEnEdicion(
     beneficiario: Beneficiario
   ): boolean {
@@ -215,14 +381,12 @@ export class VidaBeneficiariosComponent {
     }
 
     if (this.sumaPorcentajes < 100) {
-      return `Falta asignar ${
-        100 - this.sumaPorcentajes
-      }%.`;
+      return `Falta asignar ${100 - this.sumaPorcentajes
+        }%.`;
     }
 
-    return `El porcentaje excede el 100% por ${
-      this.sumaPorcentajes - 100
-    }%.`;
+    return `El porcentaje excede el 100% por ${this.sumaPorcentajes - 100
+      }%.`;
   }
 
   beneficiarioTieneDatos(
@@ -571,4 +735,6 @@ export class VidaBeneficiariosComponent {
   ): number {
     return index;
   }
+
+
 }
