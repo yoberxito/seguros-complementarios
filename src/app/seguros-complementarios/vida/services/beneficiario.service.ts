@@ -48,6 +48,23 @@ export class BeneficiarioService {
   );
 }
 
+/** Baja logica de beneficiario en el servicio existente de SAS. */
+deleteBeneficiario(
+  tpDocTitular: string,
+  numDocTitular: string,
+  tpDocBenefic: string,
+  numDocBenefic: string
+): Observable<void> {
+  const url = `${this.baseUrlSeguros}/informacion-beneficiario/delete-beneficiario`;
+  const params = new HttpParams()
+    .set('tpDocTitular', tpDocTitular)
+    .set('numDocTitular', numDocTitular)
+    .set('tpDocBenefic', tpDocBenefic)
+    .set('numDocBenefic', numDocBenefic);
+
+  return this.http.delete<void>(url, { params });
+}
+
     
   
 }

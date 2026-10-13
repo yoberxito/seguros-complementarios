@@ -1635,6 +1635,53 @@ iniciarProcesoVida(
     );
 }
 
+iniciarActualizacionBeneficiarios(
+  payload: IniciarProcesoVidaRequestLocal
+): Observable<IniciarProcesoVidaResponseLocal> {
+  return this.http
+    .post<
+      ApiResponseLocal<IniciarProcesoVidaResponseLocal>
+    >(
+      `${this.baseUrl}/procesos/progreso/iniciar-actualizacion-beneficiarios`,
+      payload
+    )
+    .pipe(
+      map(respuesta => {
+        const operacionCorrecta =
+          String(respuesta.codResultado).trim() === '1';
+
+        const registroInternoProceso =
+          respuesta.body
+            ?.registroInternoProceso
+            ?.trim()
+          || '';
+
+        if (
+          !operacionCorrecta
+          || !respuesta.body
+          || !registroInternoProceso
+        ) {
+          throw new Error(
+            respuesta.mensaje
+            || 'No fue posible iniciar la actualizacion de beneficiarios.'
+          );
+        }
+
+        return respuesta.body;
+      }),
+
+      catchError((error: unknown) => {
+        console.error(
+          'Error iniciando actualizacion de beneficiarios +Vida:',
+          error
+        );
+
+        return throwError(() => error);
+      })
+    );
+}
+
+
 recuperarAvanceProceso(
   registroInternoProceso: string
 ): Observable<RecuperarAvanceProcesoResponseLocal> {

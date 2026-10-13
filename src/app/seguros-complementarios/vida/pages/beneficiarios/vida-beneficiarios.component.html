@@ -43,10 +43,17 @@
   <div
     class="alerta-neutral"
     *ngIf="
-      !actualizacionBeneficiariosListaCargada
+      modoActualizacionBeneficiarios
+      && !actualizacionBeneficiariosListaCargada()
     ">
     No fue posible cargar todavía la lista actual de beneficiarios.
     La actualización permanecerá bloqueada hasta completar esa consulta.
+  </div>
+
+  <div
+    class="alerta-neutral"
+    *ngIf="modoActualizacionBeneficiarios && errorActualizacionBeneficiarios">
+    {{ errorActualizacionBeneficiarios }}
   </div>
 
   <div
@@ -484,7 +491,7 @@
       !edicionBloqueada
       && (
         !modoActualizacionBeneficiarios
-        || actualizacionBeneficiariosListaCargada
+        || actualizacionBeneficiariosListaCargada()
       )
     "
     type="button"
@@ -573,11 +580,11 @@
       type="button"
       class="btn-success"
       [disabled]="
-        !actualizacionBeneficiariosListaCargada
+        !actualizacionBeneficiariosListaCargada()
         || !beneficiariosValidosPara6012()
       "
       [class.btn-deshabilitado]="
-        !actualizacionBeneficiariosListaCargada
+        !actualizacionBeneficiariosListaCargada()
         || !beneficiariosValidosPara6012()
       "
       (click)="confirmarActualizarBeneficiarios()">

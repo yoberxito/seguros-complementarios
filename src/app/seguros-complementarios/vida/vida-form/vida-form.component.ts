@@ -108,6 +108,8 @@ import {
   VidaFinalizacionComponent
 } from '../pages/finalizacion/vida-finalizacion.component';
 import { IntegracionService } from '../../integracion/services/IntegracionService';
+import { BeneficiarioService } from '../services/beneficiario.service';
+import { Beneficiarios } from '../models/beneficiarios';
 import { ContextoUsuario } from '../../integracion/models/IntegracionModels';
 
 @Component({
@@ -164,6 +166,9 @@ export class VidaFormComponent
 
   private readonly integracionService =
     inject(IntegracionService);
+
+  private readonly beneficiarioSasService =
+    inject(BeneficiarioService);
 
   private readonly estadoBackendPorPaso:
     Record<PasoFormulario, string> = {
@@ -385,6 +390,12 @@ export class VidaFormComponent
 
   beneficiariosExistentesActualizacion:
     string[] = [];
+
+  // Copia inmutable de la lista vigente para diferenciar altas y bajas.
+  beneficiariosOriginalesActualizacion: Beneficiario[] = [];
+  preparandoActualizacionDocumental = false;
+  private actualizacionSasConfirmadaSesion = false;
+  private actualizandoSasBeneficiarios = false;
 
   /*
    * Habilita exclusivamente la pantalla visual
@@ -1952,22 +1963,8 @@ export class VidaFormComponent
     index: number
   ): void {
 
-    const beneficiarioEliminado =
-      this.form.beneficiarios[index];
-
-    if (
-      this.modoActualizacionBeneficiarios
-      && beneficiarioEliminado
-    ) {
-      const clave =
-        this.claveBeneficiarioActualizacion(
-          beneficiarioEliminado
-        );
-
-      this.beneficiariosExistentesActualizacion =
-        this.beneficiariosExistentesActualizacion
-          .filter(item => item !== clave);
-    }
+    // En actualizacion se conserva la lista original para calcular
+    // las bajas logicas SOLO despues del sellado del nuevo 6012.
 
     this.form.beneficiarios.splice(
       index,
@@ -2039,38 +2036,30 @@ export class VidaFormComponent
     this.cargarBeneficiariosActualesParaActualizacion();
   }
 
-  private cargarBeneficiariosActualesParaActualizacion():
-    void {
-    /*
-     * INTEGRACION YOBER - PUNTO 1
-     * ======================================================
-     * Conectar aquí el servicio que devuelva la última
-     * lista vigente de beneficiarios del asegurado.
-     *
-     * La respuesta NO debe reutilizar un proceso histórico.
-     * Después de mapear la lista a this.form.beneficiarios:
-     *  */
-    this.actualizacionBeneficiariosListaCargada;
-      this.marcarBeneficiariosActualesComoExistentes();
-    /* this.actualizacionBeneficiariosListaCargada = true;
-   
-
-    this.actualizacionBeneficiariosListaCargada =
-      false;*/
-
-    console.warn(
-      'Pendiente integrar servicio de beneficiarios actuales para actualización +Vida.'
-    );
-
-    this.mostrarAviso(
-      'No fue posible cargar los beneficiarios actuales en este momento.',
-      'advertencia',
-      'Beneficiarios no disponibles',
-      true
-    );
+  private cargarBeneficiariosActualesParaActualizacion(): void {
+    // VidaBeneficiariosComponent realiza el GET institucional.
+    this.actualizacionBeneficiariosListaCargada = false;
+    this.beneficiariosExistentesActualizacion = [];
+    this.beneficiariosOriginalesActualizacion = [];
+    this.actualizacionSasConfirmadaSesion = false;
+    this.actualizandoSasBeneficiarios = false;
+    this.form.beneficiarios = [];
+    this.codigoSolicitud = '';
   }
 
-  private confirmarActualizacionBeneficiarios():
+  onListaBeneficiariosCargada(lista: Beneficiario[]): void {
+    if (!this.modoActualizacionBeneficiarios) {
+      return;
+    }
+    this.beneficiariosOriginalesActualizacion =
+      lista.map(beneficiario => ({ ...beneficiario }));
+    this.actualizacionSasConfirmadaSesion = false;
+    this.actualizandoSasBeneficiarios = false;
+    this.actualizacionBeneficiariosListaCargada = true;
+    this.marcarBeneficiariosActualesComoExistentes();
+  }
+
+  confirmarActualizacionBeneficiarios():
     void {
     this.intentoEnviar =
       true;
@@ -2095,42 +2084,104 @@ export class VidaFormComponent
       return;
     }
 
+    // Documento (tipo + numero) identifica a cada beneficiario.
+    // No existe un limite funcional en la cantidad de beneficiarios.
+    const claves = this.beneficiariosRegistrados()
+      .map(b => this.claveBeneficiarioActualizacion(b));
+    if (new Set(claves).size !== claves.length) {
+      this.mostrarAviso(
+        'La lista contiene beneficiarios duplicados. Verifique los documentos.',
+        'advertencia',
+        'Beneficiarios duplicados'
+      );
+      return;
+    }
+
     this.iniciarVerificacionOtp(
       () =>
         this.guardarActualizacionBeneficiarios()
     );
   }
 
-  private guardarActualizacionBeneficiarios():
-    void {
-    /*
-     * INTEGRACION YOBER - PUNTO 2
-     * ======================================================
-     * Este es el único punto que debe persistir la nueva
-     * composición de beneficiarios y crear/confirmar un
-     * NUEVO registroInternoProceso de actualización.
-     *
-     * El backend debe devolver el identificador del nuevo
-     * proceso y dejarlo listo para DOCUMENTOS.
-     *
-     * Cuando Yober entregue el contrato, al confirmar una
-     * respuesta correcta debe ejecutarse:
-     *
-     * this.confirmarActualizacionBeneficiariosGuardada(
-     *   respuesta.registroInternoProceso
-     * );
-     */
-
-    console.warn(
-      'Pendiente integrar servicio de registro de actualización de beneficiarios +Vida.'
-    );
-
-    this.mostrarAviso(
-      'No fue posible registrar la actualización de beneficiarios en este momento.',
-      'error',
-      'Actualización no registrada',
-      true
-    );
+  private guardarActualizacionBeneficiarios(): void {
+    // Se ejecuta SOLO al confirmar OTP. No se actualiza SAS.
+    if (this.preparandoActualizacionDocumental) {
+      return;
+    }
+    if (!this.beneficiariosValidosPara6012()) {
+      this.mostrarAviso('Los beneficiarios deben completar el 100%.',
+        'advertencia', 'Beneficiarios incompletos', true);
+      return;
+    }
+    const payload: IniciarProcesoVidaRequestLocal = {
+      registroInternoProceso: this.codigoSolicitud.trim() || null,
+      tipoDocumentoTitular: this.form.titular.tipoDocumento,
+      descripcionOtroDocumentoTitular:
+        this.form.titular.otroTipoDocumento || null,
+      numeroDocumentoTitular: this.form.titular.numeroDocumento,
+      apellidoPaternoTitular: this.form.titular.apellidoPaterno,
+      apellidoMaternoTitular: this.form.titular.apellidoMaterno,
+      primerNombreTitular: this.form.titular.primerNombre,
+      segundoNombreTitular: this.form.titular.segundoNombre,
+      correo: this.form.correoViva,
+      celular: this.form.celular
+    };
+    this.preparandoActualizacionDocumental = true;
+    this.vidaApiService.iniciarActualizacionBeneficiarios(payload)
+      .subscribe({
+        next: proceso => {
+          const registro = (proceso.registroInternoProceso || '').trim();
+          if (!registro) {
+            this.preparandoActualizacionDocumental = false;
+            this.mostrarAviso('El backend no devolvio un proceso documental.',
+              'error', 'Proceso no disponible', true);
+            return;
+          }
+          // Guardar el ID antes del PUT para poder reintentar sobre el MISMO
+          // proceso si la comunicacion falla despues de crearlo.
+          this.codigoSolicitud = registro;
+          const beneficiarios: BeneficiarioProgresoRequestLocal[] =
+            this.beneficiariosRegistrados().map(b => ({
+              tipoDocumento: b.tipoDocumento.trim(),
+              descripcionOtroDocumento: b.tipoDocumento !== '01'
+                && b.tipoDocumento !== '04'
+                  ? (b.otroTipoDocumento ||
+                    this.getDescripcionTipoDocumento(b.tipoDocumento) || null)
+                  : null,
+              numeroDocumento: b.numeroDocumento,
+              apellidoPaterno: b.apellidoPaterno,
+              apellidoMaterno: b.apellidoMaterno,
+              primerNombre: b.primerNombre,
+              segundoNombre: b.segundoNombre,
+              porcentaje: Number(b.porcentaje)
+            }));
+          this.vidaApiService.guardarBeneficiariosProgreso(
+            registro, { beneficiarios }
+          ).subscribe({
+            next: guardado => {
+              this.preparandoActualizacionDocumental = false;
+              if (guardado.codigoEstadoNavegacion !== 'DOCUMENTOS') {
+                this.mostrarAviso('El backend no confirmo la etapa Documentos.',
+                  'error', 'Transicion pendiente', true);
+                return;
+              }
+              this.confirmarActualizacionBeneficiariosGuardada(registro);
+            },
+            error: error => {
+              this.preparandoActualizacionDocumental = false;
+              console.error('Error guardando propuesta documental:', error);
+              this.mostrarAviso('No se guardo la composicion propuesta. Reintente sin cerrar el tramite.',
+                'error', 'Guardado pendiente', true);
+            }
+          });
+        },
+        error: error => {
+          this.preparandoActualizacionDocumental = false;
+          console.error('Error preparando actualizacion documental:', error);
+          this.mostrarAviso('No fue posible preparar el nuevo Formulario 6012.',
+            'error', 'Proceso no disponible', true);
+        }
+      });
   }
 
   private confirmarActualizacionBeneficiariosGuardada(
@@ -2180,7 +2231,7 @@ export class VidaFormComponent
     this.scrollArriba();
 
     this.mostrarAviso(
-      'La actualización fue registrada. Descargue el nuevo Formulario 6012 para continuar.',
+      'La propuesta fue guardada. Descargue el nuevo Formulario 6012 para continuar.',
       'exito',
       'Formulario preparado'
     );
@@ -4734,6 +4785,9 @@ export class VidaFormComponent
     this.sasAutorizacionRegistradoSesion = false;
     this.sasFormulario6012RegistradoSesion = false;
     this.sasCompletoRegistradoSesion = false;
+    this.actualizacionSasConfirmadaSesion = false;
+    this.actualizandoSasBeneficiarios = false;
+    this.beneficiariosOriginalesActualizacion = [];
 
     this.enviandoCorreoExito = false;
 
@@ -8765,11 +8819,244 @@ export class VidaFormComponent
   }
 
 
+  /**
+   * Confirma en SAS la composicion del 6012 validado y sellado.
+   * PUT existente: porcentajes y altas; DELETE: bajas logicas.
+   * Los GET anteriores y posteriores protegen contra cambios concurrentes
+   * y permiten retomar una operacion interrumpida, sin publicar por error.
+   * IMPORTANTE: PUT+DELETE NO son una transaccion atomica entre servicios.
+   */
+  private confirmarBeneficiariosSasAntesDeDrive(
+    callbackContinuar: () => void,
+    callbackError: () => void
+  ): void {
+    if (this.actualizacionSasConfirmadaSesion) {
+      callbackContinuar();
+      return;
+    }
+    if (this.actualizandoSasBeneficiarios) { return; }
+
+    const rechazar = (mensaje: string): void => {
+      this.actualizandoSasBeneficiarios = false;
+      this.mensajeErrorCierre = mensaje;
+      callbackError();
+    };
+
+    if (
+      !this.codigoSolicitud.trim()
+      || this.tipoGeneracionDocumentos !== 'soloFormulario6012'
+      || !this.documentosValidadosBackend
+      || !this.formulario6012ValidadoBackend
+      || !this.formulario6012Sellado
+      || !this.archivoSelladoFormulario6012
+      || !this.idDocumentoSelladoFormulario6012
+    ) {
+      rechazar('La actualizacion de SAS exige un 6012 validado y sellado.');
+      return;
+    }
+    if (!this.beneficiariosValidosPara6012()) {
+      rechazar('Los porcentajes de beneficiarios deben sumar exactamente 100%.');
+      return;
+    }
+
+    const tpTitular = (this.form.titular.tipoDocumento || '').trim();
+    const nrTitular = (this.form.titular.numeroDocumento || '').trim();
+    if (!tpTitular || !nrTitular) {
+      rechazar('No se pudo identificar al titular ante SAS.');
+      return;
+    }
+    const convertir = (b: Beneficiario): Beneficiarios => ({
+      tpDocumento: (b.tipoDocumento || '').trim(),
+      nroDocumento: (b.numeroDocumento || '').trim(),
+      apellidoPaterno: b.apellidoPaterno || '',
+      apellidoMaterno: b.apellidoMaterno || '',
+      nombres: [b.primerNombre, b.segundoNombre]
+        .filter(x => !!x?.trim()).join(' '),
+      fechaNacimiento: b.fechaNacimiento || '',
+      codSexo: b.codSexo || '',
+      codEstadoCivil: b.codEstadoCivil || '',
+      porcentaje: String(b.porcentaje)
+    });
+
+    // La propuesta es la misma lista bloqueada para generar el 6012.
+    const propuestos = this.beneficiariosRegistrados().map(convertir);
+    const originales = this.beneficiariosOriginalesActualizacion.map(convertir);
+    const clave = (b: Beneficiarios): string =>
+      `${(b.tpDocumento || '').trim()}|${(b.nroDocumento || '').trim()}`;
+    const listaClaves = (a: Beneficiarios[]): string[] => a.map(clave).sort();
+    const mismasClaves = (a: string[], b: string[]): boolean =>
+      a.length === b.length && a.every((k, i) => k === b[i]);
+    const sinDuplicados = (a: Beneficiarios[]): boolean =>
+      a.every(x => !!(x.tpDocumento || '').trim() && !!(x.nroDocumento || '').trim())
+      && new Set(a.map(clave)).size === a.length;
+    const pctIgual = (a: Beneficiarios, b: Beneficiarios): boolean => {
+      const n = Number(a.porcentaje);
+      const m = Number(b.porcentaje);
+      return Number.isFinite(n) && Number.isFinite(m) && Math.abs(n - m) < 0.000001;
+    };
+    const mismaComposicion = (a: Beneficiarios[], b: Beneficiarios[]): boolean => {
+      if (!mismasClaves(listaClaves(a), listaClaves(b))) { return false; }
+      const mapa = new Map(b.map(x => [clave(x), x]));
+      return a.every(x => {
+        const otro = mapa.get(clave(x));
+        return !!otro && pctIgual(x, otro);
+      });
+    };
+
+    if (!propuestos.length || !sinDuplicados(propuestos) || !sinDuplicados(originales)) {
+      rechazar('No hay una composicion valida o existen beneficiarios duplicados.');
+      return;
+    }
+
+    const clavesPropuestos = new Set(propuestos.map(clave));
+    const eliminados = originales.filter(x => !clavesPropuestos.has(clave(x)));
+
+    // Estado intermedio valido si PUT termino y aun quedan bajas pendientes.
+    // Nunca aceptar personas ajenas a las dos listas ni porcentajes alterados.
+    const estadoDespuesDePut = (sas: Beneficiarios[]): boolean => {
+      if (!sinDuplicados(sas)) { return false; }
+      const mapa = new Map(sas.map(x => [clave(x), x]));
+      if (!propuestos.every(x => {
+        const y = mapa.get(clave(x));
+        return !!y && pctIgual(y, x);
+      })) { return false; }
+      const mapaOriginal = new Map(originales.map(x => [clave(x), x]));
+      return sas.every(x => {
+        const k = clave(x);
+        if (clavesPropuestos.has(k)) { return true; }
+        const previo = mapaOriginal.get(k);
+        return !!previo && pctIgual(x, previo);
+      });
+    };
+
+    this.actualizandoSasBeneficiarios = true;
+
+    const verificarFinal = (): void => {
+      this.beneficiarioSasService.getBeneficiarios(tpTitular, nrTitular)
+        .subscribe({
+          next: resultado => {
+            if (
+              resultado.codResultado !== '0'
+              || !Array.isArray(resultado.beneficiarios)
+              || !mismaComposicion(resultado.beneficiarios, propuestos)
+            ) {
+              rechazar('SAS no refleja exactamente el nuevo 6012. No se publicara en Drive.');
+              return;
+            }
+            this.actualizandoSasBeneficiarios = false;
+            this.actualizacionSasConfirmadaSesion = true;
+            callbackContinuar();
+          },
+          error: () => rechazar('No se pudo confirmar el resultado en SAS. Drive pendiente.')
+        });
+    };
+
+    // Bajas secuenciales: permite conocer en que punto se interrumpio.
+    const ejecutarBajas = (pendientes: Beneficiarios[], index: number): void => {
+      if (index >= pendientes.length) {
+        verificarFinal();
+        return;
+      }
+      const beneficiario = pendientes[index];
+      this.beneficiarioSasService.deleteBeneficiario(
+        tpTitular, nrTitular, beneficiario.tpDocumento, beneficiario.nroDocumento
+      ).subscribe({
+        next: () => ejecutarBajas(pendientes, index + 1),
+        error: () => rechazar(
+          'No se confirmo una baja logica en SAS. La operacion pudo quedar parcial; ' +
+          'no se publicara en Drive. Verifique la lista antes de reintentar.'
+        )
+      });
+    };
+
+    const confirmarPutYBajas = (sas: Beneficiarios[]): void => {
+      if (!estadoDespuesDePut(sas)) {
+        rechazar('SAS no confirmo todas las altas y porcentajes. Drive pendiente.');
+        return;
+      }
+      // No repetir bajas ya completadas en un intento previo.
+      const clavesSas = new Set(sas.map(clave));
+      const pendientes = eliminados.filter(x => clavesSas.has(clave(x)));
+      ejecutarBajas(pendientes, 0);
+    };
+
+    const consultarDespuesPut = (): void => {
+      this.beneficiarioSasService.getBeneficiarios(tpTitular, nrTitular)
+        .subscribe({
+          next: r => {
+            if (r.codResultado !== '0' || !Array.isArray(r.beneficiarios)) {
+              rechazar('No se pudo verificar el PUT en SAS. Drive pendiente.');
+              return;
+            }
+            confirmarPutYBajas(r.beneficiarios);
+          },
+          error: () => rechazar('PUT ejecutado, pero SAS no pudo verificarse. Drive pendiente.')
+        });
+    };
+
+    this.beneficiarioSasService.getBeneficiarios(tpTitular, nrTitular)
+      .subscribe({
+        next: r => {
+          if (r.codResultado !== '0' || !Array.isArray(r.beneficiarios)) {
+            rechazar('No se pudo consultar la lista actual de SAS.');
+            return;
+          }
+          const vigente = r.beneficiarios;
+          if (!sinDuplicados(vigente)) {
+            rechazar('La nomina vigente de SAS contiene documentos duplicados o invalidos.');
+            return;
+          }
+          if (mismaComposicion(vigente, propuestos)) {
+            this.actualizandoSasBeneficiarios = false;
+            this.actualizacionSasConfirmadaSesion = true;
+            callbackContinuar();
+            return;
+          }
+          // Reanudacion despues de PUT o de una parte de las bajas.
+          if (estadoDespuesDePut(vigente)) {
+            confirmarPutYBajas(vigente);
+            return;
+          }
+          // Nunca sobrescribir modificaciones concurrentes desde la consulta inicial.
+          if (!mismaComposicion(vigente, originales)) {
+            rechazar('La nomina de SAS cambio durante el tramite. No se sobrescribio.');
+            return;
+          }
+          this.beneficiarioSasService.updateBenefciarios(
+            tpTitular, nrTitular, propuestos
+          ).subscribe({
+            next: () => consultarDespuesPut(),
+            error: () => rechazar(
+              'El PUT de SAS no fue confirmado. Compruebe la nomina antes de reintentar.'
+            )
+          });
+        },
+        error: () => rechazar('No se pudo consultar SAS antes de actualizar.')
+      });
+  }
+
   subirDocumentoSelladoDriveDesdeServicio(
     tipoDocumento: TipoDocumentoFirmado,
     callbackExito: () => void,
     callbackError: () => void
   ): void {
+    if (this.modoActualizacionBeneficiarios) {
+      if (tipoDocumento !== 'formulario6012') {
+        this.mensajeErrorCierre =
+          'La actualizacion de beneficiarios no debe publicar una Autorizacion 247.';
+        callbackError();
+        return;
+      }
+      if (!this.actualizacionSasConfirmadaSesion) {
+        this.confirmarBeneficiariosSasAntesDeDrive(
+          () => this.subirDocumentoSelladoDriveDesdeServicio(
+            tipoDocumento, callbackExito, callbackError
+          ),
+          callbackError
+        );
+        return;
+      }
+    }
 
     const esFormulario6012 =
       tipoDocumento ===

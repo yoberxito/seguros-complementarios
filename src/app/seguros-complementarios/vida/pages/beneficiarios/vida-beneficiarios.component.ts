@@ -19,8 +19,7 @@ import {
 } from '../../models/vida-form.models';
 import { BeneficiarioService } from '../../services/beneficiario.service';
 import { IntegracionService } from 'src/app/seguros-complementarios/integracion/services/IntegracionService';
-import { Beneficiarios, BenfMasVIdaRes } from '../../models/beneficiarios';
-import { finalize } from 'rxjs';
+import { BenfMasVIdaRes } from '../../models/beneficiarios';
 
 @Component({
   selector: 'app-vida-beneficiarios',
@@ -69,8 +68,12 @@ errorActualizacionBeneficiarios = '';
 mensajeActualizacionBeneficiarios = '';
 
 @Output()
-actualizacionBeneficiariosConfirmada =
+solicitarConfirmacionActualizacion =
   new EventEmitter<void>();
+
+@Output()
+listaActualizacionCargada =
+  new EventEmitter<Beneficiario[]>();
 
   private beneficiariosPorcentajeEnEdicion =
     new Set<string>();
@@ -162,6 +165,9 @@ actualizacionBeneficiariosConfirmada =
         );
 
       this.actualizacionBeneficiariosListaCargada.set(true);
+      this.listaActualizacionCargada.emit(
+        this.form.beneficiarios.map(b => ({ ...b }))
+      );
     },
     error: (error) => {
       this.errorActualizacionBeneficiarios =
@@ -193,97 +199,25 @@ actualizacionBeneficiariosConfirmada =
       );
   }
 confirmarActualizarBeneficiarios(): void {
-  console.log("Entra actualizar")
-
-  if (this.actualizandoBeneficiarios) {
-    return;
-  }
-
-  this.intentoEnviar = true;
-  this.errorActualizacionBeneficiarios = '';
-  this.mensajeActualizacionBeneficiarios = '';
-
-  // Validar que se haya cargado la lista
-  if (!this.actualizacionBeneficiariosListaCargada()) {
-    this.errorActualizacionBeneficiarios =
-      'No se pudo cargar la lista de beneficiarios.';
-    return;
-  }
-
-  // Validar beneficiarios y suma del 100%
-  if (!this.beneficiariosValidosPara6012()) {
-    this.errorActualizacionBeneficiarios =
-      'Verifique los datos de los beneficiarios. ' +
-      'La suma de porcentajes debe ser exactamente 100%.';
-    return;
-  }
-
-  const contexto = this.integracionService.obtenerContexto();
-
-  const tpDocTitular = contexto?.tipoDocumento;
-  const numDocTitular = contexto?.numeroDocumento;
-
-  if (!tpDocTitular || !numDocTitular) {
-    this.errorActualizacionBeneficiarios =
-      'No se encontró la información del titular.';
-    return;
-  }
-
-  // Convertir modelo del formulario al DTO del backend
-    console.log("Llega beneficiarios")
-
-  const listBeneficiarios: Beneficiarios[] =
-    this.form.beneficiarios.map(b => ({
-      tpDocumento: b.tipoDocumento,
-      nroDocumento: b.numeroDocumento,
-      apellidoPaterno: b.apellidoPaterno,
-      apellidoMaterno: b.apellidoMaterno,
-      nombres: [
-        b.primerNombre,
-        b.segundoNombre
-      ]
-        .filter(nombre => !!nombre?.trim())
-        .join(' '),
-      fechaNacimiento: b.fechaNacimiento ?? '',
-      codSexo: b.codSexo ?? '',
-      codEstadoCivil: b.codEstadoCivil ?? '',
-      porcentaje: String(b.porcentaje)
-    }));
-
-  this.actualizandoBeneficiarios = true;
-
-  this.beneficiarioService.updateBenefciarios(
-    tpDocTitular,
-    numDocTitular,
-    listBeneficiarios
-  )
-  .pipe(
-    finalize(() => {
-      this.actualizandoBeneficiarios = false;
-    })
-  )
-  .subscribe({
-    next: () => {
-      console.log("actualizados correctamente")
-      this.mensajeActualizacionBeneficiarios =
-        'Beneficiarios actualizados correctamente.';
-
-      this.actualizacionBeneficiariosConfirmada.emit();
-    },
-
-    error: (error) => {
-      console.error(
-        'Error al actualizar beneficiarios:',
-        error
-      );
-
-      this.errorActualizacionBeneficiarios =
-        error?.error?.mensaje ||
-        error?.error?.message ||
-        'No fue posible actualizar los beneficiarios.';
+    if (!this.modoActualizacionBeneficiarios || this.edicionBloqueada) {
+      return;
     }
-  });
-}
+    this.intentoEnviar = true;
+    this.errorActualizacionBeneficiarios = '';
+    if (!this.actualizacionBeneficiariosListaCargada()) {
+      this.errorActualizacionBeneficiarios =
+        'Primero debe cargarse la lista vigente de beneficiarios.';
+      return;
+    }
+    if (!this.beneficiariosValidosPara6012()) {
+      this.errorActualizacionBeneficiarios =
+        'Verifique los beneficiarios: los porcentajes deben sumar 100%.';
+      return;
+    }
+    // La modificacion de SAS se difiere hasta validar y sellar el 6012.
+    this.solicitarConfirmacionActualizacion.emit();
+  }
+
   porcentajeEnEdicion(
     beneficiario: Beneficiario
   ): boolean {
