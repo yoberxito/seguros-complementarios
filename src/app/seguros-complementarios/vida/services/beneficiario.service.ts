@@ -4,6 +4,11 @@ import { catchError, Observable, throwError } from 'rxjs';
 import { Beneficiarios, BenfMasVIdaRes } from '../models/beneficiarios';
 import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
 
+export interface RespuestaBajaBeneficiarioSas {
+  flagResultado: string;
+  mensaje: string;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -54,7 +59,7 @@ deleteBeneficiario(
   numDocTitular: string,
   tpDocBenefic: string,
   numDocBenefic: string
-): Observable<void> {
+): Observable<RespuestaBajaBeneficiarioSas> {
   const url = `${this.baseUrlSeguros}/informacion-beneficiario/delete-beneficiario`;
   const params = new HttpParams()
     .set('tpDocTitular', tpDocTitular)
@@ -62,7 +67,7 @@ deleteBeneficiario(
     .set('tpDocBenefic', tpDocBenefic)
     .set('numDocBenefic', numDocBenefic);
 
-  return this.http.put<void>(url, null, { params });
+  return this.http.put<RespuestaBajaBeneficiarioSas>(url, null, { params });
 }
 
     

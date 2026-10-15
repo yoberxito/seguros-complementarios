@@ -2040,30 +2040,98 @@ export class VidaFormComponent
       tpBenef,
       nrBenef
     ).subscribe({
-      next: () => {
+      next: resultadoPut => {
+        const flag = resultadoPut?.flagResultado?.trim();
+
+        if (flag === '1') {
+          this.eliminandoBeneficiarioSas = false;
+          this.actualizacionBeneficiariosListaCargada = false;
+
+          this.mostrarAviso(
+            (resultadoPut.mensaje || '').trim() ||
+              'No se pudo registrar la baja del beneficiario.',
+            'advertencia',
+            'Baja no confirmada'
+          );
+          return;
+        }
+
+        if (flag !== '0') {
+          bloquearPorIncertidumbre(
+            'El servicio no devolvio una confirmacion valida de la baja.'
+          );
+          return;
+        }
+
         this.beneficiarioSasService.getBeneficiarios(
           tpTitular,
           nrTitular
         ).subscribe({
           next: respuesta => {
-            if (
-              respuesta.codResultado !== '0'
-              || !Array.isArray(respuesta.beneficiarios)
-            ) {
+            const restantesEsperados =
+              this.beneficiariosOriginalesActualizacion.filter(
+                b => this.claveBeneficiarioActualizacion(b) !== clave
+              );
+
+            const listaNormal =
+              respuesta.codResultado === '0' &&
+              Array.isArray(respuesta.beneficiarios);
+
+            const listaVacia =
+              respuesta.codResultado === '1' &&
+              respuesta.beneficiarios === null &&
+              (respuesta.message || '').trim() ===
+                'No cuenta con beneficiarios registrados' &&
+              restantesEsperados.length === 0;
+
+            if (!listaNormal && !listaVacia) {
               bloquearPorIncertidumbre(
                 'No se pudo comprobar la baja. Recargue el tramite antes de reintentar.'
               );
               return;
             }
 
-            const sigueEnSas = respuesta.beneficiarios.some(b => (
+            const vigentes = listaNormal
+              ? (respuesta.beneficiarios ?? [])
+              : [];
+
+            const mapaRestantes = new Map<string, Beneficiario>();
+
+            restantesEsperados.forEach(b => {
+              mapaRestantes.set(
+                this.claveBeneficiarioActualizacion(b), b
+              );
+            });
+
+            const clavesVigentes = vigentes.map(b =>
               (b.tpDocumento || '').trim() + '|' +
               (b.nroDocumento || '').trim()
-            ) === clave);
+            );
 
-            if (sigueEnSas) {
+            const conjuntoValido =
+              restantesEsperados.length ===
+                this.beneficiariosOriginalesActualizacion.length - 1 &&
+              mapaRestantes.size === restantesEsperados.length &&
+              vigentes.length === restantesEsperados.length &&
+              new Set(clavesVigentes).size === clavesVigentes.length &&
+              vigentes.every(b => {
+                const llave =
+                  (b.tpDocumento || '').trim() + '|' +
+                  (b.nroDocumento || '').trim();
+
+                const anterior = mapaRestantes.get(llave);
+                const actualPct = Number(b.porcentaje);
+                const anteriorPct = Number(anterior?.porcentaje);
+
+                return !!anterior &&
+                  Number.isFinite(actualPct) &&
+                  Number.isFinite(anteriorPct) &&
+                  Math.abs(actualPct - anteriorPct) < 0.000001;
+              });
+
+            if (!conjuntoValido) {
               bloquearPorIncertidumbre(
-                'La base de datos todavia muestra al beneficiario. Recargue la lista antes de continuar.'
+                'La lista de beneficiarios no coincide con la esperada. Recargue antes de continuar.'
               );
               return;
             }
@@ -2084,7 +2152,7 @@ export class VidaFormComponent
             quitarLocal();
 
             this.mostrarAviso(
-              'La baja se registró. Complete la actualizacion documental para generar el nuevo 6012.',
+              ((resultadoPut.mensaje || '').trim() || 'La baja se registró.') + ' Complete la actualización documental para generar el nuevo 6012.',
               'advertencia',
               'Baja registrada'
             );
@@ -9077,7 +9145,19 @@ export class VidaFormComponent
       this.beneficiarioSasService.deleteBeneficiario(
         tpTitular, nrTitular, beneficiario.tpDocumento, beneficiario.nroDocumento
       ).subscribe({
-        next: () => ejecutarBajas(pendientes, index + 1),
+        next: resultadoPut => {
+          if (resultadoPut?.flagResultado?.trim() !== '0') {
+            const mensaje = (resultadoPut?.mensaje || '').trim();
+
+            rechazar(
+              (mensaje || 'El servicio no confirmo la baja logica.') +
+              ' Drive pendiente. Verifique SAS antes de reintentar.'
+            );
+            return;
+          }
+
+          ejecutarBajas(pendientes, index + 1);
+        },
         error: () => rechazar(
           'No se confirmo una baja logica en SAS. La operacion pudo quedar parcial; ' +
           'no se publicara en Drive. Verifique la lista antes de reintentar.'
@@ -9113,11 +9193,24 @@ export class VidaFormComponent
     this.beneficiarioSasService.getBeneficiarios(tpTitular, nrTitular)
       .subscribe({
         next: r => {
-          if (r.codResultado !== '0' || !Array.isArray(r.beneficiarios)) {
+          const sinBeneficiariosSas =
+            originales.length === 0 &&
+            r.codResultado === '1' &&
+            r.beneficiarios === null &&
+            (r.message || '').trim() ===
+              'No cuenta con beneficiarios registrados';
+
+          if (
+            !sinBeneficiariosSas &&
+            (r.codResultado !== '0' || !Array.isArray(r.beneficiarios))
+          ) {
             rechazar('No se pudo consultar la lista actual de SAS.');
             return;
           }
-          const vigente = r.beneficiarios;
+
+          const vigente = sinBeneficiariosSas
+            ? []
+            : (r.beneficiarios ?? []);
           if (!sinDuplicados(vigente)) {
             rechazar('La nomina vigente de SAS contiene documentos duplicados o invalidos.');
             return;
