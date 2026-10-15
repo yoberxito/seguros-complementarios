@@ -396,6 +396,7 @@ export class VidaFormComponent
   preparandoActualizacionDocumental = false;
   private actualizacionSasConfirmadaSesion = false;
   private actualizandoSasBeneficiarios = false;
+  private eliminandoBeneficiarioSas = false;
 
   /*
    * Habilita exclusivamente la pantalla visual
@@ -1959,30 +1960,146 @@ export class VidaFormComponent
       .programarGuardadoBorradorBeneficiarios();
   }
 
-  quitarBeneficiario(
-    index: number
-  ): void {
+  quitarBeneficiario(index: number): void {
+    const beneficiario = this.form.beneficiarios[index];
+    if (!beneficiario) { return; }
 
-    // En actualizacion se conserva la lista original para calcular
-    // las bajas logicas SOLO despues del sellado del nuevo 6012.
+    const quitarLocal = (): void => {
+      const posicion = this.form.beneficiarios.indexOf(beneficiario);
+      if (posicion < 0) { return; }
 
-    this.form.beneficiarios.splice(
-      index,
-      1
-    );
+      this.form.beneficiarios.splice(posicion, 1);
 
-    if (
-      this.form.beneficiarios.length === 0
-      && this.pasoActual ===
-      'beneficiarios'
-    ) {
-      this.asegurarBeneficiarioInicial();
+      if (
+        this.form.beneficiarios.length === 0
+        && this.pasoActual === 'beneficiarios'
+      ) {
+        this.asegurarBeneficiarioInicial();
+      }
+
+      this.programarGuardadoBorradorBeneficiarios();
+    };
+
+    if (!this.modoActualizacionBeneficiarios) {
+      quitarLocal();
+      return;
     }
 
-    this
-      .programarGuardadoBorradorBeneficiarios();
-  }
+    const clave = this.claveBeneficiarioActualizacion(beneficiario);
 
+    if (!this.beneficiariosExistentesActualizacion.includes(clave)) {
+      quitarLocal();
+      return;
+    }
+
+    if (
+      this.eliminandoBeneficiarioSas
+      || this.actualizandoSasBeneficiarios
+      || !this.actualizacionBeneficiariosListaCargada
+    ) {
+      return;
+    }
+
+    const tpTitular = (this.form.titular.tipoDocumento || '').trim();
+    const nrTitular = (this.form.titular.numeroDocumento || '').trim();
+
+    const tpBenef = (beneficiario.tipoDocumento || '').trim();
+    const nrBenef = (beneficiario.numeroDocumento || '').trim();
+
+    if (!tpTitular || !nrTitular || !tpBenef || !nrBenef) {
+      this.mostrarAviso(
+        'No fue posible identificar al titular o beneficiario.',
+        'advertencia',
+        'Datos incompletos'
+      );
+      return;
+    }
+
+    if (!window.confirm(
+      'La baja se registrara inmediatamente en SAS, antes de firmar ' +
+      'el nuevo Formulario 6012. ¿Desea continuar?'
+    )) {
+      return;
+    }
+
+    const bloquearPorIncertidumbre = (mensaje: string): void => {
+      this.eliminandoBeneficiarioSas = false;
+      this.actualizacionBeneficiariosListaCargada = false;
+
+      this.mostrarAviso(
+        mensaje,
+        'advertencia',
+        'Verifique el estado en SAS'
+      );
+    };
+
+    this.eliminandoBeneficiarioSas = true;
+
+    this.beneficiarioSasService.deleteBeneficiario(
+      tpTitular,
+      nrTitular,
+      tpBenef,
+      nrBenef
+    ).subscribe({
+      next: () => {
+        this.beneficiarioSasService.getBeneficiarios(
+          tpTitular,
+          nrTitular
+        ).subscribe({
+          next: respuesta => {
+            if (
+              respuesta.codResultado !== '0'
+              || !Array.isArray(respuesta.beneficiarios)
+            ) {
+              bloquearPorIncertidumbre(
+                'No se pudo comprobar la baja. Recargue el tramite antes de reintentar.'
+              );
+              return;
+            }
+
+            const sigueEnSas = respuesta.beneficiarios.some(b => (
+              (b.tpDocumento || '').trim() + '|' +
+              (b.nroDocumento || '').trim()
+            ) === clave);
+
+            if (sigueEnSas) {
+              bloquearPorIncertidumbre(
+                'SAS todavia muestra al beneficiario. Recargue la lista antes de continuar.'
+              );
+              return;
+            }
+
+            this.beneficiariosOriginalesActualizacion =
+              this.beneficiariosOriginalesActualizacion.filter(
+                b => this.claveBeneficiarioActualizacion(b) !== clave
+              );
+
+            this.beneficiariosExistentesActualizacion =
+              this.beneficiariosExistentesActualizacion.filter(
+                k => k !== clave
+              );
+
+            this.actualizacionSasConfirmadaSesion = false;
+            this.eliminandoBeneficiarioSas = false;
+
+            quitarLocal();
+
+            this.mostrarAviso(
+              'La baja se registro en SAS. Complete la actualizacion documental para generar el nuevo 6012.',
+              'advertencia',
+              'Baja registrada'
+            );
+          },
+          error: () => bloquearPorIncertidumbre(
+            'La baja pudo ejecutarse, pero no pudo verificarse. Recargue antes de reintentar.'
+          )
+        });
+      },
+      error: () => bloquearPorIncertidumbre(
+        'No se confirmo la baja en SAS. Recargue la lista antes de reintentar.'
+      )
+    });
+  }
   private claveBeneficiarioActualizacion(
     beneficiario: Beneficiario
   ): string {
