@@ -2016,8 +2016,7 @@ export class VidaFormComponent
     }
 
     if (!window.confirm(
-      'La baja se registrara inmediatamente en SAS, antes de firmar ' +
-      'el nuevo Formulario 6012. ¿Desea continuar?'
+      'La baja de beneficiario se registrará. ¿Desea continuar?'
     )) {
       return;
     }
@@ -2029,7 +2028,7 @@ export class VidaFormComponent
       this.mostrarAviso(
         mensaje,
         'advertencia',
-        'Verifique el estado en SAS'
+        'Contactar a soporte GCTIC para confirmar el estado en la base de datos.'
       );
     };
 
@@ -2064,7 +2063,7 @@ export class VidaFormComponent
 
             if (sigueEnSas) {
               bloquearPorIncertidumbre(
-                'SAS todavia muestra al beneficiario. Recargue la lista antes de continuar.'
+                'La base de datos todavia muestra al beneficiario. Recargue la lista antes de continuar.'
               );
               return;
             }
@@ -2085,7 +2084,7 @@ export class VidaFormComponent
             quitarLocal();
 
             this.mostrarAviso(
-              'La baja se registro en SAS. Complete la actualizacion documental para generar el nuevo 6012.',
+              'La baja se registró. Complete la actualizacion documental para generar el nuevo 6012.',
               'advertencia',
               'Baja registrada'
             );
@@ -2096,7 +2095,7 @@ export class VidaFormComponent
         });
       },
       error: () => bloquearPorIncertidumbre(
-        'No se confirmo la baja en SAS. Recargue la lista antes de reintentar.'
+        'No se confirmo la baja. Recargue la lista antes de reintentar.'
       )
     });
   }
@@ -2250,7 +2249,7 @@ export class VidaFormComponent
           const registro = (proceso.registroInternoProceso || '').trim();
           if (!registro) {
             this.preparandoActualizacionDocumental = false;
-            this.mostrarAviso('El backend no devolvio un proceso documental.',
+            this.mostrarAviso('El sistema no devolvio un proceso documental.',
               'error', 'Proceso no disponible', true);
             return;
           }
@@ -2278,7 +2277,7 @@ export class VidaFormComponent
             next: guardado => {
               this.preparandoActualizacionDocumental = false;
               if (guardado.codigoEstadoNavegacion !== 'DOCUMENTOS') {
-                this.mostrarAviso('El backend no confirmo la etapa Documentos.',
+                this.mostrarAviso('El sistema no confirmo la etapa Documentos.',
                   'error', 'Transicion pendiente', true);
                 return;
               }
@@ -2309,7 +2308,7 @@ export class VidaFormComponent
 
     if (!registro) {
       this.mostrarAviso(
-        'El backend no devolvió el identificador del nuevo trámite de actualización.',
+        'El sistema no devolvió el identificador del nuevo trámite de actualización.',
         'error',
         'Proceso no confirmado',
         true

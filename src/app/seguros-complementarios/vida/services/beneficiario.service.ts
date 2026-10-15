@@ -62,7 +62,7 @@ deleteBeneficiario(
     .set('tpDocBenefic', tpDocBenefic)
     .set('numDocBenefic', numDocBenefic);
 
-  return this.http.delete<void>(url, { params });
+  return this.http.put<void>(url, null, { params });
 }
 
     
