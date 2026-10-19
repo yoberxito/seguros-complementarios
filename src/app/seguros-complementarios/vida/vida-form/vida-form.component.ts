@@ -8456,6 +8456,24 @@ export class VidaFormComponent
         next:
           respuesta => {
 
+            const codigoSas =
+              String(respuesta?.codResultado ?? '').trim();
+
+            if (codigoSas !== '0') {
+
+              const mensajeSas =
+                typeof respuesta?.message === 'string'
+                  ? respuesta.message.trim()
+                  : '';
+
+              fallarRegistroSas(
+                mensajeSas
+                || 'SAS no confirmo el registro de la afiliacion +Vida. Verifique el estado institucional antes de reintentar.'
+              );
+
+              return;
+            }
+
             this.registrandoSeguroSas =
               false;
 

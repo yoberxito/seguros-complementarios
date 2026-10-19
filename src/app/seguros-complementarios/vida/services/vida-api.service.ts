@@ -110,6 +110,11 @@ export interface RegistrarSeguroSasRequest {
   beneficiarios: RegistrarSeguroSasBeneficiarioRequest[];
 }
 
+export interface RegistrarSeguroSasResponse {
+  codResultado: string | null;
+  message: string | null;
+}
+
 export interface TipoAseguradoApi {
   codEmodalidadCobertura:
     string | null;
@@ -955,7 +960,7 @@ constructor(private http: HttpClient) {}
 
 registrarSeguroSas(
   payload: RegistrarSeguroSasRequest
-): Observable<string> {
+): Observable<RegistrarSeguroSasResponse> {
 
   const tpDocumento =
     (
@@ -1073,24 +1078,14 @@ registrarSeguroSas(
   );
 
   /*
-   * Yober aun no ha entregado el contrato
-   * formal de respuesta.
-   *
-   * Por ahora se considera correcta
-   * una respuesta HTTP 2xx.
-   *
-   * responseType text evita inventar
-   * un DTO de respuesta.
+   * Respuesta SAS observada en QA: codResultado y message.
+   * Un HTTP 2xx no implica por si solo exito de negocio.
    */
 
   return this.http
-    .post(
+    .post<RegistrarSeguroSasResponse>(
       `${this.baseUrl}/save-seg-complemnt`,
-      req,
-      {
-        responseType:
-          'text'
-      }
+      req
     )
     .pipe(
       catchError(
