@@ -7,29 +7,84 @@
   </div>
 
 
-  <!-- RESUMEN PRINCIPAL -->
+  <!-- CONFIRMACION UNICA Y DATOS DEL TRAMITE -->
 
-  <section class="finalizacion-resumen">
+  <section class="finalizacion-resumen finalizacion-resumen-unificado">
 
-    <div
-      class="finalizacion-resumen-icono"
-      aria-hidden="true">
-      &#10003;
+    <div class="finalizacion-resumen-encabezado">
+      <div class="finalizacion-resumen-icono" aria-hidden="true">
+        &#10003;
+      </div>
+
+      <div class="finalizacion-resumen-contenido">
+        <span class="finalizacion-resumen-etiqueta">
+          Documentación procesada
+        </span>
+
+        <h2>Trámite procesado correctamente</h2>
+
+        <p *ngIf="esSoloAutorizacion">
+          Se procesó la Autorización de Descuento por Planilla.
+        </p>
+
+        <p *ngIf="esFlujoCompleto">
+          Se procesaron la Autorización de Descuento por Planilla y el Formulario 6012.
+        </p>
+
+        <p *ngIf="esFormulario6012Posterior">
+          Se procesó el Formulario 6012.
+        </p>
+
+        <p *ngIf="!esSoloAutorizacion && !esFlujoCompleto && !esFormulario6012Posterior">
+          La documentación de su trámite +Vida fue procesada correctamente.
+        </p>
+
+        <p class="finalizacion-resumen-correo" *ngIf="esFormulario6012Posterior">
+          Su Formulario 6012 sellado ha sido enviado al correo electrónico registrado.
+        </p>
+      </div>
     </div>
 
-    <div class="finalizacion-resumen-contenido">
+    <div class="finalizacion-datos-integrados">
+      <div>
+        <span class="finalizacion-etiqueta">Código de solicitud</span>
+        <strong>{{ codigoSolicitud }}</strong>
+      </div>
 
-      <span class="finalizacion-resumen-etiqueta">
-        Documentación procesada
-      </span>
+      <div *ngIf="fechaRecepcionDocumentos">
+        <span class="finalizacion-etiqueta">Fecha de procesamiento</span>
+        <strong>{{ fechaRecepcionDocumentos }}</strong>
+      </div>
+    </div>
 
-      <h2>
-        Proceso realizado correctamente
-      </h2>
+  </section>
+
+
+  <!-- ACCION DEL TRABAJADOR: SOLO CUANDO SE PROCESO LA AUTORIZACION 247 -->
+
+  <section
+    class="finalizacion-aviso-rrhh"
+    *ngIf="esSoloAutorizacion || esFlujoCompleto"
+    aria-label="Presentación de autorización ante Recursos Humanos">
+
+    <div class="finalizacion-aviso-rrhh-icono" aria-hidden="true">
+      &#9432;
+    </div>
+
+    <div class="finalizacion-aviso-rrhh-contenido">
+      <h3>Acción necesaria: presentar autorización de descuento</h3>
 
       <p>
-        La documentación correspondiente fue
-        procesada y registrada correctamente.
+        Su <strong>Autorización de Descuento firmada y sellada</strong> ha sido
+        enviada al correo electrónico que registró durante su afiliación.
+        <strong>Descargue el documento y preséntelo</strong> ante la
+        <strong>Oficina de Recursos Humanos</strong> de la red asistencial
+        o dependencia a la que pertenece, para gestionar el descuento
+        por planilla del seguro +Vida.
+      </p>
+
+      <p class="finalizacion-aviso-rrhh-ayuda">
+        Si no encuentra el correo, revise también la carpeta de correo no deseado.
       </p>
 
     </div>
@@ -37,75 +92,9 @@
   </section>
 
 
-  <!-- DATOS DEL TRAMITE -->
-
-  <section class="finalizacion-datos">
-
-    <div>
-
-      <span class="finalizacion-etiqueta">
-        Código de solicitud
-      </span>
-
-      <strong>
-        {{ codigoSolicitud }}
-      </strong>
-
-    </div>
-
-
-    <div *ngIf="fechaRecepcionDocumentos">
-
-      <span class="finalizacion-etiqueta">
-        Fecha de procesamiento
-      </span>
-
-      <strong>
-        {{ fechaRecepcionDocumentos }}
-      </strong>
-
-    </div>
-
-  </section>
-
-
-  <!-- =====================================================
-       SOLO AUTORIZACION
-       ===================================================== -->
+  <!-- INVITACION EXISTENTE: SOLO AUTORIZACION 247 -->
 
   <ng-container *ngIf="esSoloAutorizacion">
-
-    <section class="finalizacion-resultado">
-
-      <div
-        class="finalizacion-resultado-icono"
-        aria-hidden="true">
-        &#10003;
-      </div>
-
-      <div>
-
-        <h3>
-          Afiliación +Vida registrada exitosamente
-        </h3>
-
-        <p>
-          Su Autorización de Descuento por Planilla
-          fue procesada correctamente y quedó
-          registrada para su remisión al área de
-          Personal/Planillas de EsSalud, donde se
-          gestionará el descuento mensual de la prima.
-        </p>
-
-      </div>
-
-    </section>
-
-
-    <!--
-      Se mantiene el mismo lenguaje visual y mensaje
-      recomendado que ya existia para beneficiarios.
-    -->
 
     <section
       class="invitacion-beneficiarios finalizacion-invitacion"
@@ -155,127 +144,6 @@
     </section>
 
   </ng-container>
-
-
-  <!-- =====================================================
-       FLUJO COMPLETO
-       ===================================================== -->
-
-  <ng-container *ngIf="esFlujoCompleto">
-
-    <section class="finalizacion-resultado">
-
-      <div
-        class="finalizacion-resultado-icono"
-        aria-hidden="true">
-        &#10003;
-      </div>
-
-      <div>
-
-        <h3>
-          Afiliación +Vida registrada exitosamente
-        </h3>
-
-        <p>
-          Su Autorización de Descuento por Planilla
-          fue procesada correctamente y quedó
-          registrada para su remisión al área de
-          Personal/Planillas de EsSalud.
-        </p>
-
-      </div>
-
-    </section>
-
-
-    <section class="finalizacion-resultado">
-
-      <div
-        class="finalizacion-resultado-icono"
-        aria-hidden="true">
-        &#10003;
-      </div>
-
-      <div>
-
-        <h3>
-          Registro de beneficiarios completado
-        </h3>
-
-        <p>
-          Sus beneficiarios fueron registrados
-          correctamente y el Formulario 6012 quedó
-          procesado para su remisión a MAPFRE.
-        </p>
-
-      </div>
-
-    </section>
-
-  </ng-container>
-
-
-  <!-- =====================================================
-       FORMULARIO 6012 POSTERIOR
-       ===================================================== -->
-
-  <ng-container *ngIf="esFormulario6012Posterior">
-
-    <section class="finalizacion-resultado">
-
-      <div
-        class="finalizacion-resultado-icono"
-        aria-hidden="true">
-        &#10003;
-      </div>
-
-      <div>
-
-        <h3>
-          Registro de beneficiarios completado
-        </h3>
-
-        <p>
-          Sus beneficiarios fueron registrados
-          correctamente y el Formulario 6012 quedó
-          procesado para su remisión a MAPFRE.
-        </p>
-
-      </div>
-
-    </section>
-
-  </ng-container>
-
-
-  <!-- FALLBACK DEFENSIVO -->
-
-  <section
-    class="finalizacion-resultado"
-    *ngIf="!esSoloAutorizacion && !esFlujoCompleto && !esFormulario6012Posterior">
-
-    <div
-      class="finalizacion-resultado-icono"
-      aria-hidden="true">
-      &#10003;
-    </div>
-
-    <div>
-
-      <h3>
-        Trámite procesado correctamente
-      </h3>
-
-      <p>
-        La documentación del trámite +Vida fue
-        procesada correctamente.
-      </p>
-
-    </div>
-
-  </section>
-
 
   <!-- BOTON FINAL -->
 

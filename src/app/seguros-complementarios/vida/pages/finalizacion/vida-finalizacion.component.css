@@ -258,3 +258,88 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* +Vida - cierre unificado. Estilos exclusivos del componente de Finalizacion. */
+.finalizacion-resumen-unificado {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 15px;
+}
+.finalizacion-resumen-encabezado {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.finalizacion-resumen-correo {
+  margin-top: 7px !important;
+  color: #536678 !important;
+  font-size: .88rem !important;
+}
+.finalizacion-datos-integrados {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-left: 58px;
+  padding-top: 14px;
+  border-top: 1px solid var(--borde);
+}
+.finalizacion-datos-integrados > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+}
+.finalizacion-datos-integrados strong {
+  color: #24384a;
+  font-size: .94rem;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+.finalizacion-aviso-rrhh {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 20px 22px;
+  background: var(--card);
+  border: 1px solid var(--borde);
+  border-left: 3px solid var(--azul-tinta);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+}
+.finalizacion-aviso-rrhh-icono {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  place-items: center;
+  color: var(--azul-tinta);
+  background: #f0f5f8;
+  border: 1px solid #c9d9e3;
+  border-radius: 50%;
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+.finalizacion-aviso-rrhh-contenido { min-width: 0; }
+.finalizacion-aviso-rrhh h3 {
+  margin: 0 0 8px;
+  color: var(--azul-tinta);
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 650;
+}
+.finalizacion-aviso-rrhh p {
+  margin: 0;
+  color: #405266;
+  font-size: .92rem;
+  line-height: 1.55;
+}
+.finalizacion-aviso-rrhh .finalizacion-aviso-rrhh-ayuda {
+  margin-top: 8px;
+  color: #536678;
+  font-size: .84rem;
+}
+@media (max-width: 640px) {
+  .finalizacion-resumen-encabezado { align-items: flex-start; gap: 12px; }
+  .finalizacion-datos-integrados { grid-template-columns: 1fr; margin-left: 0; }
+  .finalizacion-aviso-rrhh { padding: 18px; gap: 12px; }
+}
