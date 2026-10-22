@@ -20,7 +20,7 @@ import {
   Observable,
   of,
   Subscription,
-  tap
+  switchMap
 } from 'rxjs';
 import {
   VidaApiService,
@@ -1380,7 +1380,9 @@ export class VidaFormComponent
           * ya cuenta con +Vida Seguro de Accidentes.
           */
           this.validarSeguroComplementarioTitular()
-            .subscribe((tieneMasVida: boolean) => {
+            .subscribe((tieneMasVida: boolean | null) => {
+
+              if (tieneMasVida === null) { return; }
 
               if (tieneMasVida) {
                 console.log("tieneMasVida-return")
@@ -1773,76 +1775,61 @@ export class VidaFormComponent
       });
   }
 
-  validarSeguroComplementarioTitular(): Observable<boolean> {
-    const tipoDocumento = this.form.titular.tipoDocumento;
-    const numeroDocumento = this.form.titular.numeroDocumento;
-
+  validarSeguroComplementarioTitular(): Observable<boolean | null> {
+    const tipo = this.form.titular.tipoDocumento;
+    const numero = this.form.titular.numeroDocumento;
     this.seguroComplementarioValidado = false;
     this.titularTieneSeguroComplementario = false;
+    this.cuentaConMasVida = false;
     this.mensajeSeguroComplementario = '';
     this.errorValidacionSeguroComplementario = '';
 
-    return this.vidaApiService
-      .validarSeguroComplementario(tipoDocumento, numeroDocumento)
-      .pipe(
-        tap(respuesta => {
-          this.titularTieneSeguroComplementario =
-            respuesta.tieneSeguroVida;
-
+    return this.vidaApiService.validarSeguroComplementario(tipo, numero).pipe(
+      switchMap(respuesta => {
+        if (respuesta?.tieneSeguroVida === false) {
           this.seguroComplementarioValidado = true;
-
-          if (respuesta.tieneSeguroVida) {
-           
-
-            
-            if (respuesta.dataCronogramaMasVida.tieneBeneficiarios) {
-              this.cuentaConMasVida = true;
-              this.mensajeSeguroComplementario =
-              `El titular ya cuenta con +Vida Seguro de Accidentes registrado. 
-             No corresponde una nueva afiliación${respuesta.dataCronogramaMasVida?.tipoSeguro
-                ? ` (${respuesta.dataCronogramaMasVida.tipoSeguro}).`
-                : '.'
-              }`;
-
-              void this.router.navigate(
-                ['/valida-seguro-mas-vida'],
-                { replaceUrl: true }
-              );
-            } else {
-              this.cuentaConMasVida = false;
-            }
-
-
-          } else {
-            this.mensajeSeguroComplementario =
-              'El titular no cuenta con +Vida Seguro de Accidentes registrado. Puede continuar con la afiliación.';
-
-            this.mostrarAviso(
-              'Validación completada. Puede continuar con la afiliación.',
-              'exito',
-              '+Vida validado'
-            );
-          }
-        }),
-
-        map(respuesta => this.cuentaConMasVida),
-
-        catchError(() => {
-          this.seguroComplementarioValidado = false;
-
-          this.errorValidacionSeguroComplementario =
-            'No fue posible validar si el titular cuenta con +Vida Seguro de Accidentes.';
-
-          this.mostrarAviso(
-            'No fue posible validar +Vida para este documento.',
-            'error',
-            'Validación pendiente',
-            true
-          );
-
+          this.mensajeSeguroComplementario =
+            'El titular no cuenta con +Vida Seguro de Accidentes registrado. Puede continuar con la afiliación.';
+          this.mostrarAviso('Validación completada. Puede continuar con la afiliación.',
+            'exito', '+Vida validado');
           return of(false);
-        })
-      );
+        }
+        if (respuesta?.tieneSeguroVida !== true) {
+          throw new Error('SAS no confirmó el estado del seguro.');
+        }
+        this.titularTieneSeguroComplementario = true;
+        return this.beneficiarioSasService.getBeneficiarios(tipo, numero).pipe(
+          map(datos => {
+            const conLista = datos?.codResultado === '0' && Array.isArray(datos.beneficiarios);
+            const vacia = datos?.codResultado === '1' && datos.beneficiarios === null
+              && (datos.message || '').trim() === 'No cuenta con beneficiarios registrados';
+            if (!conLista && !vacia) throw new Error('SAS no confirmó la lista de beneficiarios.');
+            this.seguroComplementarioValidado = true;
+            this.cuentaConMasVida = conLista && datos.beneficiarios.length > 0;
+            if (this.cuentaConMasVida) {
+              this.mensajeSeguroComplementario =
+                'El titular ya cuenta con +Vida Seguro de Accidentes registrado. ' +
+                'No corresponde una nueva afiliación' +
+                (respuesta.dataCronogramaMasVida?.tipoSeguro
+                  ? ' (' + respuesta.dataCronogramaMasVida.tipoSeguro + ').' : '.');
+              void this.router.navigate(['/valida-seguro-mas-vida'], { replaceUrl: true });
+            } else {
+              this.mensajeSeguroComplementario =
+                'El titular ya tiene +Vida y puede registrar beneficiarios mediante el Formulario 6012.';
+            }
+            return this.cuentaConMasVida;
+          })
+        );
+      }),
+      catchError(error => {
+        console.error('No se pudo comprobar el estado +Vida:', error);
+        this.seguroComplementarioValidado = false;
+        this.errorValidacionSeguroComplementario =
+          'No fue posible verificar el seguro o sus beneficiarios. Comuníquese con GCTIC.';
+        this.mostrarAviso(this.errorValidacionSeguroComplementario, 'error', 'Validación pendiente', true);
+        return of(null);
+      })
+    );
   }
 
   get tituloFormulario(): string {
@@ -2775,7 +2762,9 @@ export class VidaFormComponent
             );
 
             this.validarSeguroComplementarioTitular()
-              .subscribe((tieneMasVida: boolean) => {
+              .subscribe((tieneMasVida: boolean | null) => {
+
+                if (tieneMasVida === null) { return; }
 
                 if (tieneMasVida) {
                   // Ya tiene +Vida. No continúa con la afiliación.
@@ -4451,7 +4440,8 @@ export class VidaFormComponent
   }
 
   guardarBeneficiariosYContinuar(
-    beneficiarios: Beneficiario[] = this.beneficiariosConDatos()
+    beneficiarios: Beneficiario[] = this.beneficiariosConDatos(),
+    confirmaNoGenerar6012: boolean = false
   ): void {
     const esFormulario6012Posterior =
       this.pendienteBeneficiariosPara6012;
@@ -4534,10 +4524,9 @@ export class VidaFormComponent
         }
       );
 
-    const payload:
-      GuardarBeneficiariosProgresoRequestLocal = {
-      beneficiarios:
-        beneficiariosPayload
+    const payload: GuardarBeneficiariosProgresoRequestLocal = {
+      beneficiarios: beneficiariosPayload,
+      confirmaNoGenerar6012: confirmaNoGenerar6012
     };
 
     this.guardandoBeneficiariosProgreso =
@@ -5186,7 +5175,8 @@ export class VidaFormComponent
      * No navegamos hasta que Oracle confirme.
      */
     this.guardarBeneficiariosYContinuar(
-      []
+      [],
+      true
     );
   }
 
@@ -8349,6 +8339,58 @@ export class VidaFormComponent
         };
     }
 
+    // Solo consultas de lectura tras el POST aceptado: nunca se repite el POST.
+    const verificarSas = (): void => {
+      if (this.registrandoSeguroSas) { return; }
+      this.registrandoSeguroSas = true;
+      const pendiente = (): void => fallarRegistroSas(
+        'SAS recibió el registro, pero no pudo verificarse. No repita la solicitud. ' +
+        'Comuníquese con GCTIC indicando el código ' + this.codigoSolicitud + '.'
+      );
+      const continuar = (): void => {
+        this.registrandoSeguroSas = false;
+        callbackContinuar();
+      };
+      this.vidaApiService.validarSeguroComplementario(tpDocumento, numeroDocumento)
+        .subscribe({
+          next: seguro => {
+            if (seguro?.tieneSeguroVida !== true) { pendiente(); return; }
+            if (flujo === 'soloAutorizacion') { continuar(); return; }
+            const esperados = new Map(beneficiarios.map(b => [
+              (b.tpDocumento || '').trim() + '|' + (b.nroDocumento || '').trim(),
+              Number(b.porcentaje)
+            ]));
+            const consultar = (intento: number): void => {
+              this.beneficiarioSasService.getBeneficiarios(tpDocumento, numeroDocumento)
+                .subscribe({
+                  next: r => {
+                    const lista = r?.beneficiarios;
+                    const claves = Array.isArray(lista) ? lista.map(b =>
+                      (b.tpDocumento || '').trim() + '|' + (b.nroDocumento || '').trim()
+                    ) : [];
+                    const coincide = r?.codResultado === '0' && Array.isArray(lista)
+                      && beneficiarios.length > 0 && lista.length === beneficiarios.length
+                      && esperados.size === beneficiarios.length
+                      && new Set(claves).size === claves.length
+                      && claves.every((clave, i) => esperados.has(clave)
+                        && Number.isFinite(Number(lista[i].porcentaje))
+                        && Math.abs(Number(lista[i].porcentaje) - esperados.get(clave)!) < 0.000001);
+                    if (coincide) { continuar(); return; }
+                    if (intento < 2) { setTimeout(() => consultar(intento + 1), 1200); return; }
+                    pendiente();
+                  },
+                  error: () => {
+                    if (intento < 2) { setTimeout(() => consultar(intento + 1), 1200); return; }
+                    pendiente();
+                  }
+                });
+            };
+            consultar(1);
+          },
+          error: pendiente
+        });
+    };
+
     /*
      * Si SAS funciono y solamente fallo
      * el correo posteriormente,
@@ -8369,7 +8411,7 @@ export class VidaFormComponent
         }
       );
 
-      callbackContinuar();
+      verificarSas();
       return;
     }
 
@@ -8491,13 +8533,7 @@ export class VidaFormComponent
               }
             );
 
-            /*
-             * SAS OK
-             * -> continuar correo
-             * -> finalizacion
-             */
-
-            callbackContinuar();
+            verificarSas();
           },
 
         error:
@@ -9133,6 +9169,21 @@ export class VidaFormComponent
 
     this.actualizandoSasBeneficiarios = true;
 
+    const finalizarTrasValSeg = (): void => {
+      this.vidaApiService.validarSeguroComplementario(tpTitular, nrTitular).subscribe({
+        next: seguro => {
+          if (seguro?.tieneSeguroVida !== true) {
+            rechazar('SAS no confirmó el seguro +Vida. Comuníquese con GCTIC.');
+            return;
+          }
+          this.actualizandoSasBeneficiarios = false;
+          this.actualizacionSasConfirmadaSesion = true;
+          callbackContinuar();
+        },
+        error: () => rechazar('No se pudo verificar el seguro +Vida. Comuníquese con GCTIC.')
+      });
+    };
+
     const verificarFinal = (): void => {
       this.beneficiarioSasService.getBeneficiarios(tpTitular, nrTitular)
         .subscribe({
@@ -9145,9 +9196,7 @@ export class VidaFormComponent
               rechazar('SAS no refleja exactamente el nuevo 6012. No se publicara en Drive.');
               return;
             }
-            this.actualizandoSasBeneficiarios = false;
-            this.actualizacionSasConfirmadaSesion = true;
-            callbackContinuar();
+            finalizarTrasValSeg();
           },
           error: () => rechazar('No se pudo confirmar el resultado en SAS. Drive pendiente.')
         });
@@ -9234,9 +9283,7 @@ export class VidaFormComponent
             return;
           }
           if (mismaComposicion(vigente, propuestos)) {
-            this.actualizandoSasBeneficiarios = false;
-            this.actualizacionSasConfirmadaSesion = true;
-            callbackContinuar();
+            finalizarTrasValSeg();
             return;
           }
           // Reanudacion despues de PUT o de una parte de las bajas.
