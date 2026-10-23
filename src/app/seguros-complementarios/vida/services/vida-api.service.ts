@@ -477,7 +477,6 @@ export interface BeneficiarioProgresoRequestLocal {
 
 export interface GuardarBeneficiariosProgresoRequestLocal {
   beneficiarios: BeneficiarioProgresoRequestLocal[];
-  confirmaNoGenerar6012?: boolean;
 }
 
 export interface BeneficiarioBorradorRequestLocal {
