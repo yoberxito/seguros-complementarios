@@ -183,6 +183,8 @@ export type IdTipoDocumentoDrive =
 export interface ArchivoDriveResponse {
   nombreArchivo: string;
   rutaArchivo: string;
+  // Presente para 6012 (244), opcional por compatibilidad QA/247.
+  fileId?: string | null;
 }
 
 export interface SubirDocumentoDriveResponse {
@@ -190,6 +192,15 @@ export interface SubirDocumentoDriveResponse {
   flagResultado: string;
   mensaje: string;
 }
+export interface ResultadoReserva6012 {
+  reservado: boolean;
+  mensaje: string;
+}
+
+export interface ResultadoLiberacion6012 {
+  liberado: boolean;
+}
+
 export interface ConfirmarPublicacionDriveResponse {
   codResultado: string;
   mensaje: string;
@@ -1386,12 +1397,35 @@ confirmarPublicacionDrive(
       })
     );
 }
+estaVersionado6012Activado(): boolean {
+  return (environment as typeof environment & { plusvida6012V2?: boolean }).plusvida6012V2 === true;
+}
+
+reservarActualizacion6012AntesDeSas(
+  registroInternoProceso: string,
+  tipoDocumento: string,
+  numeroDocumento: string
+): Observable<ResultadoReserva6012> {
+  return this.http.post<ResultadoReserva6012>(
+    `${this.baseUrlSeguros}/version6012/reservar-antes-sas`,
+    { registroInternoProceso, tipoDocumento, numeroDocumento }
+  );
+}
+
+liberarReserva6012SiPublicado(registroInternoProceso: string): Observable<ResultadoLiberacion6012> {
+  return this.http.post<ResultadoLiberacion6012>(
+    `${this.baseUrlSeguros}/version6012/liberar-si-publicado`,
+    { registroInternoProceso }
+  );
+}
+
 subirDocumentoDrive(
   archivo: Blob,
   nombreArchivo: string,
   idTpDoc: IdTipoDocumentoDrive,
   tpDocument: string,
-  numDocument: string
+  numDocument: string,
+  registroInternoProceso?: string
 ): Observable<SubirDocumentoDriveResponse> {
 
   const nombre =
@@ -1459,8 +1493,21 @@ subirDocumentoDrive(
     numeroDocumento
   );
 
+  // Solo 244: integracion idempotente preparada, apagada por defecto.
+  // No toca SOMOS ni el endpoint legacy del 247.
+  const activar6012V2 =
+    (environment as typeof environment & { plusvida6012V2?: boolean }).plusvida6012V2 === true;
+  const usar6012V2 = idTpDoc === '244' && activar6012V2;
+  if (usar6012V2) {
+    const proceso = (registroInternoProceso || '').trim();
+    if (!proceso) {
+      return throwError(() => new Error('Falta registro interno del 6012 para subida recuperable.'));
+    }
+    formData.append('registroInternoProceso', proceso);
+  }
+
   const url =
-    `${this.baseUrlSeguros}/google-drive/upload`;
+    `${this.baseUrlSeguros}/google-drive/${usar6012V2 ? 'upload-6012-v2' : 'upload'}`;
 
   return this.http
     .post<SubirDocumentoDriveResponse>(
@@ -2086,7 +2133,8 @@ guardarConyugeProgreso(
 
 guardarBeneficiariosProgreso(
   registroInternoProceso: string,
-  payload: GuardarBeneficiariosProgresoRequestLocal
+  payload: GuardarBeneficiariosProgresoRequestLocal,
+  decisionSolo247Expresa = false
 ): Observable<GuardarProgresoVidaResponseLocal> {
 
   const registro =
@@ -2108,7 +2156,11 @@ guardarBeneficiariosProgreso(
       + `/procesos/progreso/`
       + `${encodeURIComponent(registro)}`
       + `/beneficiarios`,
-      payload
+      payload,
+      (decisionSolo247Expresa
+        && (environment as typeof environment & { plusvidaAuditoriaSolo247?: boolean }).plusvidaAuditoriaSolo247 === true)
+        ? { headers: { 'X-Plusvida-Decision-Solo247': 'confirmada' } }
+        : {}
     )
     .pipe(
       map(respuesta => {

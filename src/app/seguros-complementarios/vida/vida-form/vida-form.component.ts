@@ -4451,7 +4451,8 @@ export class VidaFormComponent
   }
 
   guardarBeneficiariosYContinuar(
-    beneficiarios: Beneficiario[] = this.beneficiariosConDatos()
+    beneficiarios: Beneficiario[] = this.beneficiariosConDatos(),
+    decisionSolo247Expresa = false
   ): void {
     const esFormulario6012Posterior =
       this.pendienteBeneficiariosPara6012;
@@ -4543,20 +4544,17 @@ export class VidaFormComponent
     this.guardandoBeneficiariosProgreso =
       true;
 
+    // No imprimir el payload: contiene datos personales de beneficiarios.
     console.log(
       'Guardando progreso de beneficiarios:',
-      {
-        registroInternoProceso,
-        cantidadBeneficiarios:
-          beneficiariosPayload.length,
-        payload
-      }
+      { cantidadBeneficiarios: beneficiariosPayload.length }
     );
 
     this.vidaApiService
       .guardarBeneficiariosProgreso(
         registroInternoProceso,
-        payload
+        payload,
+        decisionSolo247Expresa
       )
       .subscribe({
         next: (
@@ -5186,7 +5184,8 @@ export class VidaFormComponent
      * No navegamos hasta que Oracle confirme.
      */
     this.guardarBeneficiariosYContinuar(
-      []
+      [],
+      true // Solo desde el modal de confirmacion expresa.
     );
   }
 
@@ -8885,6 +8884,34 @@ export class VidaFormComponent
       });
   }
 
+  /**
+   * El endpoint NO publica documentos: solo libera una reserva si Oracle
+   * YA tiene estado PUBLICADO confirmado por Yober.
+   * Si falla, no se retrocede la publicacion ni se repite Drive;
+   * al iniciar otro tramite se intentara conciliar la reserva publicada.
+   */
+  private liberarReserva6012TrasPublicarSiAplica(
+    esFormulario6012: boolean, continuar: () => void
+  ): void {
+    if (!esFormulario6012 || !this.vidaApiService.estaVersionado6012Activado()) {
+      continuar();
+      return;
+    }
+    this.vidaApiService.liberarReserva6012SiPublicado(this.codigoSolicitud.trim())
+      .subscribe({
+        next: resultado => {
+          if (!resultado.liberado) {
+            console.warn('6012 publicado pero reserva aun pendiente de conciliacion Oracle.');
+          }
+          continuar();
+        },
+        error: error => {
+          console.warn('No se pudo liberar reserva; se mantiene el PDF publicado.', error);
+          continuar();
+        }
+      });
+  }
+
   private confirmarPublicacionDriveDesdeServicio(
     tipoDocumento: TipoDocumentoFirmado,
     archivoSellado: Blob,
@@ -8996,12 +9023,14 @@ export class VidaFormComponent
             }
           );
 
-          this.registrarSeguroSasSiCorresponde(
-            () =>
-              this.enviarCorreoExitoSiCorresponde(
-                callbackExito
-              ),
-            callbackError
+          this.liberarReserva6012TrasPublicarSiAplica(esFormulario6012, () =>
+            this.registrarSeguroSasSiCorresponde(
+              () =>
+                this.enviarCorreoExitoSiCorresponde(
+                  callbackExito
+                ),
+              callbackError
+            )
           );
         },
 
@@ -9275,12 +9304,40 @@ export class VidaFormComponent
         return;
       }
       if (!this.actualizacionSasConfirmadaSesion) {
-        this.confirmarBeneficiariosSasAntesDeDrive(
-          () => this.subirDocumentoSelladoDriveDesdeServicio(
-            tipoDocumento, callbackExito, callbackError
-          ),
-          callbackError
-        );
+        const continuarSas = (): void =>
+          this.confirmarBeneficiariosSasAntesDeDrive(
+            () => this.subirDocumentoSelladoDriveDesdeServicio(
+              tipoDocumento, callbackExito, callbackError
+            ),
+            callbackError
+          );
+
+        // SOLO ruta V2 activada: reserva ORACLE antes de cualquier PUT/DELETE SAS.
+        if (this.vidaApiService.estaVersionado6012Activado()) {
+          this.vidaApiService.reservarActualizacion6012AntesDeSas(
+            this.codigoSolicitud.trim(),
+            (this.form.titular.tipoDocumento || '').trim(),
+            (this.form.titular.numeroDocumento || '').trim()
+          ).subscribe({
+            next: respuesta => {
+              if (!respuesta.reservado) {
+                this.mensajeErrorCierre = respuesta.mensaje ||
+                  'Hay otro tramite de actualizacion pendiente para este titular.';
+                callbackError();
+                return;
+              }
+              continuarSas();
+            },
+            error: () => {
+              this.mensajeErrorCierre =
+                'No se pudo reservar el tramite 6012 antes de SAS. No se modificaron beneficiarios.';
+              callbackError();
+            }
+          });
+          return;
+        }
+        // Legacy intacto: no modifica comportamiento mientras el feature flag esta apagado.
+        continuarSas();
         return;
       }
     }
@@ -9327,12 +9384,14 @@ export class VidaFormComponent
 
     if (publicacionConfirmada) {
 
-      this.registrarSeguroSasSiCorresponde(
-        () =>
-          this.enviarCorreoExitoSiCorresponde(
-            callbackExito
-          ),
-        callbackError
+      this.liberarReserva6012TrasPublicarSiAplica(esFormulario6012, () =>
+        this.registrarSeguroSasSiCorresponde(
+          () =>
+            this.enviarCorreoExitoSiCorresponde(
+              callbackExito
+            ),
+          callbackError
+        )
       );
 
       return;
@@ -9414,7 +9473,8 @@ export class VidaFormComponent
         nombreArchivoSellado,
         idTpDocDrive,
         this.form.titular.tipoDocumento,
-        this.form.titular.numeroDocumento
+        this.form.titular.numeroDocumento,
+        esFormulario6012 ? this.codigoSolicitud.trim() : undefined
       )
       .subscribe({
 
