@@ -26,6 +26,12 @@ export class AccesoIntegracionComponent {
 
     this.integracionService.validarToken(token).subscribe({
       next: datos => {
+        if (String(datos.codigoRed || '').trim() !== '100') {
+          this.integracionService.limpiarContexto();
+          this.mensaje = '¡Muy pronto para todas las sedes! Afiliación Digital +Vida está disponible inicialmente para Sede Central.';
+          return;
+        }
+
         this.integracionService.guardarContexto(datos);
 
         this.router.navigate(

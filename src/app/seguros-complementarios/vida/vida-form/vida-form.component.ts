@@ -134,6 +134,9 @@ import { ContextoUsuario } from '../../integracion/models/IntegracionModels';
 export class VidaFormComponent
   implements OnDestroy {
 
+  // Marcha blanca: no registrar la afiliacion en SAS oficial.
+  readonly marchaBlancaSas = true;
+
   private suscripcionRuta:
     Subscription | null = null;
   private aplicandoRecuperacionVisual =
@@ -1992,6 +1995,12 @@ export class VidaFormComponent
       return;
     }
 
+    // Marcha blanca: quitar de la propuesta, no del SAS institucional.
+    if (this.marchaBlancaSas) {
+      quitarLocal();
+      return;
+    }
+
     if (
       this.eliminandoBeneficiarioSas
       || this.actualizandoSasBeneficiarios
@@ -3422,8 +3431,8 @@ export class VidaFormComponent
     }
 
     if (
-      tipo ===
-      'FORMULARIO_6012_POSTERIOR'
+      tipo === 'FORMULARIO_6012_POSTERIOR'
+      || tipo === 'ACTUALIZACION_BENEFICIARIOS'
     ) {
       return 'soloFormulario6012';
     }
@@ -3445,6 +3454,10 @@ export class VidaFormComponent
       this.mapearTipoFlujoRecuperado(
         recupero.tipoFlujo
       );
+    // Mantener la modalidad de actualizacion al reanudar un tramite Oracle.
+    this.modoActualizacionBeneficiarios =
+      (recupero.tipoFlujo || '').trim().toUpperCase() ===
+      'ACTUALIZACION_BENEFICIARIOS';
 
     /*
      * Partimos de un estado visual limpio,
@@ -7977,6 +7990,11 @@ export class VidaFormComponent
       return;
     }
 
+    if (this.marchaBlancaSas) {
+      callbackContinuar();
+      return;
+    }
+
     const flujo =
       this.tipoGeneracionDocumentos;
 
@@ -9096,6 +9114,13 @@ export class VidaFormComponent
       rechazar('No se pudo identificar al titular ante SAS.');
       return;
     }
+
+    // Marcha blanca: comprobaciones documentales OK; sin escrituras SAS.
+    if (this.marchaBlancaSas) {
+      callbackContinuar();
+      return;
+    }
+
     const convertir = (b: Beneficiario): Beneficiarios => ({
       tpDocumento: (b.tipoDocumento || '').trim(),
       nroDocumento: (b.numeroDocumento || '').trim(),
@@ -9294,7 +9319,8 @@ export class VidaFormComponent
   subirDocumentoSelladoDriveDesdeServicio(
     tipoDocumento: TipoDocumentoFirmado,
     callbackExito: () => void,
-    callbackError: () => void
+    callbackError: () => void,
+    omisionSasMarchaBlancaConfirmada = false
   ): void {
     if (this.modoActualizacionBeneficiarios) {
       if (tipoDocumento !== 'formulario6012') {
@@ -9303,11 +9329,12 @@ export class VidaFormComponent
         callbackError();
         return;
       }
-      if (!this.actualizacionSasConfirmadaSesion) {
+      if (!this.actualizacionSasConfirmadaSesion &&
+          !(this.marchaBlancaSas && omisionSasMarchaBlancaConfirmada)) {
         const continuarSas = (): void =>
           this.confirmarBeneficiariosSasAntesDeDrive(
             () => this.subirDocumentoSelladoDriveDesdeServicio(
-              tipoDocumento, callbackExito, callbackError
+              tipoDocumento, callbackExito, callbackError, this.marchaBlancaSas
             ),
             callbackError
           );
