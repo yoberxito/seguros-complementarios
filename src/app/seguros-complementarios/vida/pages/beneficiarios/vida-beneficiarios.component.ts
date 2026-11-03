@@ -18,7 +18,6 @@ import {
   TipoDocumento
 } from '../../models/vida-form.models';
 import { BeneficiarioService } from '../../services/beneficiario.service';
-import { VidaApiService } from '../../services/vida-api.service';
 import { IntegracionService } from 'src/app/seguros-complementarios/integracion/services/IntegracionService';
 import { BenfMasVIdaRes } from '../../models/beneficiarios';
 
@@ -58,7 +57,6 @@ export class VidaBeneficiariosComponent {
 
   @Input()
   modoActualizacionBeneficiarios = false;
-  @Input() usarBeneficiariosOracleMarchaBlanca = false;
 
 
   beneficiariosExistentesActualizacion: string[] = [];
@@ -114,7 +112,6 @@ listaActualizacionCargada =
 
   private readonly integracionService =
     inject(IntegracionService);
-  private readonly vidaApiService = inject(VidaApiService);
 
   constructor(
     private beneficiarioService: BeneficiarioService
@@ -134,41 +131,6 @@ listaActualizacionCargada =
     return;
   }
 
-   if (this.usarBeneficiariosOracleMarchaBlanca) {
-     this.vidaApiService.recuperarUltimo6012Publicado(
-       contexto.tipoDocumento, contexto.numeroDocumento
-     ).subscribe({
-       next: recupero => {
-         const lista = recupero.formularioVida?.beneficiarios || [];
-         if (lista.length === 0) {
-           this.errorActualizacionBeneficiarios =
-             'No existe una lista publicada de beneficiarios para actualizar.';
-           return;
-         }
-         this.form.beneficiarios = lista.map(b => ({
-           tipoDocumento: b.tipoDocumento || '01',
-           otroTipoDocumento: b.descripcionOtroDocumento || undefined,
-           numeroDocumento: b.numeroDocumento || '',
-           apellidoPaterno: b.apellidoPaterno || '',
-           apellidoMaterno: b.apellidoMaterno || '',
-           primerNombre: b.primerNombre || '',
-           segundoNombre: b.segundoNombre || '',
-           porcentaje: String(b.porcentaje ?? '')
-         }));
-         this.beneficiariosExistentesActualizacion =
-           this.form.beneficiarios.map(b => this.claveBeneficiario(b));
-         this.actualizacionBeneficiariosListaCargada.set(true);
-         this.listaActualizacionCargada.emit(
-           this.form.beneficiarios.map(b => ({ ...b }))
-         );
-       },
-       error: () => {
-         this.errorActualizacionBeneficiarios =
-           'No se pudo recuperar el ultimo 6012 publicado desde Oracle. No se consultara SAS como alternativa.';
-       }
-     });
-     return;
-   }
   this.beneficiarioService.getBeneficiarios(
     contexto.tipoDocumento,
     contexto.numeroDocumento

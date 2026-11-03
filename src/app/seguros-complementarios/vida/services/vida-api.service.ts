@@ -1724,24 +1724,6 @@ iniciarActualizacionBeneficiarios(
 }
 
 
-recuperarUltimo6012Publicado(
-  tipoDocumento: string,
-  numeroDocumento: string
-): Observable<RecuperarAvanceProcesoResponseLocal> {
-  const url = `${this.baseUrl}/procesos/avance/trabajador/`
-    + `${encodeURIComponent(tipoDocumento.trim())}/`
-    + `${encodeURIComponent(numeroDocumento.trim())}/ultimo-6012-publicado`;
-  return this.http.get<ApiResponseLocal<RecuperarAvanceProcesoResponseLocal>>(url)
-    .pipe(
-      map(respuesta => {
-        if (String(respuesta.codResultado).trim() !== '1'
-            || !respuesta.body || respuesta.body.procesoEncontrado !== true) {
-          throw new Error(respuesta.mensaje || 'No fue posible recuperar el 6012 publicado.');
-        }
-        return respuesta.body;
-      })
-    );
-}
 recuperarAvanceProceso(
   registroInternoProceso: string
 ): Observable<RecuperarAvanceProcesoResponseLocal> {
