@@ -23,3 +23,18 @@
     transform: rotate(360deg);
   }
 }
+.acceso-integracion h1 {
+  margin: 0;
+  padding: 0 20px;
+  font-size: 1.5rem;
+  line-height: 1.4;
+  font-weight: 600;
+  color: #333;
+}
+
+.acceso-integracion p {
+  max-width: 580px;
+  padding: 0 24px;
+  line-height: 1.6;
+  margin: 0;
+}

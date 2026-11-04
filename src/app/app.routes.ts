@@ -11,6 +11,8 @@ import {
 } from './seguros-complementarios/entregas/pages/entrega-publica/entrega-publica.component';
 import { AccesoIntegracionComponent } from './seguros-complementarios/integracion/pages/acceso-integracion/acceso-integracion.component';
 import { VidaAfiliacionExistenteComponent } from './seguros-complementarios/vida/vida-afiliacion-existente/vida-afiliacion-existente.component';
+import { vidaAccesoPilotoGuard } from './seguros-complementarios/vida/marcha-blanca/vida-acceso-piloto.guard';
+import { VidaAccesoPilotoInfoComponent } from './seguros-complementarios/vida/marcha-blanca/vida-acceso-piloto-info.component';
 
 
 export const routes: Routes = [
@@ -26,13 +28,25 @@ export const routes: Routes = [
   },
     {
     path: 'valida-seguro-mas-vida',
-    component: VidaAfiliacionExistenteComponent
+    component: VidaAfiliacionExistenteComponent,
+    canActivate: [vidaAccesoPilotoGuard]
   },
 
 
   {
+    path: 'vida/proximamente',
+    component: VidaAccesoPilotoInfoComponent,
+    data: { motivo: 'RED_NO_HABILITADA' }
+  },
+  {
+    path: 'vida/acceso-requerido',
+    component: VidaAccesoPilotoInfoComponent,
+    data: { motivo: 'SIN_CONTEXTO' }
+  },
+  {
     path: 'vida/:paso',
-    component: VidaFormComponent
+    component: VidaFormComponent,
+    canActivate: [vidaAccesoPilotoGuard]
   },
 
   {

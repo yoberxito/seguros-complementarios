@@ -1,5 +1,5 @@
-<div class="acceso-integracion">
-  <div class="spinner"></div>
-
+<div class="acceso-integracion" aria-live="polite">
+  <div *ngIf="cargando" class="spinner" role="status" aria-label="Validando acceso"></div>
+  <h1 *ngIf="!cargando && accesoNoHabilitado">+Vida estará disponible próximamente</h1>
   <p>{{ mensaje }}</p>
 </div>
